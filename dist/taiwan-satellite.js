@@ -38,6 +38,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
           texture.colorSpace=THREE.SRGBColorSpace;
           texture.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
           tile.texture?.dispose();
+          tile.loadedVariant=variant;
           tile.texture=tile.image.value=texture;
           tile.ready.value=1;
           onLoaded();
@@ -81,7 +82,9 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
         tile.material=makeMaterial(tile);
         tiles.set(key,tile);
       }
-      const variant=distance>2?null:index<highTiles&&renderer.capabilities.maxTextureSize>=1152?'high':'low';
+      // Keep a low-resolution middle ring between the local imagery and island atlas.
+      const imageryRadiusSquared=quality==='ultra'?13:quality==='high'?8:2;
+      const variant=distance>imageryRadiusSquared?null:index<highTiles&&renderer.capabilities.maxTextureSize>=1152?'high':'low';
       if(tile.variant!==variant){
         tile.variant=variant;
         if(variant) queue.push([tile,variant]);
@@ -91,7 +94,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
           tile.texture=null;
           tile.image.value=null;
         }
-      }else if(variant&&!tile.texture&&!tile.loading) queue.push([tile,variant]);
+      }else if(variant&&(!tile.texture||tile.loadedVariant!==variant)&&!tile.loading) queue.push([tile,variant]);
     });
     process();
   }

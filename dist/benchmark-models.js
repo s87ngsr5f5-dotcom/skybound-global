@@ -621,10 +621,11 @@ function buildBenchmarkAirframe(profile,scene){
     const width=fighter?.21:radius<1.5?.22:.34;
     if(!tireShapes.has(size)){
       const shoulder=[
-        [.53,-.50],[.82,-.50],[.93,-.44],[.99,-.31],[1,-.17],[1,.17],[.99,.31],
+        [.53,-.50],[.82,-.50],[.93,-.44],[.99,-.31],[1,-.24],[1,-.205],[.98,-.195],[.98,-.16],[1,-.15],
+        [1,-.026],[.98,-.018],[.98,.018],[1,.026],[1,.15],[.98,.16],[.98,.195],[1,.205],[1,.24],[.99,.31],
         [.93,.44],[.82,.50],[.53,.50]
       ].map(([r,y])=>new THREE.Vector2(r*size,y*width));
-      tireShapes.set(size,new THREE.LatheGeometry(shoulder,28));
+      tireShapes.set(size,new THREE.LatheGeometry(shoulder,48));
     }
     const strut=size*(x===0?.27:.36),height=profile.gearHeight;
     mesh(gear,new THREE.CylinderGeometry(strut,strut*1.16,height*.59,12),metal,x,-height*.32,z);
@@ -643,7 +644,7 @@ function buildBenchmarkAirframe(profile,scene){
         wheel.rotation.z=Math.PI/2;wheels.push(wheel);
         for(const sign of [-1,1]){
           mesh(wheel,new THREE.CylinderGeometry(size*.56,size*.56,.029,20),metal,0,sign*width*.48,0);
-          mesh(wheel,new THREE.CylinderGeometry(size*.21,size*.21,.04,12),dark,0,sign*(fighter?.13:.20),0);
+          mesh(wheel,new THREE.CylinderGeometry(size*.21,size*.21,.04,12),dark,0,sign*(width*.48+.023),0);
         }
       }
     }
