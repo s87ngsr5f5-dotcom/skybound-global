@@ -208,6 +208,17 @@
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geo.setIndex(indices);
     geo.computeVertexNormals();
+    // Both ends of each UV ring share a surface normal at the texture join.
+    const normals = geo.getAttribute('normal');
+    const joined = new THREE.Vector3(), other = new THREE.Vector3();
+    for (let ring = 0; ring < sections.length; ring++) {
+      const first = ring * ringCount, last = first + radial;
+      joined.fromBufferAttribute(normals, first);
+      other.fromBufferAttribute(normals, last);
+      joined.add(other).normalize();
+      normals.setXYZ(first, joined.x, joined.y, joined.z);
+      normals.setXYZ(last, joined.x, joined.y, joined.z);
+    }
     return geo;
   }
 

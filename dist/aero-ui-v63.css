@@ -1900,3 +1900,8 @@ body.flight-ui.cockpit-active #glassReadouts {pointer-events:none;width:94%;heig
   .hangar-home {min-height:190px}
   .hangar-home .dispatch-brief {margin:6px;padding:7px}
 }
+
+#storyDebrief { grid-template-rows:minmax(0,1fr); touch-action:pan-y; padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); }
+#storyDebrief .debrief-box {min-height:0;max-height:100%;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;scrollbar-gutter:stable}
+#storyDebrief .debrief-banner {max-height:24vh}
+#landingCard,#tacticalReport {box-sizing:border-box;max-height:80vh;max-height:80dvh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}

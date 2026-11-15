@@ -1348,6 +1348,7 @@
             <li><button type="button" class="hub-menu-btn" data-hub-tab="tactical"><div class="hub-menu-btn-main"><span>戰術訓練</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="freeflight"><div class="hub-menu-btn-main"><span>自由飛行與機庫</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="scenery"><div class="hub-menu-btn-main"><span>地景與勳章</span></div></button></li>
+            <li id="supportDevelopment" hidden><a class="hub-menu-btn" target="_blank" rel="noopener noreferrer">支持開發</a></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="settings"><div class="hub-menu-btn-main"><span>設定</span></div></button></li>
           </ul>
         </div>
@@ -1371,7 +1372,7 @@
     const debrief = document.createElement('div');
     debrief.id = 'storyDebrief';
     debrief.hidden = true;
-    debrief.innerHTML = `<div class="debrief-box"><img class="debrief-banner" id="storyDebriefImg" alt="任務圖卡"><div class="debrief-body"><h2 id="storyDebriefTitle"></h2><div id="storyDebriefStars" class="debrief-stars"></div><p id="storyDebriefText"></p><ul id="storyDebriefBreakdown" class="debrief-breakdown"></ul><div id="storyDebriefRewards" class="debrief-rewards"></div><div class="debrief-actions" id="storyDebriefActions"></div></div></div>`;
+    debrief.innerHTML = `<div class="debrief-box" tabindex="0" role="region" aria-labelledby="storyDebriefTitle"><img class="debrief-banner" id="storyDebriefImg" alt="任務圖卡"><div class="debrief-body"><h2 id="storyDebriefTitle"></h2><div id="storyDebriefStars" class="debrief-stars"></div><p id="storyDebriefText"></p><ul id="storyDebriefBreakdown" class="debrief-breakdown"></ul><div id="storyDebriefRewards" class="debrief-rewards"></div><div class="debrief-actions" id="storyDebriefActions"></div></div></div>`;
     document.body.appendChild(debrief);
 
     hub.addEventListener('click', e => {
@@ -2472,6 +2473,9 @@
     actions.appendChild(hubBtn);
 
     modal.hidden = false;
+    window.dispatchEvent(new Event('skybound:debrief'));
+    const panel = modal.querySelector('.debrief-box');
+    if (panel) { panel.scrollTop = 0; panel.focus({preventScroll:true}); }
   }
 
   function launchMission(ch) {
