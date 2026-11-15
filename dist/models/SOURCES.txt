@@ -5,7 +5,7 @@ The author describes this as an original F-15 style model. It is not an official
 The game uses an approximate independent flight configuration and its existing fighter cockpit.
 GLTFLoader and BufferGeometryUtils are from Three.js r160, MIT license, covered by ../THREE-LICENSE.txt.
 
-Airbus A220-300 and A380-800, Boeing 777-300ER, Cessna 172P, Diamond DA42
+Airbus A220-300 and A380-800, Cessna 172P, Diamond DA42
 Source https://github.com/stagworksde/skytrails-aircraft-models/releases/tag/v0.1.0
 FlightGear contributors and Skytrails. GPL-2.0-only. The original authors
 and conversion notices are included in each unmodified GLB and in the source archive.
@@ -13,14 +13,27 @@ Corresponding source: skytrails-source.zip. License: SKYTRAILS-COPYING.txt.
 The game positions these low-poly traffic exteriors at runtime and uses its
 own cockpit and landing gear. The C172P exterior represents the SB-172 family.
 
-Boeing 747-400 / 747-8F and Antonov An-124-100
-Original in-game geometry and livery. Reference dimensions and configuration:
-https://www.boeing.com/content/dam/boeing/v2/airports/acaps/747-400_Rev_F.pdf
-https://www.boeing.com/commercial/airports/plan-manuals
-https://www.antonov.com/en/history/an-124-ruslan
-https://antonov-airlines.aero/methods/optg120
-Model references are not redistributed. Handling, cockpit panels, and loading
-animations use simplified simulator implementations.
+Boeing 777-300ER (b773 High-Fidelity Reference Airframe)
+Replaced the legacy low-poly Skytrails ac_b77w external traffic GLB with an
+in-game procedural reference airframe, 3-4-3 widebody cabin, articulated 6-wheel
+bogie landing gear, GE90-115B translating reversers, and 6-LCD flight deck in
+dist/b773-highdef.js (original simulator code, MIT/repo license; axes +X right,
++Y up, -Z forward; units in meters). Reference aircraft dimensions: Boeing 777-200LR/
+-300ER Airport Planning Manual (ACAP, https://www.boeing.com/commercial/airports/plan-manuals).
+
+Boeing 747-8F (sf748), F-16C/F-16V (sf16/f16v), and Antonov An-124-100 (an124)
+Original in-game procedural airframes, articulated mechanisms, and aircraft-specific
+flight decks implemented in dist/b748f-highdef.js, dist/f16-highdef.js, and
+dist/an124-highdef.js (MIT/repo license; axes +X right, +Y up, -Z forward; meters).
+Reference dimensions, outlines, and configurations:
+- https://www.boeing.com/content/dam/boeing/v2/airports/acaps/747-400_Rev_F.pdf
+- https://www.boeing.com/commercial/airports/plan-manuals
+- https://www.lockheedmartin.com/content/dam/lockheed-martin/aero/documents/F-16/25-00470_F-16%20Block70_72_Product%20Card_Jan%202025.pdf
+- https://www.af.mil/About-Us/Fact-Sheets/Display/Article/104505/f-16-fighting-falcon/
+- https://www.antonov.com/en/history/an-124-ruslan
+- https://antonov-airlines.aero/methods/optg120
+Manufacturer/copyrighted reference assets are not redistributed; flight dynamics
+and cockpit avionics represent simulator implementations for gameplay.
 
 AgustaWestland AW101 Merlin Helicopter
 Source https://sketchfab.com/3d-models/helicopter-ef70283b1dea4ae8b18eec9231ce390e via https://github.com/srcejon/sdrangel-3d-models

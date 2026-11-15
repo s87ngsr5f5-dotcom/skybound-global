@@ -39,7 +39,7 @@ function createTacticalView(scene,camera,callbacks){
       const surface=mesh(group,new THREE.ExtrudeGeometry(wing,{depth:.25,bevelEnabled:false}),paint);
       surface.rotation.x=Math.PI/2;
       box(group,dark,.35,2.5,2.5,0,1.25,4.1);
-      mesh(group,new THREE.SphereGeometry(1,12,8),dark,0,.65,-2.7).scale.set(.72,.62,1.85);
+      mesh(group,new THREE.SphereGeometry(1,12,8),dark,0,.84,-2.6).scale.set(.56,.34,1.75);
     }
     root.add(group);return group;
   }

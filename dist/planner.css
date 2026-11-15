@@ -147,9 +147,10 @@
 #hangarControls label { margin: 5px 0; }
 #hangarControls select { min-width: 0; padding: 7px; }
 #hangarControls p { margin: 6px 0 0; }
+#hangarInfo { font-size: 12px; line-height: 1.4; }
 .hangar-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .hangar-heading button { flex: none; }
-#hangarOptions { max-height: min(52vh, 240px); overflow: auto; }
+#hangarOptions { max-height: min(62vh, 330px); overflow: auto; }
 body.hangar-active { overflow: hidden; }
 body.hangar-active::before {
   content: '';

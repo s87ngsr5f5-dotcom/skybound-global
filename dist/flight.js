@@ -836,12 +836,12 @@ function initialize(){
     group.add(body,gear);
     const glassGeo=typeof AeroCraft!=='undefined'
       ?(count>=2&&!profile.jet&&length>6.5
-        ?AeroCraft.buildCanopyGeometry(length*.28,radius*1.26,radius*.28,14,20,{streamlined:true})
+        ?AeroCraft.buildCanopyGeometry(length*.24,radius*1.18,radius*.23,14,20,{streamlined:true})
         :AeroCraft.buildCanopyGeometry(length*(profile.jet?.42:.36),radius*(profile.jet?1.24:1.30),radius*(profile.jet?.38:.34),14,20,{streamlined:true}))
       :new THREE.SphereGeometry(1,16,10);
     const glass=new THREE.Mesh(glassGeo,windowMat);
     if(typeof AeroCraft!=='undefined'){
-      if(count>=2&&!profile.jet&&length>6.5){glass.position.set(0,radius*.45,-length*.50);glass.rotation.x=-.18;}
+      if(count>=2&&!profile.jet&&length>6.5){glass.position.set(0,radius*.38,-length*.41);glass.rotation.x=-.14;}
       else if(profile.jet){glass.position.set(0,radius*.46,-length*.34);glass.rotation.x=-.05;}
       else{glass.position.set(0,radius*.42,-length*.34);glass.rotation.x=-.11;}
     }else{glass.position.set(0,radius*.63,-length*.37);glass.scale.set(radius*.92,radius*.59,length*.23);}
@@ -1407,11 +1407,17 @@ function initialize(){
       }
     }
     const model=profile.helicopter?buildHelicopter(profile,scene):profile.role?buildBenchmarkAirframe(profile,scene):makeAircraft(profile,fleet.indexOf(profile));
-    if(profile.role==='fighter')refineFighter(model,profile);
+    if(profile.role==='fighter'&&!model.userData.skipGenericFighterRefinement)refineFighter(model,profile);
     if(typeof aircraftSkins!=='undefined') aircraftSkins.applyLivery(model,profile,THREE);
     model.traverse(object=>{if(object.isMesh){object.castShadow=true;object.receiveShadow=true;}});
     if(profile.role==='passenger'||profile.role==='cargo'){
-      airlinerDetails[profile.id]=refineAirliner(model,{twin:(profile.geometry[4]??2)===2});
+      airlinerDetails[profile.id]=(profile.id==='b773'&&typeof refineB773FlightDeck==='function')?
+        refineB773FlightDeck(model,profile):
+        (profile.id==='sf748'&&typeof refineB748FFlightDeck==='function')?
+        refineB748FFlightDeck(model,profile):
+        (profile.id==='an124'&&typeof refineAn124FlightDeck==='function')?
+        refineAn124FlightDeck(model,profile):
+        refineAirliner(model,{twin:(profile.geometry[4]??2)===2});
     }
     if(typeof cockpitEnhancements!=='undefined') cockpitEnhancements.enhanceCockpit(model,profile,THREE);
     if(typeof cockpitElectrical!=='undefined'&&model.userData&&model.userData.cabin){
@@ -3063,7 +3069,7 @@ function initialize(){
     if(event.code==='Escape'&&byId('hud').dataset.mobilePanel){
       event.preventDefault();setMobilePanel('');mapButton.focus();return;
     }
-    if(event.target.closest('input,select,textarea,#quickControls[open]')) return;
+    if(typeof event.target?.closest==='function'&&event.target.closest('input,select,textarea,#quickControls[open]')) return;
     if(/^Digit[0-9]$/.test(event.code)&&flight&&!paused&&!flight.tow){
       event.preventDefault();
       const num=parseInt(event.code.slice(5),10);
@@ -3154,8 +3160,15 @@ function initialize(){
   }
   function updateHangarInfo(){
     const plane=displayedAircraft();
+    const parts=[
+      '外觀：'+(plane.modelStatus||'近似模型'),
+      '座艙：'+(plane.cockpitStatus||'共用座艙'),
+      '動畫：'+(plane.animStatus||'基礎連動'),
+      '性能：'+(plane.performanceStatus||'待逐型校準'),
+      '任務：'+(plane.missionStatus||'共用任務')
+    ];
     byId('hangarInfo').textContent=plane.type+' · 機長 '+(plane.geometry[0]*2).toFixed(1)+
-      ' m · 翼展 '+(plane.geometry[2]*2).toFixed(1)+' m · '+aircraftLockText(plane)+' · '+plane.modelStatus;
+      ' m · 翼展 '+(plane.geometry[2]*2).toFixed(1)+' m · '+aircraftLockText(plane)+' ｜ '+parts.join(' · ');
     byId('hangarFly').disabled=!aircraftUnlocked(plane);
     byId('hangarUnlock').hidden=aircraftUnlocked(plane);
     byId('hangarUnlock').textContent=plane.unlock?'前往 '+plane.unlock.label:'';
@@ -3247,6 +3260,15 @@ function initialize(){
   byId('view').onclick=()=>{if(flight) action('KeyC');};
   byId('cockpitPreset').onclick=cycleCockpitView;
   byId('resetLook').onclick=()=>action('Home');
+  const backlightSlider=byId('cockpitBacklight');
+  if(backlightSlider) backlightSlider.oninput=()=>{
+    const pct=Number(backlightSlider.value), v=pct/100;
+    const id=flight?.aircraft?.id||displayedAircraft()?.id;
+    if(id){
+      airlinerDetails[id]?.setBacklight?.(v);
+      models.get(id)?.userData?.setCockpitBacklight?.(pct);
+    }
+  };
   byId('fly').onclick=()=>{byId('fly').blur();start(false);};
   byId('quickMountains').onclick=()=>{
     byId('lesson').value='free';
@@ -3442,7 +3464,7 @@ function initialize(){
     if(flight&&button) action(button.dataset.action);
   });
   const qualitySelect=byId('quality');
-  const defaultQuality='balanced';
+  const defaultQuality='ultra';
   let savedQuality;
   try{savedQuality=localStorage.getItem('skybound-quality');}catch{}
   qualitySelect.value=savedQuality||defaultQuality;
@@ -5428,13 +5450,14 @@ function initialize(){
   }
   function animateCargoDoors(data,noseOpen,sideOpen,dt){
     const blend=Math.min(1,dt*2.8);
-    data.sideDoor.rotation.z+=(Number(sideOpen)*-1.33-data.sideDoor.rotation.z)*blend;
-    data.noseDoor.rotation.x+=(Number(noseOpen)*(data.tailCargo?-.35:1.37)-data.noseDoor.rotation.x)*blend;
-    if(data.cargoRamp){
+    if(data.sideDoor) data.sideDoor.rotation.z+=(Number(sideOpen)*-1.33-data.sideDoor.rotation.z)*blend;
+    if(data.noseDoor) data.noseDoor.rotation.x+=(Number(noseOpen)*(data.tailCargo?-.35:1.37)-data.noseDoor.rotation.x)*blend;
+    if(data.cargoRamp&&data.noseDoor){
       const extension=clamp((data.noseDoor.rotation.x-.31)/.98,0,1);
       data.cargoRamp.visible=extension>.025;
       data.cargoRamp.rotation.x=THREE.MathUtils.lerp(1.45,-.19,extension);
     }
+    data.updateCargoDoors?.(noseOpen,sideOpen,dt);
   }
   function render(now){
     requestAnimationFrame(render);
@@ -5688,13 +5711,17 @@ function initialize(){
       }
       const gear=model.userData.gear;
       const gearTarget=f.gear===false?0:1;
-      let gProg=gear.userData.progress??(gear.visible?1:0);
-      if(!paused) gProg+=(gearTarget-gProg)*Math.min(1,dt*4);
-      gear.userData.progress=gProg;
-      gear.position.y=(1-gProg)*profile.gearHeight*.58;
-      gear.scale.setScalar(.35+.65*gProg);
-      gear.visible=gProg>.12;
-      model.userData.blades.forEach((blade,i)=>{if(!paused&&(f.engines?.[i]??true)) blade.rotation.z+=dt*(9+f.power*135)*(f.propLow?.72:1);});
+      if(model.userData.updateGear){
+        model.userData.updateGear(gearTarget,dt,f,paused);
+      }else{
+        let gProg=gear.userData.progress??(gear.visible?1:0);
+        if(!paused) gProg+=(gearTarget-gProg)*Math.min(1,dt*4);
+        gear.userData.progress=gProg;
+        gear.position.y=(1-gProg)*profile.gearHeight*.58;
+        gear.scale.setScalar(.35+.65*gProg);
+        gear.visible=gProg>.12;
+      }
+      model.userData.blades?.forEach((blade,i)=>{if(!paused&&(f.engines?.[i]??true)) blade.rotation.z+=dt*(9+f.power*135)*(f.propLow?.72:1);});
       if(model.userData.propBlurMat){
         const spinning=f.engines?.some(Boolean)??true;
         const rpmBlur=spinning?clamp(0.16+f.power*0.44,0,0.60):0;
@@ -5737,36 +5764,47 @@ function initialize(){
         model.userData.beacons.forEach(b=>b.visible=beaconOn);
       }
       model.userData.updateHelicopter?.(f,dt,now,cameraMode===1,paused||Boolean(replay));
+      model.userData.inFirstPersonCockpit=cockpitActive();
       model.userData.updateFighterDeck?.(f,now);
       if(profile.role){
         const data=model.userData;
-        data.flaps.forEach(part=>part.rotation.x=-f.flaps*.21);
-        data.airBrakes?.forEach(part=>{
-          part.rotation.x+=(Number(Boolean(f.airBrake||f.spoilers))*(-.85)-part.rotation.x)*Math.min(1,dt*9);
-        });
-        data.exhaustPlumes?.forEach((plume,i)=>{
-          plume.visible=Boolean(f.engines?.[i]&&f.fuel!==0&&f.power>.88&&(f.boost||f.fastCruise));
-          plume.scale.z=.68+(f.power-.88)*4.5+.10*Math.sin(now*.038+i*1.4);
-        });
+        if(data.updateAeroSurfaces){
+          data.updateAeroSurfaces(f,dt,now,paused);
+        }else{
+          data.flaps.forEach(part=>part.rotation.x=-f.flaps*.21);
+          data.airBrakes?.forEach(part=>{
+            part.rotation.x+=(Number(Boolean(f.airBrake||f.spoilers))*(-.85)-part.rotation.x)*Math.min(1,dt*9);
+          });
+          data.exhaustPlumes?.forEach((plume,i)=>{
+            plume.visible=Boolean(f.engines?.[i]&&f.fuel!==0&&f.power>.88&&(f.boost||f.fastCruise));
+            plume.scale.z=.68+(f.power-.88)*4.5+.10*Math.sin(now*.038+i*1.4);
+          });
+        }
         const wheelTravel=paused?0:Math.hypot(f.vx,f.vz)*dt;
         data.wheels.forEach(wheel=>wheel.rotateY(wheelTravel/wheel.userData.radius));
-        if(f.voyage){
+        if(f.voyage&&!data.articulatedGear){
           data.gear.position.y=f.ground?Math.max(0,.13-Math.hypot(f.vx,f.vz)*.001):0;
         }
         if(profile.role==='cargo'){
-          if(f.ground&&(f.noseDoor||f.sideDoor)&&!f.cabinView){
-            const offset=new THREE.Vector3(f.sideDoor?-data.radius-5:0,-profile.gearHeight+.5,f.sideDoor?data.sideDoor.position.z:profile.tailCargo?data.half+4:-data.half-4);
+          if(f.ground&&(f.noseDoor||f.sideDoor)&&!f.cabinView&&!profile.antonov){
+            const loaderFloorOffset=profile.id==='sf748'?-profile.gearHeight-0.65:-profile.gearHeight+.5;
+            const offset=new THREE.Vector3(f.sideDoor?-data.radius-5:0,loaderFloorOffset,f.sideDoor?data.sideDoor.position.z:profile.tailCargo?data.half+4:-data.half-4);
             cargoLoader.position.copy(pos).add(offset.applyQuaternion(model.quaternion));
             cargoLoader.rotation.y=model.rotation.y+(f.sideDoor?Math.PI/2:0);
             cargoLoader.visible=true;
             serviceLamp.position.copy(cargoLoader.position).add(new THREE.Vector3(0,13,0));
             serviceLamp.intensity=f.lights?750:170;
+          }else if(f.ground&&f.noseDoor&&!f.cabinView&&profile.antonov){
+            serviceLamp.position.copy(pos).add(new THREE.Vector3(0,11,-data.half-4).applyQuaternion(model.quaternion));
+            serviceLamp.intensity=f.lights?750:170;
           }
         }
         animateCargoDoors(data,Boolean(f.noseDoor),Boolean(f.sideDoor),dt);
+        data.syncExteriorCargo?.(f,dt);
         data.cabin.position.copy(pos);data.cabin.quaternion.copy(model.quaternion);
         data.cabin.visible=cameraMode===1||Boolean(f.cabinView);
-        data.palletMeshes.forEach((pallet,index)=>{
+        data.setCabinHoldVisible?.(Boolean(f.cabinView));
+        if(!data.an124HighDef) data.palletMeshes?.forEach((pallet,index)=>{
           const loaded=f.pallets[index]>0;
           const entry=profile.sideCargo?data.sideDoor.position.z:profile.tailCargo?data.half+4:-data.half-4;
           const station=palletStations[index].arm;
@@ -5805,7 +5843,9 @@ function initialize(){
         }
       }
       const aileron=replay||f.tow?0:(f.manualControls?.roll??0);
-      model.userData.surfaces.forEach((part,i)=>part.rotation.x=-f.flaps*.16+aileron*(i===0?-.22:.22));
+      if(!model.userData.updateAeroSurfaces){
+        model.userData.surfaces.forEach((part,i)=>part.rotation.x=-f.flaps*.16+aileron*(i===0?-.22:.22));
+      }
       if(cameraMode===0||f.ended){
         camera.up.set(0,1,0);
         if(tug.visible){
@@ -5849,7 +5889,7 @@ function initialize(){
             chaseUp.normalize();
           }
           const speedBoost=clamp(((f.speed||0)-25)/220,0,1);
-          const distance=profile.geometry[0]*(profile.helicopter?3.1:profile.id==='b773'?2.7:5)*(1+speedBoost*0.09);
+          const distance=profile.geometry[0]*(profile.helicopter?3.1:(profile.id==='b773'||profile.id==='sf748'||profile.id==='an124')?2.7:5)*(1+speedBoost*0.09);
           const elevOffset=profile.helicopter?profile.gearHeight*2.55:profile.gearHeight*3.9;
           camera.position.set(
             pos.x-chaseFwd.x*distance+chaseUp.x*elevOffset,
@@ -5872,7 +5912,10 @@ function initialize(){
         cockpitEye.set(panel&&airliner?-.28:seat,height+chaseGHead-(panel?.08:0),
           -half*(profile.role?.56:.22)+setback+(panel?.26:0));
         if(profile.helicopter)cockpitEye.set(.42,.60+chaseGHead,panel?-.92:-.65);
-        if(model.userData.cockpitEye){const eye=model.userData.cockpitEye;cockpitEye.set(eye.x,eye.y+chaseGHead,eye.z+(panel?.14:0));}
+        if(model.userData.cockpitEye){
+          const eye=(panel&&model.userData.cockpitPanelEye)?model.userData.cockpitPanelEye:model.userData.cockpitEye;
+          cockpitEye.set(eye.x,eye.y+chaseGHead,eye.z);
+        }
         camera.position.copy(cockpitEye.applyQuaternion(model.quaternion).add(pos));
         const turnAntic=paused||f.ground?0:clamp(bank*0.055,-0.06,0.06);
         cockpitAngles.set(cockpitView.pitch-(panel?(airliner?.24:.31):0),cockpitView.yaw+turnAntic,0);
@@ -5894,21 +5937,35 @@ function initialize(){
       if(cameraMode===0&&watchingCargo){
         const door=new THREE.Vector3(f.sideDoor?-model.userData.radius:0,2,
           f.sideDoor?model.userData.sideDoor.position.z:-model.userData.half*.78);
-        const eye=door.clone().add(new THREE.Vector3(-24,9,f.sideDoor?7:-20));
-        camera.position.copy(eye.applyQuaternion(model.quaternion).add(pos));
-        camera.lookAt(door.applyQuaternion(model.quaternion).add(pos));
+        const candidates=f.sideDoor
+          ?[[-24,9,7],[-16,7,14],[24,11,7]]
+          :[[24,9,-20],[-24,9,-20],[16,7,-34]];
+        const hasBC=typeof BuildingCollision!=='undefined'&&BuildingCollision.test;
+        let chosenEye=null;
+        for(const [ox,oy,oz] of candidates){
+          const candidate=door.clone().add(new THREE.Vector3(ox,oy,oz)).applyQuaternion(model.quaternion).add(pos);
+          if(!hasBC||!BuildingCollision.test(candidate.x,candidate.y,candidate.z,3.0)){chosenEye=candidate;break;}
+        }
+        camera.position.copy(chosenEye||door.clone().add(new THREE.Vector3(candidates[0][0],candidates[0][1],candidates[0][2])).applyQuaternion(model.quaternion).add(pos));
+        camera.lookAt(door.clone().applyQuaternion(model.quaternion).add(pos));
       }
       if(f.service&&f.cabinView){
         const window=f.cabinView==='window';
-        const eye=new THREE.Vector3(window?profile.geometry[1]-.4:profile.centerSeats?.89:0,.68,2);
-        const look=window?new THREE.Vector3(30,-1,0):new THREE.Vector3(0,.2,-profile.geometry[0]*.55);
+        const eye=model.userData.b773HighDef
+          ?new THREE.Vector3(window?-2.65:-1.06,window?.65:.66,window?-2.5:-6.5)
+          :new THREE.Vector3(window?profile.geometry[1]-.4:profile.centerSeats?.89:0,.68,2);
+        const look=model.userData.b773HighDef
+          ?(window?new THREE.Vector3(-22,-1.8,-1.5):new THREE.Vector3(-.35,.34,-20.5))
+          :(window?new THREE.Vector3(30,-1,0):new THREE.Vector3(0,.2,-profile.geometry[0]*.55));
         camera.position.copy(eye.applyQuaternion(model.quaternion).add(pos));
         camera.up.set(0,1,0);
         camera.lookAt(look.applyQuaternion(model.quaternion).add(pos));
       }else if(profile.role&&f.cabinView&&f.ground){
-        const eye=new THREE.Vector3(.23,.92,18).applyQuaternion(model.quaternion).add(pos);
+        const eye=(model.userData.an124HighDef?new THREE.Vector3(.35,-.15,12.5):model.userData.b748fHighDef?new THREE.Vector3(.45,.72,19.5):new THREE.Vector3(.23,.92,18)).applyQuaternion(model.quaternion).add(pos);
         camera.position.copy(eye);camera.up.set(0,1,0);
-        camera.lookAt(pos.clone().addScaledVector(dir,11).add(new THREE.Vector3(0,.44,0)));
+        if(model.userData.an124HighDef) camera.lookAt(new THREE.Vector3(0,-1.55,-25.5).applyQuaternion(model.quaternion).add(pos));
+        else if(model.userData.b748fHighDef) camera.lookAt(new THREE.Vector3(0,.15,-24.0).applyQuaternion(model.quaternion).add(pos));
+        else camera.lookAt(pos.clone().addScaledVector(dir,11).add(new THREE.Vector3(0,.44,0)));
       }
       if(cameraMode===0||f.ended){
         const camFloor=renderedGround(camera.position.x,camera.position.z)+2.2;
@@ -5989,10 +6046,13 @@ function initialize(){
       }
       if(profile.role){
         const data=model.userData;
+        data.inFirstPersonCockpit=(inspection==='panel'||inspection==='night');
         data.updateFighterDeck?.(null,now);
         const h=data.half;
         const showCargo=hangarMode&&inspection==='cargoDoor';
         animateCargoDoors(data,showCargo&&!profile.sideCargo,showCargo&&Boolean(profile.sideCargo),dt);
+        data.setCabinHoldVisible?.(inspection==='cabin');
+        data.syncExteriorCargo?.((showCargo||inspection==='cabin')?{noseDoor:showCargo,pallets:[24000,30000,20000]}:{noseDoor:false,pallets:[0,0,0]},dt);
         const station={nose:[0,3,-2.9],side:[2.8,3,0],tail:[0,3,2.9],belly:[.3,-9,2.6]}[inspection];
         if(inspection==='orbit'){
           if(hangarMode){
@@ -6003,7 +6063,7 @@ function initialize(){
           camera.lookAt(model.position);
         }else if(showCargo){
           model.rotation.set(0,0,0);
-          const doorZ=p.z+(profile.sideCargo?data.sideDoor.position.z:-h*.82);
+          const doorZ=p.z+(profile.sideCargo?(data.sideDoor?.position?.z??0):-h*.82);
           camera.position.set(p.x-25,model.position.y+9,doorZ-(profile.sideCargo?6:19));
           camera.lookAt(p.x,model.position.y-1,doorZ);
         }else{
@@ -6021,7 +6081,34 @@ function initialize(){
             camera.position.copy(model.position).add(new THREE.Vector3(.20,interior?.88:profile.role==='fighter'?.68:data.radius*.17+.62,interior?h*.39:-h*.56));
             if(data.cockpitEye){const eye=data.cockpitEye;camera.position.copy(model.position).add(new THREE.Vector3(eye.x,eye.y,eye.z));}
             camera.lookAt(p.x,model.position.y+(interior?.45:.20),interior?p.z-h*.44:p.z-h*.72);
-            if(profile.id==='b773'&&!interior){
+            if(data.b773HighDef){
+              if(interior){
+                camera.position.set(p.x-1.06,model.position.y+.65,p.z-6.5);
+                camera.lookAt(p.x-.35,model.position.y+.32,p.z-20.5);
+              }else{
+                camera.position.set(p.x-.42,model.position.y+1.52,p.z-28.98);
+                camera.lookAt(p.x-.05,model.position.y+.88,p.z-31.28);
+              }
+            }else if(data.b748fHighDef){
+              if(interior){
+                camera.position.set(p.x+.45,model.position.y+.72,p.z+19.5);
+                camera.lookAt(p.x,model.position.y+.15,p.z-24.0);
+              }else{
+                camera.position.set(p.x-.34,model.position.y+2.74,p.z-29.58);
+                camera.lookAt(p.x-.02,model.position.y+2.40,p.z-31.18);
+              }
+            }else if(data.an124HighDef){
+              if(interior){
+                camera.position.set(p.x+.35,model.position.y-.15,p.z+7.5);
+                camera.lookAt(p.x,model.position.y-1.05,p.z-25.2);
+              }else{
+                camera.position.set(p.x-.38,model.position.y+2.68,p.z-23.38);
+                camera.lookAt(p.x-.02,model.position.y+2.16,p.z-24.85);
+              }
+            }else if(data.f16HighDef){
+              camera.position.set(p.x,model.position.y+.84,p.z-h*.420);
+              camera.lookAt(p.x,model.position.y+.54,p.z-h*.422-.72);
+            }else if(profile.id==='b773'&&!interior){
               camera.position.set(p.x-.72,model.position.y+data.radius*.17+.60,p.z-h*.56+1.20);
               camera.lookAt(p.x-.38,model.position.y+data.radius*.17+.14,p.z-h*.56-1.31);
             }
@@ -6029,8 +6116,12 @@ function initialize(){
         }
       }
       const night=profile.role&&inspection==='night';
-      if(night){ambient.intensity=.25;sunlight.intensity=.08;}
-      else if(previewNight) activeDay=setEnvironment();
+      if(night){
+        ambient.intensity=.05;sunlight.intensity=.012;
+        scene.environment=null;scene.background.setHex(0x030812);
+      }else if(previewNight){
+        scene.environment=environment;activeDay=setEnvironment();
+      }
       previewNight=Boolean(night);
       if(hangarMode&&model.visible&&inspection!=='belly'){
         placeGroundShadow(aircraftShadow,p.x,p.z,airport.elevation,0,
@@ -6223,7 +6314,7 @@ function initialize(){
   });
   const rtToggle=byId('rtLighting');
   if(rtToggle){
-    try{const savedRt=localStorage.getItem('skybound.rtLighting');rtToggle.checked=savedRt==='1';}catch{rtToggle.checked=false;}
+    try{const savedRt=localStorage.getItem('skybound.rtLighting');rtToggle.checked=savedRt!=='0';}catch{rtToggle.checked=true;}
     rtToggle.addEventListener('change',()=>{
       try{localStorage.setItem('skybound.rtLighting',rtToggle.checked?'1':'0');}catch{}
       activeDay=setEnvironment();

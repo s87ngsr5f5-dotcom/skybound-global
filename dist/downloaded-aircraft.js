@@ -1,8 +1,7 @@
 const downloadedAirframes={
   sf15:{file:'f15.glb',length:19.46,yaw:Math.PI,integratedGear:true},
   sa380:{file:'ac_a380-c4bd029f.glb',centerHeight:6.1},
-  a223:{file:'ac_a220-22f0e703.glb',centerHeight:3.5},
-  b773:{file:'ac_b77w-4e801325.glb',centerHeight:5.5}
+  a223:{file:'ac_a220-22f0e703.glb',centerHeight:3.5}
 };
 
 function addAirframeDetails(object){
@@ -44,22 +43,22 @@ function updateDownloadedAircraft(model,profile,flight,livery,anisotropy){
       }
       model.add(legacy);
       const object=gltf.scene;
-      model.add(object);
+      // Measure & position GLB strictly in local space BEFORE model.add(object) so airport elevation / altitude never corrupts Box3!
       if(asset.integratedGear){
+        object.rotation.y=asset.yaw;
         object.updateMatrixWorld(true);
         const bounds=new THREE.Box3().setFromObject(object);
         const size=bounds.getSize(new THREE.Vector3());
         const scale=asset.length/Math.max(.1,size.z);
         object.scale.setScalar(scale);
-        object.rotation.y=asset.yaw;
         object.updateMatrixWorld(true);
         const sb=new THREE.Box3().setFromObject(object);
-        object.position.y+=-profile.gearHeight-sb.min.y;
+        object.position.y=-profile.gearHeight-sb.min.y;
       }else{
         object.updateMatrixWorld(true);
         const b=new THREE.Box3().setFromObject(object);
         const clearance=0.52;
-        if(Number.isFinite(b.min.y)) object.position.y+=-profile.gearHeight+clearance-b.min.y;
+        if(Number.isFinite(b.min.y)) object.position.y=-profile.gearHeight+clearance-b.min.y;
         object.updateMatrixWorld(true);
         addAirframeDetails(object);
       }
@@ -116,6 +115,7 @@ function updateDownloadedAircraft(model,profile,flight,livery,anisotropy){
         attachStrut(-mainX,cz+len*.05,true);
         attachStrut(mainX,cz+len*.05,true);
       }
+      model.add(object);
     },undefined,()=>{data.downloadFailed=true;});
   }
   if(data.downloaded){

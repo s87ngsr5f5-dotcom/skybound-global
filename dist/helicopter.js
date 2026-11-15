@@ -193,10 +193,11 @@ function buildHelicopter(profile, scene){
         root.remove(placeholder);
         const obj = gltf.scene;
         obj.rotation.y = Math.PI; // Correct model forward orientation
-        root.add(obj);
+        // Measure GLB bounds in local space BEFORE attaching to root so world elevation/hangar height never skews Box3
         obj.updateMatrixWorld(true);
         const bounds = new THREE.Box3().setFromObject(obj);
         if(Number.isFinite(bounds.min.y)) obj.position.y += -profile.gearHeight - bounds.min.y;
+        root.add(obj);
 
         obj.traverse(child => {
           if(child.isMesh){

@@ -4362,8 +4362,11 @@ const fleetCategories={all:'所有機型',trainer:'教練／通用',prop:'渦槳
 const specialAircraft={f14b:{chapter:4,label:'EP.04 海上航艦'},f22a:{chapter:6,label:'EP.06 領空捍衛'},rafalec:{chapter:2,label:'EP.02 城市挑戰'},a35k:{chapter:8,label:'WP.08 跨國遠征'},g700:{chapter:1,label:'EP.01 晨曦首航'},a400m:{chapter:3,label:'EP.03 颱風任務'}};
 for(const plane of fleet){
  plane.category ||= plane.helicopter?'helicopter':plane.role==='passenger'?'airliner':plane.role||'trainer';
- plane.modelStatus ||= '既有模型 · 共用幾何修正';
- plane.performanceStatus ||= '既有飛行設定 · 待逐型量測';
+ plane.modelStatus ||= '既有近似模型 · 共用幾何';
+ plane.cockpitStatus ||= plane.role==='fighter'?'共用戰機座艙':plane.role?'共用客貨機座艙':'共用通用座艙';
+ plane.animStatus ||= '基礎連動';
+ plane.performanceStatus ||= '既有飛行設定 · 待逐型校準';
+ plane.missionStatus ||= '共用任務流程';
  plane.unlock=specialAircraft[plane.id]||null;
 }
 function aircraftUnlocked(plane){

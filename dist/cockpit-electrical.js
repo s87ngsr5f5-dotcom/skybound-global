@@ -233,9 +233,25 @@
 
       // Position panel in cockpit (center console or lower left depending on airframe)
       const g = profile && profile.geometry;
-      if (isFighter) {
+      if (profile && (profile.id === 'sf16' || profile.id === 'f16v')) {
+        panelGroup.position.set(-0.34, 0.395, -(g ? g[0] : 7.40) * 0.422 - 0.14);
+        panelGroup.rotation.set(-1.42, 0, 0);
+        panelGroup.scale.setScalar(0.55);
+      } else if (isFighter) {
         panelGroup.position.set(g ? -Math.min(0.28, g[1] * 0.25) : -0.28, -0.15, -0.52);
         panelGroup.rotation.set(-0.35, 0.28, 0);
+      } else if (profile && profile.id === 'b773') {
+        panelGroup.position.set(0, 0.42, -29.22);
+        panelGroup.rotation.set(-1.32, 0, 0);
+        panelGroup.scale.setScalar(0.82);
+      } else if (profile && profile.id === 'sf748') {
+        panelGroup.position.set(0, 2.20, -29.22);
+        panelGroup.rotation.set(-1.32, 0, 0);
+        panelGroup.scale.setScalar(0.74);
+      } else if (profile && profile.id === 'an124') {
+        panelGroup.position.set(0, 2.12, -23.22);
+        panelGroup.rotation.set(-1.32, 0, 0);
+        panelGroup.scale.setScalar(0.72);
       } else if (profile && (profile.role === 'passenger' || profile.role === 'cargo')) {
         panelGroup.position.set(0, g[1] * 0.17 - 0.24, -g[0] * 0.56 + 0.05);
         panelGroup.rotation.set(-0.85, 0, 0);

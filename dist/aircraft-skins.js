@@ -441,6 +441,12 @@ const aircraftSkins = (() => {
     if (!model || !profile || !THREE) return;
     const theme = getThemeSpec(themeOverride);
     if (model.userData?.skinApplied && model.userData?.skinTheme === theme.id) return;
+    if (model.userData?.f16HighDef || model.userData?.an124HighDef) {
+      model.userData.applyConformalLivery?.(theme.id);
+      model.userData.skinApplied = true;
+      model.userData.skinTheme = theme.id;
+      return;
+    }
     if (model.userData?.decalGroup) {
       try {
         if (model.userData.decalGroup.parent) model.userData.decalGroup.parent.remove(model.userData.decalGroup);
@@ -564,7 +570,6 @@ const aircraftSkins = (() => {
       if (liveryTex) {
         const bannerLength = half * 1.12;
         const bannerHeight = radius * 0.52;
-        const bannerGeo = new THREE.PlaneGeometry(bannerLength, bannerHeight);
         const bannerMat = new THREE.MeshBasicMaterial({
           map: liveryTex,
           transparent: true,
@@ -572,11 +577,43 @@ const aircraftSkins = (() => {
           depthWrite: false
         });
 
-        for (const side of [-1, 1]) {
-          const banner = new THREE.Mesh(bannerGeo, bannerMat);
-          banner.rotation.y = side * Math.PI / 2;
-          banner.position.set(side * (radius * 1.005), radius * 0.12, -half * 0.04);
-          decalGroup.add(banner);
+        if ((profile.id === 'b773' || profile.id === 'sf748') && typeof THREE.BufferGeometry === 'function' && typeof THREE.Float32BufferAttribute === 'function') {
+          const zStart = -half * 0.04 - bannerLength * 0.5;
+          const zEnd = -half * 0.04 + bannerLength * 0.5;
+          for (const side of [-1, 1]) {
+            const segZ = 18, segY = 4;
+            const posArr = [], uvArr = [], idxArr = [];
+            for (let iy = 0; iy <= segY; iy++) {
+              const v = iy / segY;
+              const ang = ((0.12 - 0.26) + v * 0.52);
+              for (let iz = 0; iz <= segZ; iz++) {
+                const t = iz / segZ;
+                const z = zStart + (zEnd - zStart) * t;
+                const taper = z > 16.5 ? Math.max(0.84, 1 - (z - 16.5) * 0.032) : z < -22.5 ? Math.max(0.86, 1 - (-22.5 - z) * 0.028) : 1;
+                const rSurf = radius * taper + 0.032;
+                posArr.push(side * rSurf * Math.cos(ang), rSurf * Math.sin(ang), z);
+                uvArr.push(side > 0 ? 1 - t : t, v);
+                if (iy && iz) {
+                  const a = iy * (segZ + 1) + iz, b = a - (segZ + 1);
+                  idxArr.push(a, b, a - 1, b, b - 1, a - 1);
+                }
+              }
+            }
+            const cGeo = new THREE.BufferGeometry();
+            cGeo.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
+            cGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvArr, 2));
+            cGeo.setIndex(idxArr);
+            cGeo.computeVertexNormals();
+            decalGroup.add(new THREE.Mesh(cGeo, bannerMat));
+          }
+        } else {
+          const bannerGeo = new THREE.PlaneGeometry(bannerLength, bannerHeight);
+          for (const side of [-1, 1]) {
+            const banner = new THREE.Mesh(bannerGeo, bannerMat);
+            banner.rotation.y = side * Math.PI / 2;
+            banner.position.set(side * (radius * 1.005), radius * 0.12, -half * 0.04);
+            decalGroup.add(banner);
+          }
         }
       }
       if (wingTex && profile.wingDecalApproved) {
@@ -607,11 +644,11 @@ const aircraftSkins = (() => {
       }
     }
 
-    // C. General Aviation Decals (C172S Speed Swoops)
+    // C. General Aviation Decals (Flush Cabin Side Swoops staying within untapered mid-fuselage)
     if (isTrainer) {
       const trainerTex = createTrainerLiveryTexture(THREE);
       if (trainerTex) {
-        const tGeo = new THREE.PlaneGeometry(half * 1.25, radius * 0.85);
+        const tGeo = new THREE.PlaneGeometry(half * 0.72, radius * 0.44);
         const tMat = new THREE.MeshBasicMaterial({
           map: trainerTex,
           transparent: true,
@@ -621,23 +658,29 @@ const aircraftSkins = (() => {
         for (const side of [-1, 1]) {
           const tMesh = new THREE.Mesh(tGeo, tMat);
           tMesh.rotation.y = side * Math.PI / 2;
-          tMesh.position.set(side * (radius * 0.98 + 0.02), radius * 0.12, 0);
+          tMesh.position.set(side * (radius * 0.99), radius * 0.08, -half * 0.08);
           decalGroup.add(tMesh);
         }
       }
     }
 
-    // D. Helicopter Rescue / Army Tactical Decals
-    if (isHelicopter) {
+    // D. Helicopter Rescue / Army Tactical Decals (Tucked strictly onto wide forward cabin flanks)
+    if (isHelicopter && !profile.externalModel) {
       const heliTex = createHelicopterLiveryTexture(THREE, theme.id);
       if (heliTex) {
-        const hWidth=Math.min(half*.36,1.9);
-        const hGeo=new THREE.PlaneGeometry(hWidth,Math.min(radius*.68,.75));
+        const scaledBase = ['r44', 'bell206', 'h145', 's92'].includes(profile.id);
+        const hRad = scaledBase ? 0.94 : radius;
+        const hHalf = scaledBase ? 5.8 : half;
+        const hWidth = Math.min(hHalf * 0.24, 1.55);
+        const hHeight = Math.min(hRad * 0.34, 0.46);
+        const hGeo = new THREE.PlaneGeometry(hWidth, hHeight);
         const hMat = new THREE.MeshBasicMaterial({ map: heliTex, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+        const hx = profile.id === 'ah64' ? hRad * 0.85 : hRad * 0.95;
+        const hy = profile.id === 'uh60' ? 0.14 : hRad * 0.06;
         for (const side of [-1, 1]) {
           const hMesh = new THREE.Mesh(hGeo, hMat);
           hMesh.rotation.y = side * Math.PI / 2;
-          hMesh.position.set(side * (radius * 0.82 + 0.05), radius * 0.15, half * 0.18);
+          hMesh.position.set(side * hx, hy, -hHalf * 0.16);
           decalGroup.add(hMesh);
         }
       }

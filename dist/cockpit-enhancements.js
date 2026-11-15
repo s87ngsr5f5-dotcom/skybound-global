@@ -276,7 +276,11 @@ const cockpitEnhancements = (() => {
       const glareMesh = new THREE.Mesh(glareGeo, glareMat);
       glareMesh.name = 'Windshield_Glare';
 
-      if (isFighter) {
+      if (profile.id === 'sf16' || profile.id === 'f16v') {
+        glareMat.opacity = 0.03;
+        glareMesh.position.set(0, 0.88, -(half) * 0.422 - 0.56);
+        glareMesh.rotation.x = -0.34;
+      } else if (isFighter) {
         const eyeZ = -half * (profile.sideIntakes ? 0.40 : 0.37);
         const eyeY = radius * 0.72 + 0.12;
         glareMesh.position.set(0, eyeY + 0.04, eyeZ - 0.65);
@@ -287,6 +291,18 @@ const cockpitEnhancements = (() => {
       } else if (!profile.role) {
         glareMesh.position.set(0, radius * .72, -half * .42);
         glareMesh.rotation.x = -0.26;
+      } else if (profile.id === 'b773') {
+        glareMat.opacity = 0.04;
+        glareMesh.position.set(0, 1.38, -31.18);
+        glareMesh.rotation.x = -0.34;
+      } else if (profile.id === 'sf748') {
+        glareMat.opacity = 0.04;
+        glareMesh.position.set(0, 2.86, -31.12);
+        glareMesh.rotation.x = -0.46;
+      } else if (profile.id === 'an124') {
+        glareMat.opacity = 0.04;
+        glareMesh.position.set(0, 2.90, -24.44);
+        glareMesh.rotation.x = -0.42;
       } else {
         const cockpitZ = -half * 0.56;
         const cockpitY = radius * 0.17;
@@ -300,7 +316,7 @@ const cockpitEnhancements = (() => {
     // B. Warning Placards Decals on Pedestal & Glare Shield
     const placardTex = getPlacardTexture(THREE, isFighter);
     if (placardTex) {
-      const pSize = Math.min(isFighter ? 0.36 : 0.58, Math.max(0.24, radius * 0.36));
+      const pSize = (profile.id === 'sf16' || profile.id === 'f16v') ? 0.15 : Math.min(isFighter ? 0.36 : 0.58, Math.max(0.24, radius * 0.36));
       const pGeo = new THREE.PlaneGeometry(pSize, pSize);
       const pMat = new THREE.MeshBasicMaterial({
         map: placardTex,
@@ -311,7 +327,10 @@ const cockpitEnhancements = (() => {
       const placardMesh = new THREE.Mesh(pGeo, pMat);
       placardMesh.name = 'Cockpit_Placards';
 
-      if (isFighter) {
+      if (profile.id === 'sf16' || profile.id === 'f16v') {
+        placardMesh.position.set(0.34, 0.405, -half * 0.422 - 0.32);
+        placardMesh.rotation.set(-1.48, 0, 0);
+      } else if (isFighter) {
         const eyeZ = -half * (profile.sideIntakes ? 0.40 : 0.37);
         const eyeY = radius * 0.72 + 0.12;
         placardMesh.position.set(Math.min(0.42, radius * 0.36), eyeY - 0.38, eyeZ - 0.55);
@@ -322,6 +341,15 @@ const cockpitEnhancements = (() => {
       } else if (!profile.role) {
         placardMesh.position.set(0, radius * .50, -half * .38);
         placardMesh.rotation.x = -Math.PI / 2 + 0.35;
+      } else if (profile.id === 'b773') {
+        placardMesh.position.set(0.28, 0.34, -29.75);
+        placardMesh.rotation.x = -Math.PI / 2 + 0.3;
+      } else if (profile.id === 'sf748') {
+        placardMesh.position.set(0.24, 2.24, -29.78);
+        placardMesh.rotation.x = -Math.PI / 2 + 0.3;
+      } else if (profile.id === 'an124') {
+        placardMesh.position.set(0.22, 2.18, -23.72);
+        placardMesh.rotation.x = -Math.PI / 2 + 0.3;
       } else {
         const cockpitZ = -half * 0.56;
         const cockpitY = radius * 0.17;
@@ -344,7 +372,7 @@ const cockpitEnhancements = (() => {
               m.roughness = 0.22;
               m.needsUpdate = true;
             }
-            if (m.emissive !== undefined) {
+            if (m.emissive !== undefined && !m.userData?.preserveEmissive) {
               dials.push(m);
             }
           }
@@ -366,8 +394,12 @@ const cockpitEnhancements = (() => {
 
     // Windshield glare shines bright when facing sun
     if (data.windshieldGlare && data.windshieldGlare.material) {
-      const glareFactor = Math.min(1.0, Math.max(0.08, sunIntensity * 0.35));
-      data.windshieldGlare.material.opacity = 0.12 + glareFactor * 0.18;
+      if (data.b773HighDef || data.b748fHighDef || data.f16HighDef || data.an124HighDef) {
+        data.windshieldGlare.material.opacity = 0.03;
+      } else {
+        const glareFactor = Math.min(1.0, Math.max(0.08, sunIntensity * 0.35));
+        data.windshieldGlare.material.opacity = 0.12 + glareFactor * 0.18;
+      }
     }
 
     // Dial Backlight glows amber/emerald at dusk & night

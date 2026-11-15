@@ -262,10 +262,18 @@ const airRefueling = (() => {
     nose.position.set(0, 0, -23.7);
     tankerGroup.add(nose);
 
-    // Cockpit Glazing
-    const glassGeo = new THREE.BoxGeometry(2.4, 1.2, 3.2);
+    // Streamlined Cockpit Glazing flush with nose contour
+    const glassGeo = typeof AeroCraft !== 'undefined'
+      ? AeroCraft.buildCanopyGeometry(3.2, 2.2, 0.72, 12, 16, { streamlined: true })
+      : new THREE.SphereGeometry(1.1, 14, 10);
     const glass = new THREE.Mesh(glassGeo, trimMat);
-    glass.position.set(0, 1.3, -20.5);
+    if (typeof AeroCraft !== 'undefined') {
+      glass.position.set(0, 0.92, -20.2);
+      glass.rotation.x = -0.16;
+    } else {
+      glass.scale.set(0.95, 0.52, 1.5);
+      glass.position.set(0, 1.0, -20.2);
+    }
     tankerGroup.add(glass);
 
     // Main Wings (39.8m span, swept 35 deg)
@@ -293,9 +301,10 @@ const airRefueling = (() => {
     leftWing.position.set(0, -0.2, 0);
     tankerGroup.add(leftWing);
 
-    // 4 Turbofan Engines (CFM56)
+    // 4 Turbofan Engines (CFM56) with wing-attached pylons
     const engineGeo = new THREE.CylinderGeometry(0.95, 0.9, 5.2, 12);
     engineGeo.rotateX(Math.PI / 2);
+    const pylonGeo = new THREE.BoxGeometry(0.42, 1.45, 2.8);
     const enginePositions = [
       { x: -6.8, y: -1.4, z: 2.2 },
       { x: -12.8, y: -1.2, z: 5.5 },
@@ -306,6 +315,9 @@ const airRefueling = (() => {
       const eng = new THREE.Mesh(engineGeo, trimMat);
       eng.position.set(pos.x, pos.y, pos.z);
       tankerGroup.add(eng);
+      const pylon = new THREE.Mesh(pylonGeo, bodyMat);
+      pylon.position.set(pos.x, (pos.y - 0.15) * 0.5, pos.z + 0.6);
+      tankerGroup.add(pylon);
     }
 
     // Vertical Stabilizer (Tail Fin)
@@ -321,7 +333,7 @@ const airRefueling = (() => {
     fin.position.set(0.2, 1.8, 14.5);
     tankerGroup.add(fin);
 
-    // Horizontal Tailplanes
+    // Conventional Horizontal Tailplanes attached to aft tailcone
     const hTailShape = new THREE.Shape();
     hTailShape.moveTo(-7.5, 0);
     hTailShape.lineTo(7.5, 0);
@@ -331,7 +343,7 @@ const airRefueling = (() => {
     const hTailExt = new THREE.ExtrudeGeometry(hTailShape, { depth: 0.35, bevelEnabled: false });
     hTailExt.rotateX(Math.PI / 2);
     const hTail = new THREE.Mesh(hTailExt, bodyMat);
-    hTail.position.set(0, 8.8, 16.2);
+    hTail.position.set(0, 1.85, 16.5);
     tankerGroup.add(hTail);
 
     // Flying Boom (Articulated fuel boom extending aft-downward)
@@ -357,7 +369,7 @@ const airRefueling = (() => {
 
     // Position boom at tail pod angled downward 28 degrees
     boomGroup.position.set(0, -1.8, 19.5);
-    boomGroup.rotation.x = -0.48; // ~28 deg downward
+    boomGroup.rotation.x = 0.48; // ~28 deg downward (+z pitches -y)
     tankerGroup.add(boomGroup);
     state.boomMesh = boomGroup;
 

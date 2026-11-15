@@ -1,5 +1,9 @@
 'use strict';
 function buildBenchmarkAirframe(profile,scene){
+  if(profile?.id==='b773'&&typeof buildB773Airframe==='function') return buildB773Airframe(profile,scene);
+  if(profile?.id==='sf748'&&typeof buildB748FAirframe==='function') return buildB748FAirframe(profile,scene);
+  if(profile?.id==='an124'&&typeof buildAn124Airframe==='function') return buildAn124Airframe(profile,scene);
+  if((profile?.id==='sf16'||profile?.id==='f16v')&&typeof buildF16Airframe==='function') return buildF16Airframe(profile,scene);
   const group=new THREE.Group(), gear=new THREE.Group(), cabin=new THREE.Group();
   const closeDetails=new THREE.Group();
   group.add(closeDetails);
@@ -510,10 +514,11 @@ function buildBenchmarkAirframe(profile,scene){
       group.add(brake);airBrakes.push(brake);
     }
     const tipY=wingDihedralY(1.0)+(fighter?0:profile.rakedTip?.18:.02),tipZ=wingLeadAt(1.0)+wingChordAt(1.0)*.25;
-    const lamp=mesh(group,new THREE.SphereGeometry(fighter?.085:.19,12,8),
+    const navR=fighter?.068:Math.min(.14,Math.max(.042,radius*.055));
+    const lamp=mesh(group,new THREE.SphereGeometry(navR,12,8),
       new THREE.MeshBasicMaterial({color:side===-1?0xed4f49:0x65ffd4}),side*span,tipY,tipZ);
-    const strobe=mesh(group,new THREE.SphereGeometry(fighter?.095:.21,12,8),
-      new THREE.MeshBasicMaterial({color:0xffffff}),side*span,tipY,tipZ+.15);
+    const strobe=mesh(group,new THREE.SphereGeometry(navR*1.12,12,8),
+      new THREE.MeshBasicMaterial({color:0xffffff}),side*span,tipY,tipZ+navR*1.4);
     lamps.push(lamp);strobes.push(strobe);
     if(!fighter&&engineCount>=2&&!profile.rearEngines){
       for(const factor of engineCount===4?[.33,.65]:[.38]){
@@ -532,9 +537,9 @@ function buildBenchmarkAirframe(profile,scene){
           const hub=mesh(prop,new THREE.ConeGeometry(radius*.23,radius*.5,18),metal);hub.rotation.x=-Math.PI/2;
         }else if(typeof AeroCraft!=='undefined'){
           const minSafeY=-profile.gearHeight+Math.max(.26,size*.22)+size*1.02;
-          const idealY=ewY-size*.62-.16;
+          const idealY=ewY-size*.86-.08;
           const nacY=profile.overwingEngines?ewY+size+.32:Math.max(idealY,minSafeY);
-          const pylonH=profile.overwingEngines?Math.max(.22,nacY-size*.78-ewY+.03):Math.max(.18,ewY-nacY-size*.72+.03);
+          const pylonH=profile.overwingEngines?Math.max(.22,nacY-size*.78-ewY+.03):Math.max(.16,ewY-nacY-size*.72-.04);
           const nac=AeroCraft.buildTurbofanNacelle(THREE,size,length,{surface,metal,dark},{
             chevron:detailed||freight||engineCount===2,
             pylonHeight:pylonH,
@@ -568,10 +573,11 @@ function buildBenchmarkAirframe(profile,scene){
       vertical.rotation.z=profile.finCant??.18;
       const second=mesh(group,finGeo,paint,span*.23,0,0);second.rotation.z=-(profile.finCant??.18);second.name=profile.id+' second vertical fin';
     }
-    // Streamlined dorsal SATCOM radome & swept VHF blade antennas
-    mesh(group,AeroCraft.buildCanoeGeometry(half*.14,radius*.22,radius*.16),surface,0,radius*1.02,half*.02);
-    mesh(group,AeroCraft.buildAeroPylonGeometry(.45,.42,.20,.14,.18),metal,0,radius*.96,half*.12);
-    mesh(group,AeroCraft.buildAeroPylonGeometry(.28,.28,.12,.14,.12),metal,0,-radius*.96,half*.16).rotation.x=Math.PI;
+    // Streamlined dorsal SATCOM radome & low-profile VHF blade antennas scaled to fuselage radius
+    const antS=Math.min(1,radius/1.8);
+    mesh(group,AeroCraft.buildCanoeGeometry(half*.12,radius*.16,radius*.11),surface,0,radius*1.01,half*.02);
+    mesh(group,AeroCraft.buildAeroPylonGeometry(.24*antS,.30*antS,.14*antS,.12,.14*antS),metal,0,radius*.96,half*.12);
+    mesh(group,AeroCraft.buildAeroPylonGeometry(.18*antS,.22*antS,.10*antS,.12,.09*antS),metal,0,-radius*.96,half*.16).rotation.x=Math.PI;
     void vertical;
   }else{
     const fin=new THREE.Shape();fin.moveTo(0,0);fin.lineTo(half*.34,0);fin.lineTo(half*.34,tailHeight);fin.lineTo(half*.22,tailHeight*(fighter?1.10:1));fin.closePath();
@@ -698,9 +704,10 @@ function buildBenchmarkAirframe(profile,scene){
       for(const slot of palletStations) palletMeshes.push(block(cabin,seat,3.35,1.35,3.8,0,-.01,slot.arm));
     }
   }
-  const beaconTop=mesh(group,new THREE.SphereGeometry(fighter?.09:.22,12,8),new THREE.MeshBasicMaterial({color:0xff2222}),0,radius*(antonov?1.15:upperDeck?1.12:1.06)+.12,-half*.05);
-  const beaconBottom=mesh(group,new THREE.SphereGeometry(fighter?.09:.22,12,8),new THREE.MeshBasicMaterial({color:0xff2222}),0,-radius*1.04-.12,-half*.05);
-  const tailLight=mesh(group,new THREE.SphereGeometry(fighter?.07:.15,12,8),new THREE.MeshBasicMaterial({color:0xffffff}),0,tailHeight*.25+radius*.4,half*.98);
+  const beaconR=fighter?.08:Math.min(.20,Math.max(.07,radius*.075));
+  const beaconTop=mesh(group,new THREE.SphereGeometry(beaconR,12,8),new THREE.MeshBasicMaterial({color:0xff2222}),0,radius*(antonov?1.15:upperDeck?1.10:1.0)+beaconR*.45,-half*.05);
+  const beaconBottom=mesh(group,new THREE.SphereGeometry(beaconR,12,8),new THREE.MeshBasicMaterial({color:0xff2222}),0,-radius-beaconR*.45,-half*.05);
+  const tailLight=mesh(group,new THREE.SphereGeometry(fighter?.07:Math.min(.14,Math.max(.06,radius*.055)),12,8),new THREE.MeshBasicMaterial({color:0xffffff}),0,tailHeight*.22+radius*.38,half*.82);
   beacons.push(beaconTop,beaconBottom);
   lamps.push(tailLight);
   cabin.visible=false;
@@ -752,10 +759,16 @@ function buildPassengerCabin(profile,cabin,airframe){
     }
   }
   const door=new THREE.Group();
-  door.position.set(-radius*.94,-.35,-half*.58-.47);
-  const doorPanel=new THREE.Mesh(new THREE.BoxGeometry(.09,1.7,.94),
+  const compactDoor=radius<1.35;
+  const doorH=compactDoor?radius*.92:Math.min(1.68,radius*.66);
+  const doorW=doorH*.55;
+  const doorZ=compactDoor?-half*.42-doorW*.5:-half*.58-doorW*.5;
+  door.position.set(-radius*.92,compactDoor?-radius*.18:-.26,doorZ);
+  const doorPanel=new THREE.Mesh(new THREE.BoxGeometry(.07,doorH,doorW),
     new THREE.MeshStandardMaterial({color:0xe9f4f9,roughness:.55,metalness:.18}));
-  doorPanel.position.set(0,.47,.47);door.add(doorPanel);airframe.add(door);
+  doorPanel.position.set(0,doorH*.35,doorW*.5);
+  doorPanel.visible=false;
+  door.add(doorPanel);airframe.add(door);
   for(let i=0;i<count;i++){
     const row=Math.floor(i/rowSeats);
     const column=i%rowSeats;
@@ -778,6 +791,7 @@ function buildPassengerCabin(profile,cabin,airframe){
     const service=f?.service;
     const boarded=service?.boarded??0;
     door.rotation.y+=(Number(Boolean(service?.door))*1.55-door.rotation.y)*Math.min(1,dt*4);
+    doorPanel.visible=Boolean(service?.door)||door.rotation.y>.02;
     ceiling.emissiveIntensity=service?.cabinLights===false?0:.55;
     if(previous===boarded) return;
     previous=boarded;

@@ -168,7 +168,7 @@ function createAtmosphericSky(scene){
       varying vec3 world;
       uniform sampler2D noiseMap;
       uniform vec3 eye,sun;
-      uniform float daylight,coverage,seconds,mist;
+      uniform float daylight,twilight,coverage,seconds,mist;
       ${sampleNoise}
       float field(vec2 p){
         return noise3(vec3(p,1.6))*.60+noise3(vec3(p*2.2,3.3))*.28+

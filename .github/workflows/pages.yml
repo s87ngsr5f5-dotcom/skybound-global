@@ -63,6 +63,11 @@ jobs:
       - run: node verify-v63-campaign-collision.cjs
       - run: node verify-v69-missions-worldmap.cjs
       - run: node verify-v70-real-world-cities.cjs
+      - run: node verify-no-clipping.cjs
+      - run: node verify-b773-benchmark.cjs
+      - run: node verify-sf748-benchmark.cjs
+      - run: node verify-f16-benchmark.cjs
+      - run: node verify-an124-benchmark.cjs
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: verify
