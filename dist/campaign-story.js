@@ -1334,27 +1334,24 @@
       <aside class="hub-sidebar">
         <div>
           <div class="hub-brand">
-            <span class="hub-kicker">SKYBOUND GLOBAL · v0.72</span>
+            <span class="hub-kicker">SKYBOUND GLOBAL</span>
             <h1 class="hub-title">蒼穹守望者</h1>
 
           </div>
           <div id="hubCareerCard" class="hub-career-card"></div>
           <ul class="hub-menu-list" role="tablist">
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="welcome"><div class="hub-menu-btn-main"><span>🏠 主首頁 · Home</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>📖 故事模式 · Story Mode</span></div><span class="hub-menu-badge">15 章</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>🔧 飛機性能改裝 · Upgrades</span></div><span class="hub-menu-badge">工坊</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="multiplayer"><div class="hub-menu-btn-main"><span>🌐 線上模式 · Online</span></div><span class="hub-menu-badge" id="hubMpSideBadge">大廳</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="challenges"><div class="hub-menu-btn-main"><span>🏆 每日與無限挑戰</span></div><span class="hub-menu-badge">6 模式</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="tactical"><div class="hub-menu-btn-main"><span>🎯 戰術特勤訓練</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="freeflight"><div class="hub-menu-btn-main"><span>✈ 自由飛行 · 9 大區域</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="scenery"><div class="hub-menu-btn-main"><span>🗺️ 地景巡覽與勳章</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="settings"><div class="hub-menu-btn-main"><span>⚙ 遊戲設定</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="welcome"><div class="hub-menu-btn-main"><span>飛行首頁</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>故事任務</span></div><span class="hub-menu-badge">15 章</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>改裝工坊</span></div><span class="hub-menu-badge">工坊</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="multiplayer"><div class="hub-menu-btn-main"><span>線上飛行</span></div><span class="hub-menu-badge" id="hubMpSideBadge">大廳</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="challenges"><div class="hub-menu-btn-main"><span>每日挑戰</span></div><span class="hub-menu-badge">6 模式</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="tactical"><div class="hub-menu-btn-main"><span>戰術訓練</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="freeflight"><div class="hub-menu-btn-main"><span>自由飛行與機庫</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="scenery"><div class="hub-menu-btn-main"><span>地景與勳章</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="settings"><div class="hub-menu-btn-main"><span>設定</span></div></button></li>
           </ul>
         </div>
-        <div class="hub-sidebar-footer">
-          <span>💡 撞擊建築物與塔台將觸發真實爆炸墜毀</span>
-          <span>🎮 座艙視角 <b>C</b> · 視野 <b>N</b> · 輔助 <b>J</b></span>
-        </div>
+
       </aside>
       <section class="hub-stage" id="hubStage"></section>
     `;
@@ -1834,80 +1831,17 @@
     if (mpBadgeSide && mpStatusEl) mpBadgeSide.textContent = mpStatusEl.textContent || '大廳';
 
     if (tab === 'welcome') {
-      const nextChId = Math.min(ALL_CHAPTERS.length, Math.max(1, completedCount + 1));
-      const nextCh = ALL_CHAPTERS.find(c => c.id === nextChId) || CHAPTERS[0];
-      const dailyDone = meta.dailyDoneDate === todayStr();
-      const upg = loadUpgrades();
-      const totalUpgLv = Object.values(upg).reduce((a, b) => a + b, 0);
+      const nextCh = ALL_CHAPTERS.find(ch => !prog[ch.id]) || CHAPTERS[0];
       stage.innerHTML = `
-        <div class="hub-home-wrap">
-          <div class="hub-mobile-orient-hint">📱 手機直向亦可直接點擊起飛 · 橫向握持可享最佳 3D 寬闊視野</div>
-          <div class="hub-hero-showcase">
-            <img class="hub-hero-bg" src="${nextCh.image}" alt="${nextCh.title}">
-            <div class="hub-hero-overlay">
-              <span class="hub-kicker">SKYBOUND GLOBAL · TAIWAN & 8 WORLD METROPOLISES</span>
-              <h2>選好模式，立即升空</h2>
-              <p>${rank.current.badge} ${rank.current.title} · 戰役 ${completedCount}/${ALL_CHAPTERS.length} 章（★ ${totalStars}/${ALL_CHAPTERS.length * 3}）· 資金 $${money.toLocaleString()}</p>
-              <div class="hub-quick-cta-row">
-                <button type="button" id="hubQuickStartBtn" class="campaign-launch-btn" data-quick-ch="${nextCh.id}">▶ 立即出發執飛 ${nextCh.code} · ${nextCh.title} →</button>
-                <button type="button" id="hubQuickFreeBtn" class="hub-back-btn">✈ 快速自由起飛</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="hub-primary-modes">
-            <button type="button" class="hub-art-mode-card featured" data-jump-tab="campaign">
-              <img src="assets/campaign/ch1.jpg" alt="故事模式">
-              <div class="hub-art-mode-body">
-                <span class="hub-mode-pill gold">📖 故事模式 · 台灣 7 章 + 跨國 8 章</span>
-                <h3>蒼穹守望者 · 15 章劇情與跨國遠征</h3>
-                <p>台灣本島與東京、大阪、香港、沖繩、首爾、新加坡、馬尼拉、曼谷 3D 光門戰役（下一關：${nextCh.code}）</p>
-              </div>
-            </button>
-            <button type="button" class="hub-art-mode-card featured" data-jump-tab="multiplayer">
-              <img src="assets/campaign/ch6.jpg" alt="線上模式">
-              <div class="hub-art-mode-body">
-                <span class="hub-mode-pill cyan">🌐 線上模式 · ${mpStatusEl ? mpStatusEl.textContent : '多人大廳'}</span>
-                <h3>全球即時連線 · 戰機空戰對決</h3>
-                <p>加入公共大廳 8888 或 DOGFIGHT 空戰房，使用飛彈與機砲線上互相攻擊、編隊巡航</p>
-              </div>
-            </button>
-          </div>
-
-          <div class="hub-secondary-modes">
-            <button type="button" class="hub-mini-art-card" data-jump-tab="upgrades">
-              <img src="assets/campaign/ch5.jpg" alt="飛機性能改裝">
-              <div>
-                <span class="hub-action-pill">💰 資金 $${money.toLocaleString()} · Lv.${totalUpgLv}/25</span>
-                <strong>🔧 飛機性能改裝工坊</strong>
-                <small>升級引擎推力 · 翼面敏捷 · 油箱 · 火控</small>
-              </div>
-            </button>
-            <button type="button" class="hub-mini-art-card" data-jump-tab="challenges">
-              <img src="assets/campaign/ch4.jpg" alt="每日任務與挑戰">
-              <div>
-                <span class="hub-action-pill">${dailyDone ? '✓ 今日已完成' : '🔥 6 大挑戰模式'}</span>
-                <strong>🏆 每日挑戰 · 360°特技 · 跨國巡迴</strong>
-                <small>雷虎特技公演 · 跨國地標賽 · 極速衝刺 · 盲盒</small>
-              </div>
-            </button>
-            <button type="button" class="hub-mini-art-card" data-jump-tab="freeflight">
-              <img src="assets/campaign/ch2.jpg" alt="自由飛行與跨國航線">
-              <div>
-                <span class="hub-action-pill">🌍 9 大國家都會區</span>
-                <strong>✈ 跨國自由飛行與 3D 機庫</strong>
-                <small>台灣 · 東京 · 大阪 · 香港 · 首爾 · 新加坡 · 曼谷</small>
-              </div>
-            </button>
-            <button type="button" class="hub-mini-art-card" data-jump-tab="settings">
-              <img src="assets/campaign/ch7.jpg" alt="設定">
-              <div>
-                <span class="hub-action-pill">畫質 / 手感</span>
-                <strong>⚙ 畫質與操控設定</strong>
-                <small>解析度 · 靈敏度 · 反鋸齒</small>
-              </div>
-            </button>
-          </div>
+        <div class="dispatch-home">
+          <img class="dispatch-photo" src="${nextCh.image}" alt="" fetchpriority="high">
+          <section class="dispatch-brief">
+            <div class="dispatch-route">${nextCh.departure} → ${nextCh.destination}</div>
+            <h2>${nextCh.title.split('：').pop()}</h2>
+            <p>${nextCh.code} · ${nextCh.aircraft.toUpperCase()} · ${nextCh.time}</p>
+            <button type="button" id="hubQuickStartBtn" class="campaign-launch-btn" data-quick-ch="${nextCh.id}">開始任務</button>
+            <button type="button" id="hubQuickFreeBtn" class="hub-back-btn">自由起飛</button>
+          </section>
         </div>`;
       return;
     }
@@ -1919,10 +1853,10 @@
       const curFilter = ensureDOM._campaignFilter || 'all';
       const renderChBtn = item => {
         const s = prog[item.id]?.stars || 0;
-        const starsStr = s ? '★'.repeat(s) + '☆'.repeat(3 - s) : 'NEW';
+        const starsStr = s ? '★'.repeat(s) + '☆'.repeat(3 - s) : '未完成';
         return `
           <button type="button" class="campaign-ch-card${item.id === ch.id ? ' selected' : ''}" data-chapter-id="${item.id}">
-            <img class="campaign-ch-thumb" src="${item.image}" alt="${item.title}">
+            <img class="campaign-ch-thumb" loading="lazy" decoding="async" src="${item.image}" alt="${item.title}">
             <div>
               <strong>${item.code} · ${item.title}</strong>
               <small>${['','入門','進階','挑戰'][requiredGates(item)]} · 依序通過 ${requiredGates(item)} 座導航門</small>
@@ -1946,7 +1880,7 @@
         <div class="hub-section-panel">
           <div class="hub-section-head">
             <div>
-              <h2>📖 故事模式 · 台灣主線 & 8 國都會遠征（${completedCount}/${ALL_CHAPTERS.length} 章 · ★ ${totalStars}/${ALL_CHAPTERS.length * 3}）</h2>
+              <h2>故事模式 · 台灣主線 & 8 國都會遠征（${completedCount}/${ALL_CHAPTERS.length} 章 · ★ ${totalStars}/${ALL_CHAPTERS.length * 3}）</h2>
               <p>每章搭載 3D 黃金光門導航走廊（每門額外 +$2,000）、支線特技目標與無線電劇情</p>
             </div>
           </div>
@@ -1963,17 +1897,17 @@
                 <h3>${ch.title}</h3>
                 <p class="campaign-story-copy">${ch.story}</p>
                 <div class="campaign-meta-chips">
-                  <span class="campaign-chip">✈ 機型：${ch.aircraft.toUpperCase()}</span>
-                  <span class="campaign-chip">🛫 航點：${ch.departure} → ${ch.destination}</span>
-                  <span class="campaign-chip">⏱ 黃金時間：${ch.parTimeS}s</span>
-                  <span class="campaign-chip">💰 主線報酬：+$${ch.rewardMoney.toLocaleString()} · +${ch.rewardXp} XP</span>
-                  <span class="campaign-chip">🎯 ${ch.targetText}</span>
+                  <span class="campaign-chip">機型：${ch.aircraft.toUpperCase()}</span>
+                  <span class="campaign-chip">航點：${ch.departure} → ${ch.destination}</span>
+                  <span class="campaign-chip">黃金時間：${ch.parTimeS}s</span>
+                  <span class="campaign-chip">主線報酬：+$${ch.rewardMoney.toLocaleString()} · +${ch.rewardXp} XP</span>
+                  <span class="campaign-chip">${ch.targetText}</span>
                   <span class="campaign-chip" style="border-color:rgba(255,209,102,0.55);color:#ffe8a3;">${bonusObj.label}</span>
                 </div>
                 <canvas id="campaignRouteCanvas" style="width:100%;height:110px;border-radius:10px;border:1px solid rgba(110,215,242,0.28);margin:6px 0;" aria-label="任務航路與 3D 光門預覽圖"></canvas>
                 <div class="campaign-feature-actions">
-                  <button type="button" id="hubLaunchChapterBtn" class="campaign-launch-btn">▶ 立即出發執飛 ${ch.code} →</button>
-                  <button type="button" class="hub-back-btn" data-jump-tab="upgrades">🔧 前往性能改裝工坊</button>
+                  <button type="button" id="hubLaunchChapterBtn" class="campaign-launch-btn">立即出發執飛 ${ch.code} →</button>
+                  <button type="button" class="hub-back-btn" data-jump-tab="upgrades">前往性能改裝工坊</button>
                 </div>
               </div>
             </article>
@@ -2508,7 +2442,7 @@
     const upgBtn = document.createElement('button');
     upgBtn.type = 'button';
     upgBtn.className = 'hub-back-btn';
-    upgBtn.textContent = '🔧 前往性能改裝工坊';
+    upgBtn.textContent = '前往性能改裝工坊';
     upgBtn.onclick = () => {
       modal.hidden = true;
       document.getElementById('menu')?.click();

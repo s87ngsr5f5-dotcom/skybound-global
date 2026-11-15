@@ -1846,3 +1846,29 @@ body.flight-ui #headerMpBtn {
     height: min(46vw, 76dvh, 410px) !important;
   }
 }
+
+/* Dispatch menu. Keep the active flight outside the menu styling scope. */
+#titleHub {background:#141c20;color:#f6f3e9;font-family:"Segoe UI","Microsoft JhengHei",sans-serif}
+#titleHub .hub-sidebar {background:#172024;border-color:#394449;backdrop-filter:none;-webkit-backdrop-filter:none}
+#titleHub .hub-kicker,#titleHub .hub-menu-badge {background:none;border:0;padding:0;color:#c8c5b5;border-radius:0}
+#titleHub .hub-title {text-shadow:none}
+#titleHub .hub-menu-list {gap:0}
+#titleHub .hub-menu-btn {border:0;border-bottom:1px solid #364247;border-radius:0;background:transparent;box-shadow:none;transform:none;transition:none;min-height:44px}
+#titleHub .hub-menu-btn:hover {background:#293437}
+#titleHub .hub-menu-btn.active {background:#303a39;box-shadow:inset 3px 0 #f1bd65;color:#fff}
+#titleHub button:focus-visible {outline:2px solid #ffcf7e;outline-offset:-3px}
+#titleHub .hub-stage {font-variant-numeric:tabular-nums}
+.dispatch-home {position:relative;isolation:isolate;display:flex;align-items:flex-end;min-height:clamp(330px,67vh,810px);overflow:hidden;background:#222d33}
+.dispatch-photo {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1}
+.dispatch-brief {margin:clamp(12px,3vw,44px);padding:clamp(16px,2vw,30px);max-width:34rem;background:#152024f2;border-top:3px solid #e6b867}
+.dispatch-route {font:600 14px/1.4 Consolas,monospace;letter-spacing:.1em;color:#f2c475}
+.dispatch-brief h2 {font-size:clamp(26px,3.3vw,52px);line-height:1.15;margin:.4em 0}
+.dispatch-brief p {margin:0 0 1.1em;color:#c6ced0;font-variant-numeric:tabular-nums}
+#titleHub :is(.campaign-launch-btn,.hub-back-btn,.campaign-chip,.campaign-ch-card,.campaign-feature,.hub-section-panel,.hub-career-card) {border-radius:2px;box-shadow:none;transform:none}
+#titleHub .campaign-launch-btn {background:#eac17c;color:#182023;border:1px solid #eac17c;text-shadow:none;min-height:44px}
+#titleHub .hub-back-btn {background:#253035;color:white;min-height:44px}
+#titleHub .campaign-ch-card {background:#1d282d;border-color:#415055}
+#titleHub .campaign-ch-card.selected {border-color:#eac17c}
+#storyObjectiveHud,#storyRadioBar {font-variant-numeric:tabular-nums;border-radius:2px;box-shadow:none;text-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+@media(max-width:900px){.dispatch-home{min-height:clamp(215px,48svh,400px)}.dispatch-brief{margin:8px;padding:12px}.dispatch-brief h2{font-size:24px}}
+@media(prefers-reduced-motion:reduce){#titleHub button,#storyRadioBar{transition:none;animation:none}}
