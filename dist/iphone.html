@@ -55,7 +55,7 @@ body.cockpit-active[data-panel=analog] .stat b{border:2px solid #68818d;border-r
     const message=document.getElementById('startupMessage');
     if(message.dataset.failedAsset) return;
     message.dataset.failedAsset=asset;
-    message.textContent=event.filename?'遊戲初始化中斷（'+asset+(event.lineno?':'+event.lineno:'')+'）。版本 0.29，請重新載入。':'遊戲檔案無法載入（'+asset+'）。版本 0.29，請重新載入。';
+    message.textContent=event.filename?'遊戲初始化中斷（'+asset+(event.lineno?':'+event.lineno:'')+'）。版本 0.72，請重新載入。':'遊戲檔案無法載入（'+asset+'）。版本 0.72，請重新載入。';
     document.getElementById('retryStartup').hidden=false;
   },true);
 </script>
