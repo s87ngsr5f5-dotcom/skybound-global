@@ -681,6 +681,11 @@
     };
   }
 
+  function requiredGates(ch) {
+    if (!Number.isInteger(ch.id) || ch.id < 1 || ch.id > 15) return 0;
+    return ch.id <= 2 ? 1 : ch.id <= 5 ? 2 : 3;
+  }
+
   function buildMissionSkyGates(ch) {
     if (typeof allAirports === 'undefined' || !Array.isArray(allAirports)) return [];
     const dep = allAirports.find(a => a.code === ch.departure) || allAirports[0];
@@ -1331,19 +1336,19 @@
           <div class="hub-brand">
             <span class="hub-kicker">SKYBOUND GLOBAL · v0.72</span>
             <h1 class="hub-title">蒼穹守望者</h1>
-            <p class="hub-subtitle">Formosa Wings · 故事模式 · 跨國地圖 · 特技挑戰</p>
+
           </div>
           <div id="hubCareerCard" class="hub-career-card"></div>
           <ul class="hub-menu-list" role="tablist">
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="welcome"><div class="hub-menu-btn-main"><span>🏠 主首頁 · Home</span><span class="hub-menu-btn-sub">故事模式 · 線上模式 · 性能改裝</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>📖 故事模式 · Story Mode</span><span class="hub-menu-btn-sub">臺灣 7 章主線 + 8 大跨國遠征</span></div><span class="hub-menu-badge">15 章</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>🔧 飛機性能改裝 · Upgrades</span><span class="hub-menu-btn-sub">引擎推力 · 翼面敏捷 · 油箱 · 煞車 · 火控</span></div><span class="hub-menu-badge">工坊</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="multiplayer"><div class="hub-menu-btn-main"><span>🌐 線上模式 · Online</span><span class="hub-menu-btn-sub">即時房號編隊 · 戰機空戰與無線電</span></div><span class="hub-menu-badge" id="hubMpSideBadge">大廳</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="challenges"><div class="hub-menu-btn-main"><span>🏆 每日與無限挑戰</span><span class="hub-menu-btn-sub">雙倍派遣 · 360°特技 · 跨國巡迴 · 盲盒</span></div><span class="hub-menu-badge">6 模式</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="tactical"><div class="hub-menu-btn-main"><span>🎯 戰術特勤訓練</span><span class="hub-menu-btn-sub">航艦彈射 · 空中加油 · 雷暴進場</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="freeflight"><div class="hub-menu-btn-main"><span>✈ 自由飛行 · 9 大區域</span><span class="hub-menu-btn-sub">台灣 · 東京 · 大阪 · 香港 · 首爾 · 新加坡 · 曼谷</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="scenery"><div class="hub-menu-btn-main"><span>🗺️ 地景巡覽與勳章</span><span class="hub-menu-btn-sub">101 夜景 · 車流高架 · 成就勳章牆</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="settings"><div class="hub-menu-btn-main"><span>⚙ 遊戲設定</span><span class="hub-menu-btn-sub">畫質 · 操控靈敏度 · 音效 · 操作模式</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="welcome"><div class="hub-menu-btn-main"><span>🏠 主首頁 · Home</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>📖 故事模式 · Story Mode</span></div><span class="hub-menu-badge">15 章</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>🔧 飛機性能改裝 · Upgrades</span></div><span class="hub-menu-badge">工坊</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="multiplayer"><div class="hub-menu-btn-main"><span>🌐 線上模式 · Online</span></div><span class="hub-menu-badge" id="hubMpSideBadge">大廳</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="challenges"><div class="hub-menu-btn-main"><span>🏆 每日與無限挑戰</span></div><span class="hub-menu-badge">6 模式</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="tactical"><div class="hub-menu-btn-main"><span>🎯 戰術特勤訓練</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="freeflight"><div class="hub-menu-btn-main"><span>✈ 自由飛行 · 9 大區域</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="scenery"><div class="hub-menu-btn-main"><span>🗺️ 地景巡覽與勳章</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="settings"><div class="hub-menu-btn-main"><span>⚙ 遊戲設定</span></div></button></li>
           </ul>
         </div>
         <div class="hub-sidebar-footer">
@@ -1920,7 +1925,7 @@
             <img class="campaign-ch-thumb" src="${item.image}" alt="${item.title}">
             <div>
               <strong>${item.code} · ${item.title}</strong>
-              <small>${item.subtitle}</small>
+              <small>${['','入門','進階','挑戰'][requiredGates(item)]} · 依序通過 ${requiredGates(item)} 座導航門</small>
             </div>
             <span class="campaign-stars">${starsStr}</span>
           </button>`;
@@ -2196,7 +2201,7 @@
               <div class="mp-room-chips">${worldQuickHubs}</div>
             </div>
             <div class="hub-form-grid">
-              <label>機型分類<select id="hubFfCategory">${Object.entries(fleetCategories).map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label><label>執飛機型<select id="hubFfAircraft">${cloneOptionsHtml('aircraft')}</select></label>
+              <label>機型分類<select id="hubFfCategory">${Object.entries(fleetCategories).map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label><label>執飛機型<select id="hubFfAircraft">${Object.entries(fleetCategories).filter(([key])=>!['all','special'].includes(key)).map(([key,label])=>`<optgroup label="${label}">${fleet.filter(p=>fleetMatches(p,key)).map(p=>`<option value="${p.id}" ${aircraftUnlocked(p)?'':'disabled'}>${p.name}</option>`).join('')}</optgroup>`).join('')}</select></label>
               <label>起始狀態<select id="hubFfStartType">${cloneOptionsHtml('startType')}</select></label>
               <label>出發機場<select id="hubFfDeparture">${cloneOptionsHtml('departure')}</select></label>
               <label>目的機場<select id="hubFfDestination">${cloneOptionsHtml('destination')}</select></label>
@@ -2651,12 +2656,13 @@
       for (const gate of activeMission.gates) {
         if (gate.passed) continue;
         const dHoriz = Math.hypot(f.x - gate.x, f.z - gate.z);
-        if (dHoriz <= (gate.radius || 950)) {
+        if (dHoriz <= (gate.radius || 950) && Math.abs(f.y-gate.y) <= 340-60*requiredGates(ch)) {
           gate.passed = true;
           activeMission.gatesPassed = (activeMission.gatesPassed || 0) + 1;
           awardSimMoney(2000);
           showRadio('導航光門 · SKY GATE', `「通過 ${gate.name}！精準導航賞金 +$2,000！」`, 4200);
         }
+        break; // Only the next gate is active.
       }
     }
 
@@ -2684,14 +2690,8 @@
     };
 
     const stages = ch.stages || [];
-    while (activeMission.stageIdx < stages.length && stages[activeMission.stageIdx].check(f, st)) {
+    if (activeMission.stageIdx < stages.length && stages[activeMission.stageIdx].check(f, st)) {
       const completedStage = stages[activeMission.stageIdx];
-      // Also auto-pass corresponding Sky Gate so stages & gates stay synchronized
-      if (Array.isArray(activeMission.gates) && activeMission.gates[activeMission.stageIdx] && !activeMission.gates[activeMission.stageIdx].passed) {
-        activeMission.gates[activeMission.stageIdx].passed = true;
-        activeMission.gatesPassed = (activeMission.gatesPassed || 0) + 1;
-        awardSimMoney(2000);
-      }
       activeMission.stageIdx += 1;
       if (completedStage.radio) {
         showRadio(completedStage.radio.speaker, completedStage.radio.text, 6500);
@@ -2719,7 +2719,7 @@
           : (isTouchMode ? `已達 ${iasKt} kt！輕推左側「飛行搖桿」抬頭離地` : `已達 ${iasKt} kt！按 [↑] 或輕拉滑鼠抬頭離地`);
         objHud.textContent = `${ch.code} · 🛫 ${takeoffTip} · (${altFt} ft / ${altM}m)`;
       } else {
-        objHud.textContent = `${ch.code} · ${stagePrefix} (${pct}% · ${distKm}/${targetKm} km · ${altFt} ft / ${altM}m${gateHint})`;
+        objHud.textContent = `${ch.code} · ${stagePrefix} (${pct}% · ${distKm}/${targetKm} km · 導航門 ${st.gatesPassed}/${requiredGates(ch)}${gateHint})`;
       }
     }
 
@@ -2740,7 +2740,7 @@
     }
 
     const allStagesDone = stages.length > 0 ? activeMission.stageIdx >= stages.length : true;
-    if ((allStagesDone || ch.winCondition(f, st)) && !activeMission.settled) {
+    if (allStagesDone && ch.winCondition(f, st) && st.gatesPassed >= requiredGates(ch) && !activeMission.settled) {
       activeMission.settled = true;
       const rewardInfo = settleWinRewards(ch, st);
       if (objHud) objHud.textContent = `✓ ${ch.code} 任務達成！(${'★'.repeat(rewardInfo.stars)})`;
