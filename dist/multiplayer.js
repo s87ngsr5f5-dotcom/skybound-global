@@ -13,6 +13,7 @@ const multiplayer = (() => {
   let mqttSocket = null;
   let lastBroadcast = 0;
   let pingTimer = null;
+  let reconnectTimer = null;
   const peers = new Map();
   const listeners = new Set();
   const radioMessages = [];
@@ -84,6 +85,7 @@ const multiplayer = (() => {
       mqttSocket = ws;
 
       ws.onopen = () => {
+        if(ws!==mqttSocket)return;
         ws.send(encodeMqttConnect(localId));
         clearInterval(pingTimer);
         pingTimer = setInterval(() => {
@@ -92,6 +94,7 @@ const multiplayer = (() => {
       };
 
       ws.onmessage = (event) => {
+        if(ws!==mqttSocket)return;
         const bytes = new Uint8Array(event.data);
         const type = bytes[0] >> 4;
         if (type === 2) {
@@ -123,13 +126,14 @@ const multiplayer = (() => {
 
       ws.onerror = () => {
         // Try fallback broker on error
-        brokerIndex++;
+        if(ws===mqttSocket) brokerIndex++;
       };
 
       ws.onclose = () => {
+        if(ws!==mqttSocket)return;
         clearInterval(pingTimer);
         if (isConnected && roomId === targetRoom) {
-          setTimeout(() => {
+          reconnectTimer=setTimeout(() => {
             if (roomId === targetRoom) connectMqtt(targetRoom);
           }, 4000);
         }
@@ -266,6 +270,7 @@ const multiplayer = (() => {
         notify('peer_joined', peer);
       } else {
         peer.callsign = msg.callsign || peer.callsign;
+        if(msg.aircraftId && msg.aircraftId!==peer.aircraftId) destroyPeer3D(peer);
         peer.aircraftId = msg.aircraftId || peer.aircraftId;
         peer.targetState = { ...msg.state };
         peer.hp = msg.state?.hp ?? peer.hp ?? 100;
@@ -313,6 +318,7 @@ const multiplayer = (() => {
   }
 
   function leaveRoom() {
+    clearTimeout(reconnectTimer);
     if (isConnected && roomId) {
       const leaveMsg = { type: 'leave', sender: localId, roomId, callsign };
       sendRaw(leaveMsg);

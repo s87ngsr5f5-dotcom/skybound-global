@@ -3317,10 +3317,29 @@ function initialize(){
       start(false);
     };
   }
-  byId('quickFlights').onclick=event=>{
+  byId('quickFlights').onclick=async event=>{
     const button=event.target.closest('[data-quick]');
     if(!button) return;
     const preset=button.dataset.quick;
+    if(preset==='duel'||preset==='multiplayer'){
+      const dialog=byId('sortiePicker'), list=byId('sortieAircraft');
+      if(dialog.open)return;
+      const eligible=fleet.filter(p=>preset==='multiplayer'||p.role==='fighter');
+      list.replaceChildren(...eligible.map(p=>{
+        const unlocked=aircraftUnlocked(p);
+        const option=new Option(p.name+(unlocked?'':' 🔒'),p.id);
+        option.disabled=!unlocked;
+        return option;
+      }));
+      const current=byId('aircraft').value;
+      list.value=[current,'f16v',...eligible.map(p=>p.id)].find(id=>eligible.some(p=>p.id===id&&aircraftUnlocked(p)));
+      dialog.returnValue='';
+      const closed=new Promise(resolve=>dialog.addEventListener('close',resolve,{once:true}));
+      dialog.showModal();
+      await closed;
+      if(dialog.returnValue!=='launch'||!list.selectedOptions.length||list.selectedOptions[0].disabled)return;
+      byId('aircraft').value=list.value;
+    }
     if(preset==='carrierCatapult'||preset==='carrierTrap'){
       const cvn=airports.find(a=>a.code==='CVN78')||airports[0];
       byId('lesson').value='free';
@@ -3366,9 +3385,9 @@ function initialize(){
     }
     if(preset==='multiplayer'){
       byId('lesson').value='multiplayer';
-      byId('aircraft').value='f16v';
-      byId('departure').value='RCSS';
-      byId('destination').value='RCTP';
+      const needsWideStand=['passenger','cargo'].includes(selectedAircraft().role)&&!selectedAircraft().regionalGates;
+      byId('departure').value=needsWideStand?'RCTP':'RCSS';
+      byId('destination').value=needsWideStand?'RCKH':'RCTP';
       byId('startType').value='air';
       byId('time').value='15:00';
       byId('weather').value='0';
@@ -6288,7 +6307,7 @@ function initialize(){
     const card=document.createElement('button');
     const name=document.createElement('strong'), details=document.createElement('small'), brief=document.createElement('small');
     name.textContent=mission.name;
-    details.textContent='SF-16 · '+mission.difficulty+' · '+mission.minutes+' 分 · '+mission.base+' 金幣';
+    details.textContent=mission.difficulty+' · '+mission.minutes+' 分 · '+mission.base+' 金幣';
     brief.textContent=(id==='intercept'?'跑道起飛':'空中開始')+' · '+mission.brief;
     card.type='button';
     card.dataset.scenario=id;

@@ -1546,7 +1546,7 @@
         if (launchAfter) {
           onlineFlightRequested = true;
           closeHub();
-          document.getElementById('fly')?.click();
+          document.querySelector('#quickFlights [data-quick="multiplayer"]')?.click();
         } else {
           setTimeout(() => renderStage('multiplayer'), 180);
         }
