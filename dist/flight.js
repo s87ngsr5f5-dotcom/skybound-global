@@ -1526,9 +1526,8 @@ function initialize(){
   const cockpitOrientation=new THREE.Quaternion(), lookRotation=new THREE.Quaternion();
   const cockpitAngles=new THREE.Euler(0,0,0,'YXZ');
   const visualPosition=new THREE.Vector3(),visualForward=new THREE.Vector3();
-  const chaseFwd=new THREE.Vector3(0,0,-1),chaseUp=new THREE.Vector3(0,1,0);
   const previousPose={};
-  let poseFlight=null,chaseHeading=null,chaseBank=0,chasePitch=0,chaseGHead=0,wasGround=true;
+  let poseFlight=null,chaseHeading=null,chaseGHead=0,wasGround=true;
   function rememberPose(f){
     previousPose.x=f.x;previousPose.y=f.y;previousPose.z=f.z;
     previousPose.heading=f.heading;previousPose.pitch=f.pitch;previousPose.bank=f.bank;
@@ -2919,7 +2918,7 @@ function initialize(){
     saveCurrentMission(flight);
     replay=null;replayControls.hidden=true;updateReplayButton();
     flight=null;cameraMode=0;pointer.active=false;keys.clear();
-    chaseHeading=null;chaseBank=0;chasePitch=0;wasGround=true;
+    chaseHeading=null;wasGround=true;
     if(typeof window!=='undefined') window.__skyboundFlight=null;
     const headerMp=byId('headerMpBtn');
     if(headerMp) headerMp.hidden=true;
@@ -5869,42 +5868,20 @@ function initialize(){
           camera.position.set(cx,Math.max(pos.y+8.5,groundAtCam+4.8),cz);
           camera.lookAt(pos.x,pos.y+1.5,pos.z);
         }else{
-          const cosP=Math.cos(pitch),sinP=Math.sin(pitch);
-          const fwdX=Math.sin(heading)*cosP,fwdY=sinP,fwdZ=-Math.cos(heading)*cosP;
-          const roofSign=Math.cos(bank)>=0?1:-1;
-          const upX=-Math.sin(heading)*sinP*roofSign;
-          const upY=Math.max(.18,Math.abs(cosP));
-          const upZ=Math.cos(heading)*sinP*roofSign;
-          if(chaseHeading===null||!continuous||replay){
-            chaseHeading=heading;chaseBank=bank;chasePitch=pitch;
-            chaseFwd.set(fwdX,fwdY,fwdZ).normalize();
-            chaseUp.set(upX,upY,upZ).normalize();
-          }else{
-            chaseHeading+=wrapAngle(heading-chaseHeading)*(1-Math.exp(-dt*6.2));
-            chaseBank+=wrapAngle(bank-chaseBank)*(1-Math.exp(-dt*4.5));
-            chasePitch+=(pitch-chasePitch)*(1-Math.exp(-dt*5.0));
-            const fwdBlend=1-Math.exp(-dt*6.8);
-            const upBlend=1-Math.exp(-dt*6.0);
-            chaseFwd.x+=(fwdX-chaseFwd.x)*fwdBlend;
-            chaseFwd.y+=(fwdY-chaseFwd.y)*fwdBlend;
-            chaseFwd.z+=(fwdZ-chaseFwd.z)*fwdBlend;
-            chaseFwd.normalize();
-            chaseUp.x+=(upX-chaseUp.x)*upBlend;
-            chaseUp.y+=(upY-chaseUp.y)*upBlend;
-            chaseUp.z+=(upZ-chaseUp.z)*upBlend;
-            chaseUp.normalize();
-          }
+          if(chaseHeading===null||!continuous) chaseHeading=heading;
+          else chaseHeading+=wrapAngle(heading-chaseHeading)*(1-Math.exp(-dt*2.8));
+          const fwdX=Math.sin(chaseHeading),fwdZ=-Math.cos(chaseHeading);
           const speedBoost=clamp(((f.speed||0)-25)/220,0,1);
           const distance=profile.geometry[0]*(profile.helicopter?3.1:(profile.id==='b773'||profile.id==='sf748'||profile.id==='an124')?2.7:5)*(1+speedBoost*0.09);
           const elevOffset=profile.helicopter?profile.gearHeight*2.55:profile.gearHeight*3.9;
           camera.position.set(
-            pos.x-chaseFwd.x*distance+chaseUp.x*elevOffset,
-            pos.y-chaseFwd.y*distance+chaseUp.y*elevOffset,
-            pos.z-chaseFwd.z*distance+chaseUp.z*elevOffset
+            pos.x-fwdX*distance,
+            pos.y+elevOffset,
+            pos.z-fwdZ*distance
           );
           const lookAhead=profile.helicopter?11:14;
           const lookBaseY=profile.helicopter?1.1:.55;
-          camera.lookAt(pos.x+fwdX*lookAhead,pos.y+lookBaseY+fwdY*9,pos.z+fwdZ*lookAhead);
+          camera.lookAt(pos.x+fwdX*lookAhead,pos.y+lookBaseY,pos.z+fwdZ*lookAhead);
         }
       }else{
         const airliner=twoSeats(profile);
@@ -5932,13 +5909,13 @@ function initialize(){
         cockpitAim.set(0,0,-1).applyQuaternion(cockpitOrientation).add(camera.position);
         camera.lookAt(cockpitAim);
       }
-      if(crashShake>0.005){
+      if(cameraMode!==0&&crashShake>0.005){
         const s=crashShake*3.8;
         camera.position.x+=(Math.random()-.5)*s;
         camera.position.y+=(Math.random()-.5)*s;
         camera.position.z+=(Math.random()-.5)*s;
-        crashShake*=Math.exp(-dt*2.8);
       }
+      crashShake*=Math.exp(-dt*2.8);
       const watchingCargo=cargoLoader.visible||(profile.antonov&&f.noseDoor&&f.ground&&!f.cabinView);
       if(cameraMode===0&&watchingCargo){
         const door=new THREE.Vector3(f.sideDoor?-model.userData.radius:0,2,

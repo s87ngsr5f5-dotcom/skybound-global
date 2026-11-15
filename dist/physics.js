@@ -302,7 +302,9 @@ function stepTrainer(f, input, dt=simTick){
   const normalPitch=.015+f.trim+f.flaps*.008+turnLift;
   const centerPitch=trimBlend>0?normalPitch+trimBlend*(fastLevelPitch(f,q,speed,0,fighterManual?1.4:1)+f.trim*.25-normalPitch):normalPitch;
   const bankPitchFactor=attitudeAssist?1:(Math.sign(bankCos||1)*Math.max(.68,Math.abs(bankCos)));
-  const pitchTarget=limit(centerPitch+input.pitch*bankPitchFactor*(fighterManual?.50*highSpeedAuthority:.24*maneuver*(f.hold?1:highSpeedAuthority)),
+  const speedBlend=limit((q*aircraft.wingArea/(mass*g)-.75)/1.2,0,1);
+  const manualGain=f.ground||attitudeAssist?1:.45+.55*speedBlend*speedBlend*(3-2*speedBlend);
+  const pitchTarget=limit(centerPitch+input.pitch*manualGain*bankPitchFactor*(fighterManual?.50*highSpeedAuthority:.24*maneuver*(f.hold?1:highSpeedAuthority)),
     fighterManual?-.48:-.36,fighterManual?.54:.38);
   const bankTarget=input.roll*(fighterManual?1.25*highSpeedAuthority:.57*maneuver);
   f.commandPitch=pitchTarget;
@@ -317,7 +319,7 @@ function stepTrainer(f, input, dt=simTick){
   if(!f.ground&&!attitudeAssist){
     const maxRollRate=aircraft.rollRate??(aircraft.role==='fighter'?3.05:aircraft.mass>20000?.72:1.72);
     const authority=limit(q/600,.08,1)*highSpeedAuthority;
-    let rate=input.roll*maxRollRate*authority;
+    let rate=input.roll*manualGain*maxRollRate*authority;
     if(input.autoLevel&&Math.abs(input.roll)<.035)rate=limit(-wrapAngle(f.bank)*1.7,-maxRollRate*.60,maxRollRate*.60);
     const responseTime=aircraft.role==='fighter'?.13:aircraft.mass>20000?.48:.22;
     const settling=Math.abs(rate)<Math.abs(f.bankRate)&&rate*f.bankRate>=0;
@@ -330,7 +332,7 @@ function stepTrainer(f, input, dt=simTick){
   const bankedPullTurn=(aerobaticManual&&!gameAirborne&&Math.abs(bankSin)>.12&&Math.abs(input.pitch)>.12)?
     input.pitch*bankSin*(fighterManual?.44:.32)*highSpeedAuthority:0;
   const targetYaw=(f.ground?input.rudder*(aircraft.role&&aircraft.role!=='fighter'?.34:.45):
-    coordinatedYaw+rollTurnAssist+bankedPullTurn+input.rudder*(fighterManual?.37:.25)*(attitudeAssist?1:bankCos)+beta*.35) + propPfactor;
+    coordinatedYaw+manualGain*(rollTurnAssist+bankedPullTurn)+manualGain*input.rudder*(fighterManual?.37:.25)*(attitudeAssist?1:bankCos)+beta*.35) + propPfactor;
   const yawMoment=(targetYaw+asymmetricYaw-f.yawRate)*8800*(aerobaticManual?1.85:1)*aircraft.inertia[2]/2850;
   const loopMode=aerobaticManual&&!f.cobraActive&&(Math.abs(input.pitch)>.32||Math.abs(f.pitch)>=.42||bankCos<=-.20);
   if(loopMode){
@@ -339,7 +341,7 @@ function stepTrainer(f, input, dt=simTick){
     const bankPitchSign=bankCos>=0?Math.max(.45,bankCos):Math.min(-.45,bankCos);
     let desiredPitchRate;
     if(Math.abs(input.pitch)>.035){
-      desiredPitchRate=input.pitch*maxPitchRate*pitchAuth*bankPitchSign;
+      desiredPitchRate=input.pitch*manualGain*maxPitchRate*pitchAuth*bankPitchSign;
     }else if(bankCos<=-.20){
       const invTrimTarget=-.012;
       desiredPitchRate=limit((invTrimTarget-f.pitch)*2.2,-.55,.55);
