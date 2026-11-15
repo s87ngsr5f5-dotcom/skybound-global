@@ -304,8 +304,12 @@ function stepTrainer(f, input, dt=simTick){
   const bankPitchFactor=attitudeAssist?1:(Math.sign(bankCos||1)*Math.max(.68,Math.abs(bankCos)));
   const speedBlend=limit((q*aircraft.wingArea/(mass*g)-.75)/1.2,0,1);
   const manualGain=f.ground||attitudeAssist?1:.45+.55*speedBlend*speedBlend*(3-2*speedBlend);
+  // Keep a sustained rotation pull in attitude control until stick release.
+  if(f.ground) f.rotationPull=input.pitch>.18;
+  else if(input.pitch<=.18) f.rotationPull=false;
+  const rotating=f.ground||f.rotationPull;
   const pitchTarget=limit(centerPitch+input.pitch*manualGain*bankPitchFactor*(fighterManual?.50*highSpeedAuthority:.24*maneuver*(f.hold?1:highSpeedAuthority)),
-    fighterManual?-.48:-.36,fighterManual?.54:.38);
+    fighterManual?-.48:-.36,rotating?.21:(fighterManual?.54:.38));
   const bankTarget=input.roll*(fighterManual?1.25*highSpeedAuthority:.57*maneuver);
   f.commandPitch=pitchTarget;
   f.commandBank=bankTarget;
@@ -334,7 +338,7 @@ function stepTrainer(f, input, dt=simTick){
   const targetYaw=(f.ground?input.rudder*(aircraft.role&&aircraft.role!=='fighter'?.34:.45):
     coordinatedYaw+manualGain*(rollTurnAssist+bankedPullTurn)+manualGain*input.rudder*(fighterManual?.37:.25)*(attitudeAssist?1:bankCos)+beta*.35) + propPfactor;
   const yawMoment=(targetYaw+asymmetricYaw-f.yawRate)*8800*(aerobaticManual?1.85:1)*aircraft.inertia[2]/2850;
-  const loopMode=aerobaticManual&&!f.cobraActive&&(Math.abs(input.pitch)>.32||Math.abs(f.pitch)>=.42||bankCos<=-.20);
+  const loopMode=!rotating&&aerobaticManual&&!f.cobraActive&&(Math.abs(input.pitch)>.32||Math.abs(f.pitch)>=.42||bankCos<=-.20);
   if(loopMode){
     const maxPitchRate=aircraft.role==='fighter'?1.18:aircraft.mass>20000?.75:.98;
     const pitchAuth=limit(q/450,.22,1)*highSpeedAuthority;
@@ -355,6 +359,7 @@ function stepTrainer(f, input, dt=simTick){
   }else{
     f.pitchRate+=pitchMoment/aircraft.inertia[0]*dt;
   }
+  if(rotating) f.pitchRate=Math.min(f.pitchRate,.08);
   f.yawRate+=yawMoment/aircraft.inertia[2]*dt;
   const pitchMin=(aircraft.role==='fighter'&&f.cobraActive)?-0.85:-.62;
   const pitchMax=(aircraft.role==='fighter'&&f.cobraActive)?1.92:.66;
