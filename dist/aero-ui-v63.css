@@ -822,6 +822,9 @@ body.title-hub-open .geo-credit {
     padding: 8px 10px;
     gap: 6px;
     overflow-y: auto;
+    min-height: 0;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
   }
   .hub-brand {
     display: block;
@@ -836,6 +839,7 @@ body.title-hub-open .geo-credit {
   .hub-menu-list {
     display: flex;
     flex-direction: column;
+    touch-action: pan-y;
     overflow-x: visible;
     overflow-y: visible;
     gap: 4px;
