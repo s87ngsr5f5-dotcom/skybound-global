@@ -10,7 +10,19 @@ const runway10 = Object.freeze({
 });
 const simTick = 1/120;
 const knotsPerMps = 3600/1852;
-const fastCruiseKmh = 2000;
+const fastCruiseKmh = 2000; // Legacy fallback for unconfigured game aircraft.
+function aircraftCruiseKmh(aircraft=trainer){
+  if(aircraft.helicopter)return aircraft.cruiseKmh||Math.round((aircraft.rotation||60)*1.852*1.6);
+  if(aircraft.cruiseKmh)return aircraft.cruiseKmh;
+  if(aircraft.jet||aircraft.thrust)return Math.round((aircraft.cruiseMach||.78)*1062);
+  return Math.round((aircraft.rotation||55)*1.852*(aircraft.retract?2.65:2.15));
+}
+function aircraftFastKmh(aircraft=trainer){
+  if(aircraft.fastMaxKmh)return aircraft.fastMaxKmh;
+  if(['sf16','f16v','fck1','m2000'].includes(aircraft.id))return 2000;
+  if(aircraft.role==='fighter')return Math.round(Math.max(1600,(aircraft.maxMach||1.8)*1062)/10)*10;
+  return Math.round(aircraftCruiseKmh(aircraft)*(aircraft.jet||aircraft.thrust?1.45:1.25)/10)*10;
+}
 const displayKmh = mps => Math.round(mps*3.6);
 const knotsToKmh = knots => Math.round(knots*1.852);
 function atmosphere(height,temperatureOffset=0){
@@ -42,7 +54,7 @@ function flightSpeeds(f){
 function cruiseMachTarget(f){
   if(f.fastCruise){
     const air=atmosphere(f.y,f.temperatureOffset);
-    return (fastCruiseKmh+12)/(3.6*air.sound*Math.sqrt(air.density/1.225));
+    return (aircraftFastKmh(f.aircraft)+12)/(3.6*air.sound*Math.sqrt(air.density/1.225));
   }
   return f.aircraft.cruiseMach??.85;
 }
@@ -262,7 +274,7 @@ function stepTrainer(f, input, dt=simTick){
     Math.min(2700*aircraft.power/119000,aircraft.power*.78/Math.max(18,forwardSpeed));
   f.airBrake=!f.ground&&Boolean(input.brake||input.airBrake);
   const boostBlend=fastCruise&&!f.airBrake?limit(q/10000,.05,1):0;
-  const boostedThrust=.5*1.225*aircraft.wingArea*((fastCruiseKmh+12)/3.6)**2*(.064+2*aircraft.flapDrag[f.flaps]);
+  const boostedThrust=.5*1.225*aircraft.wingArea*((aircraftFastKmh(f.aircraft)+12)/3.6)**2*(.064+2*aircraft.flapDrag[f.flaps]);
   const available=normalThrust+boostBlend*Math.max(0,boostedThrust-normalThrust);
   const engineThrust=enginePower*running*(f.propLow?.82:1)*available;
   const thrust=boostBlend>0?Math.min(engineThrust,drag+mass*15):engineThrust;

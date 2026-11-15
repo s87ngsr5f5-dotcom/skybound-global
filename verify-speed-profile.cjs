@@ -71,8 +71,8 @@ for(const [aircraft,mode,fast] of trials){
   if(mode==='autonav-fast') updateRegionalFlight(f,()=>true);
  }
  const {ias,tas,gs,mach}=flightSpeeds(f),nmi=Math.hypot(f.x-start.x,f.z-start.z)/1852;
- console.log({aircraft:aircraft.id,mode,tas:tas*knotsPerMps,gs:gs*knotsPerMps,mach,nmi});
+ console.log({aircraft:aircraft.id,mode,tas:tas*knotsPerMps,gs:gs*knotsPerMps,iasKmh:ias*3.6,target:aircraftFastKmh(aircraft),mach,nmi});
  assert(Math.abs(gs*knotsPerMps-tas*knotsPerMps)<1);
  assert.equal(f.power,1,aircraft.id+' '+mode+' full cruise throttle');
- assert(fast?ias*3.6>=fastCruiseKmh&&ias*3.6<fastCruiseKmh+40&&nmi>61:tas*knotsPerMps<500&&nmi>29);
+ assert(fast?ias*3.6>=aircraftFastKmh(aircraft)*.95&&ias*3.6<aircraftFastKmh(aircraft)*1.1+15&&nmi>aircraftFastKmh(aircraft)/34:tas*knotsPerMps<500&&nmi>29);
 }

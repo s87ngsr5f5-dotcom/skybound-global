@@ -2539,7 +2539,7 @@ function initialize(){
     }
     if(f.aircraft.jet){
       entries.push(['擾流板',()=>f.spoilers,()=>f.spoilers=!f.spoilers]);
-      entries.push(['高速遊戲 · 2,000 km/h IAS',()=>Boolean(f.fastCruise),()=>{
+      entries.push(['高速遊戲 · '+aircraftFastKmh(f.aircraft)+' km/h IAS',()=>Boolean(f.fastCruise),()=>{
         f.fastCruise=!f.fastCruise;
         if(f.hold?.mach) f.hold.mach=cruiseMachTarget(f);
       }]);
@@ -2902,7 +2902,12 @@ function initialize(){
         flight.checkpointId=(typeof crypto!=='undefined'&&crypto.randomUUID)?crypto.randomUUID():'m_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
         saveCurrentMission(flight,replacedId);
       }
-    }catch(error){byId('message').textContent=error.message;}
+    }catch(error){
+      byId('plan').hidden=false;
+      byId('message').textContent=error.message;
+      byId('message').setAttribute('role','alert');
+      byId('message').scrollIntoView({block:'center'});
+    }
   }
   function menu(){
     flightAudio.stopSpeech();
@@ -4308,7 +4313,7 @@ function initialize(){
     const kbRoll=axis('ArrowRight','ArrowLeft')+axis('Numpad6','Numpad4')+(throttleKeys().includes('KeyA')?0:axis('KeyD','KeyA'));
     const kbPitch=axis('ArrowUp','ArrowDown')+axis('Numpad8','Numpad2');
     const kbRudder=axis('KeyE','KeyQ')+axis('NumpadEnter','Numpad0');
-    const kbBoost=1/Math.max(.35,Number(settings.sensitivity)||.55)*.92;
+    const kbBoost=.65+.35*(Number(settings.sensitivity)||.55);
     const rawRoll=kbRoll*kbBoost+padAxis(pad?.axes[0])+(pointer.active?padAxis(pointer.x):0)+gamepadAxis(controlAxes.roll,.06)*touchGain;
     const rawPitch=kbPitch*kbBoost-padAxis(pad?.axes[1])+(pointer.active?padAxis(pointer.y):0)+gamepadAxis(controlAxes.pitch,.06)*touchGain;
     const manual=manualAxes({pitch:rawPitch,roll:rawRoll,
@@ -4364,7 +4369,7 @@ function initialize(){
       }
     }
     const turnCoordRudder=f.ground?roll:(Math.abs(manual.rudder)<.05&&Math.cos(f.bank||0)>.15?roll*.22*Math.cos(f.bank||0):0);
-    return {autoLevel:!settings.keepBank||Boolean(f.levelWings),response:Math.max(.72,settings.sensitivity),yokeDamping:settings.mouse&&!f.hold&&!f.tactical?.aimAssist&&Math.abs(manual.pitch)<.07,maneuver:f.hold?1:(f.ground?1:1.20-.38*clamp((f.speed-100)/200,0,1)),pitch:clamp(pitch,-1,1),roll:clamp(roll,-1,1),
+    return {autoLevel:!settings.keepBank||Boolean(f.levelWings),response:settings.sensitivity,yokeDamping:settings.mouse&&!f.hold&&!f.tactical?.aimAssist&&Math.abs(manual.pitch)<.07,maneuver:f.hold?1:(f.ground?1:1.20-.38*clamp((f.speed-100)/200,0,1)),pitch:clamp(pitch,-1,1),roll:clamp(roll,-1,1),
       rudder:assistedRudder??clamp(manual.rudder+turnCoordRudder,-1,1),
       throttle,
       trim:axis('KeyX','KeyZ')*.22,brake:touch.brake||keys.has('Space')||keys.has('NumpadDecimal')||Boolean(buttons[0]?.pressed)};
@@ -4949,7 +4954,7 @@ function initialize(){
       return (f.range.message||'對準橘色地面靶，距離 250–2600 m '+(mobile?'點「訓練射擊」':'按 M'))+' · '+Math.round(d)+' m · '+f.range.rounds+' 發';
     }
     if(f.airBrake) return '空中減速板已展開';
-    if(f.cruiseTrial) return (f.fastCruise?'高速試飛 · 目標 IAS 2,000 km/h':'寫實巡航')+' · '+Math.floor(f.elapsed/60)+' 分 '+Math.floor(f.elapsed%60)+' 秒';
+    if(f.cruiseTrial) return (f.fastCruise?'高速試飛 · 目標 IAS '+aircraftFastKmh(f.aircraft)+' km/h':'寫實巡航')+' · '+Math.floor(f.elapsed/60)+' 分 '+Math.floor(f.elapsed%60)+' 秒';
     if(!f.regional){
       if(f.landed) return '已接地 · 收油並煞車'+retry;
       if(f.ground) return knots>=51?(mobile?'向上拖搖桿拉升':'按 ↑ 拉升'):(mobile?'調高油門':'按住 W')+' 加速至約 94 km/h';
@@ -5506,12 +5511,12 @@ function initialize(){
       }else{
         const rate=Number(flightRate.value)||1;
         if(rate<previousFlightRate) accumulator*=rate/previousFlightRate;
-        if(!paused&&!f.finished) accumulator+=frameSeconds*rate;
+        if(!paused&&!f.finished) accumulator=Math.min(accumulator+Math.min(frameSeconds,.1)*rate,Math.max(.1,rate*.1));
         // Catch up gradually after a long frame so fast-forward cannot stall rendering.
         const simDeadline=performance.now()+5;
         let autopilotInput;
         for(let ticks=0;!paused&&!f.finished&&!document.hidden&&accumulator+1e-10>=simTick&&
-            (ticks<12||performance.now()<simDeadline);ticks++){
+            ticks<96&&performance.now()<simDeadline;ticks++){
           rememberPose(f);
           if(f.tow) stepRunwayTow(f,simTick);
           else{

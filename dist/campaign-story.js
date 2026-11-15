@@ -1329,7 +1329,7 @@
       <aside class="hub-sidebar">
         <div>
           <div class="hub-brand">
-            <span class="hub-kicker">SKYBOUND GLOBAL · v0.71</span>
+            <span class="hub-kicker">SKYBOUND GLOBAL · v0.72</span>
             <h1 class="hub-title">蒼穹守望者</h1>
             <p class="hub-subtitle">Formosa Wings · 故事模式 · 跨國地圖 · 特技挑戰</p>
           </div>
@@ -1376,6 +1376,7 @@
       const tabBtn = e.target.closest('[data-hub-tab]');
       if (tabBtn) {
         renderStage(tabBtn.dataset.hubTab);
+        updateHubSpeed();
         return;
       }
       const chBtn = e.target.closest('[data-chapter-id]');
@@ -2203,7 +2204,7 @@
               <label>當地時刻<input type="time" id="hubFfTime" value="${document.getElementById('time')?.value || '13:00'}"></label>
             </div>
             <div class="actions" style="margin-top:14px">
-              <button type="button" id="hubFreeFlyBtn" class="campaign-launch-btn">✈ 立即起飛 →</button>
+              <p id="hubSpeedSummary" aria-live="polite"></p><button type="button" id="hubFreeFlyBtn" class="campaign-launch-btn">✈ 立即起飛 →</button>
               <button type="button" id="hubOpenHangarBtn" class="hub-back-btn">🏛️ 開啟 3D 機庫與塗裝工坊</button>
               <button type="button" id="hubOpenAdvancedPlanBtn" class="hub-back-btn">📋 進階載客／貨運／航點編輯</button>
             </div>
@@ -2290,6 +2291,15 @@
     }
   }
 
+  function updateHubSpeed(){
+    const select=document.getElementById('hubFfAircraft'), label=document.getElementById('hubSpeedSummary');
+    if(!select||!label||typeof fleet==='undefined')return;
+    const profile=fleet.find(p=>p.id===select.value);
+    if(label&&profile)label.textContent=`巡航參考 ${aircraftCruiseKmh(profile)} km/h · 高速遊戲目標 ${aircraftFastKmh(profile)} km/h`;
+  }
+  document.addEventListener('change',event=>{
+    if(['hubFfAircraft','hubFfCategory'].includes(event.target.id))queueMicrotask(updateHubSpeed);
+  });
   function openHub(tab = activeTab) {
     if (document.body.classList.contains('flight-ui')) return;
     onlineFlightRequested = false;
@@ -2300,6 +2310,7 @@
     if (hub) hub.hidden = false;
     document.body.classList.add('title-hub-open');
     renderStage(tab);
+    updateHubSpeed();
   }
 
   function closeHub() {
@@ -2307,6 +2318,8 @@
     hubOpenTimer = null;
     const hub = document.getElementById('titleHub');
     if (hub) hub.hidden = true;
+    const plan = document.getElementById('plan');
+    if (plan && !document.body.classList.contains('flight-ui')) plan.hidden = false;
     document.body.classList.remove('title-hub-open');
   }
 
