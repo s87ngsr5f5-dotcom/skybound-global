@@ -51,7 +51,7 @@ function runDist(name) {
 }
 
 for (const f of [
-  'physics.js', 'fleet.js', 'aero-aircraft.js', 'benchmarks.js', 'b773-highdef.js', 'b748f-highdef.js', 'f16-highdef.js', 'an124-highdef.js', 'benchmark-models.js',
+  'physics.js', 'fleet.js', 'aero-aircraft.js', 'benchmarks.js', 'b773-highdef.js', 'b748f-highdef.js', 'f16-highdef.js', 'f14-highdef.js', 'fa18-highdef.js', 'an124-highdef.js', 'benchmark-models.js',
   'helicopter.js', 'fleet-expansion.js', 'fighter-refinement.js',
   'airliner-refinement.js', 'aircraft-skins.js', 'cockpit-enhancements.js',
   'cockpit-electrical.js', 'air-refueling.js'

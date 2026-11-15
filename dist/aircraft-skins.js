@@ -441,7 +441,7 @@ const aircraftSkins = (() => {
     if (!model || !profile || !THREE) return;
     const theme = getThemeSpec(themeOverride);
     if (model.userData?.skinApplied && model.userData?.skinTheme === theme.id) return;
-    if (model.userData?.f16HighDef || model.userData?.an124HighDef) {
+    if (model.userData?.f16HighDef || model.userData?.f14HighDef || model.userData?.fa18HighDef || model.userData?.an124HighDef) {
       model.userData.applyConformalLivery?.(theme.id);
       model.userData.skinApplied = true;
       model.userData.skinTheme = theme.id;

@@ -394,7 +394,7 @@ const cockpitEnhancements = (() => {
 
     // Windshield glare shines bright when facing sun
     if (data.windshieldGlare && data.windshieldGlare.material) {
-      if (data.b773HighDef || data.b748fHighDef || data.f16HighDef || data.an124HighDef) {
+      if (data.b773HighDef || data.b748fHighDef || data.f16HighDef || data.f14HighDef || data.fa18HighDef || data.an124HighDef) {
         data.windshieldGlare.material.opacity = 0.03;
       } else {
         const glareFactor = Math.min(1.0, Math.max(0.08, sunIntensity * 0.35));

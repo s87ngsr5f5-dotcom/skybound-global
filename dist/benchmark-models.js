@@ -4,6 +4,8 @@ function buildBenchmarkAirframe(profile,scene){
   if(profile?.id==='sf748'&&typeof buildB748FAirframe==='function') return buildB748FAirframe(profile,scene);
   if(profile?.id==='an124'&&typeof buildAn124Airframe==='function') return buildAn124Airframe(profile,scene);
   if((profile?.id==='sf16'||profile?.id==='f16v')&&typeof buildF16Airframe==='function') return buildF16Airframe(profile,scene);
+  if(profile?.id==='f14b'&&typeof buildF14Airframe==='function') return buildF14Airframe(profile,scene);
+  if(profile?.id==='fa18c'&&typeof buildFa18Airframe==='function') return buildFa18Airframe(profile,scene);
   const group=new THREE.Group(), gear=new THREE.Group(), cabin=new THREE.Group();
   const closeDetails=new THREE.Group();
   group.add(closeDetails);

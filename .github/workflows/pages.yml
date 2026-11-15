@@ -67,6 +67,8 @@ jobs:
       - run: node verify-b773-benchmark.cjs
       - run: node verify-sf748-benchmark.cjs
       - run: node verify-f16-benchmark.cjs
+      - run: node verify-f14-benchmark.cjs
+      - run: node verify-fa18-benchmark.cjs
       - run: node verify-an124-benchmark.cjs
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

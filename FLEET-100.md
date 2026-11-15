@@ -38,7 +38,7 @@
 - https://www.lockheedmartin.com/content/dam/lockheed-martin/aero/documents/F-16/25-00470_F-16%20Block70_72_Product%20Card_Jan%202025.pdf
 - https://www.af.mil/About-Us/Fact-Sheets/Display/Article/104505/f-16-fighting-falcon/
 
-仍待補齊：逐架手冊校準、專用航電與座艙、F-14 連續後掠翼、F/A-18 獨立折翼與攔阻機構、新增機型專屬聲音、直升機精確外型、逐架完整起降任務、近距離面板與鉚釘精修。新增多數機型共用相應類別的座艙與系統，不應當作已完成 100 架高細節飛機交付。
+仍待補齊：其餘未精修機型的逐架手冊校準、專用航電與座艙、新增機型專屬聲音、直升機精確外型、逐架完整起降任務、近距離面板與鉚釘精修。新增多數未精修機型仍共用相應類別的座艙與系統，不應當作已完成 100 架高細節飛機交付。
 
 ## 本輪實測結果
 
@@ -66,4 +66,12 @@
 - **專屬座艙與任務聯動**：專屬俄系翠綠雙人座艙（6 螢幕航電面板、雙 PFD/HSI、4 發引擎簇、機鼻／跪降／24 輪狀態頁、`RUSLAN LOAD & NAV` 中央 CDU、4 具油門桿、連動襟翼／擾流板／起落架撥桿、雙 Antonov 操縱盤、夜間 `BACKLIGHT 40%` 可調背光與暖色泛光燈），飛行座艙自動隱藏貨艙拱頂以免視角重疊，並於預設最高畫質（`ultra` + `#rtLighting`）完成 RCKH→RCTP `74,000 kg` 前艙坡道裝貨／平衡（`CG -0.01 m`）、起飛（`76.9 m/s`）與爬升（`1109 m`）任務聯動；同步修復 `dist/atmospheric-sky.js` 雲層片段著色器缺少 `uniform float twilight` 宣告造成的夜航著色器編譯錯誤。
 - **實測結果**：`run-all-tests.cjs` 全部 50 項通過（含 `verify-no-clipping.cjs` 100/100 機隊+加油機、`verify-an124-benchmark.cjs` 與既有回歸）；`verify-benchmarks.cjs` 在客貨機基準 `b773`（RCTP→RCKH 360 客、`result: 任務完成`）、`sf748`（RCKH→RCTP 35t/84t `result: 任務完成`）與 `an124`（RCKH→RCTP 35t/84t `result: 任務完成`）通過（註：舊版通用區域腳本 `verify-benchmarks.cjs` 不適用於戰機 `sf15`/`sf16` 五邊降落邏輯，戰機由 `verify-f16-benchmark.cjs`、`verify-fighter-controls.cjs` 與 `verify-supermaneuver-gforce.cjs` 驗收）；瀏覽器實測 `127.0.0.1:4173`（Desktop `1440×900` `?v=85`/`?v=86`/`?v=87` 及 Mobile `844×390` `iphone.html?v=85`）完成機庫 3D 檢視、日／夜間 `BACKLIGHT 40%` 座艙、貨運裝載實況、RCKH 起飛收輪、黃昏與夜航飛行座艙，`pageerror` 與 `console.error` 皆為 `0`。
 
-- **後續基準擴展狀態與誠實限制**：以上 4 架品質基準（`b773`、`sf748`、`sf16`/`f16v`、`an124`）均已完成外觀、專屬座艙、機構動畫與代表任務驗收。其餘機型在未逐型精修前，仍依 `FLEET-100.csv` 與 `dist/fleet-expansion.js` 維持「程序模型／近似模型」與「共用座艙」誠實標示，不一次替 100 架貼上高精細完成標籤；此外 iPhone 版僅於視窗模擬（`844×390`）驗證，實體 iPhone／iOS Safari WebKit 實機仍待實測。
+### 5. Grumman F-14B Tomcat（`f14b`）— 已完成品質基準驗收
+- **外觀與機構**（`dist/f14-highdef.js`、`dist/aircraft-skins.js`、`dist/flight.js`）：實機包絡 `19.57 m` 機長 × `19.71 m`（20° 展翼）／`10.17 m`（75° 停機超後掠）翼展，雙座 Tomcat 氣泡座艙罩與機首進氣平底隧道、雙 F110-GE-400 短艙與矩形可變進氣口／轉動壓縮風扇／後燃噴口、機腹雙腹鰭與 AIM-54/AIM-9 掛載、**連續可變後掠翼**（低速 20° → 隨馬赫數連續後掠至 68° → 停機 75° 超後掠；機庫支援「專屬機構展示」）、差動全動平尾、艦載雙前輪彈射牽引桿與可動攔阻尾鉤（`f.tailhook`）。
+- **專屬座艙與實測**：專屬 Tomcat 雙人前座（VDI 垂直顯示器、HSD/TID 戰術顯示、機翼後掠角指示器、平行校準 HUD、HOTAS 操縱桿與尾鉤撥桿、8 個可點擊電氣／機構開關與可調夜間背光）；`verify-f14-benchmark.cjs` 與 `verify-no-clipping.cjs` 通過（RCMQ 起飛後燃爬升至 `1013 m @ 155.1 m/s`）。
+
+### 6. McDonnell Douglas F/A-18C Hornet（`fa18c`）— 已完成品質基準驗收
+- **外觀與機構**（`dist/fa18-highdef.js`、`dist/aircraft-skins.js`、`dist/flight.js`）：實機包絡 `17.32 m` 機長 × `11.84 m`（展開）／`7.68 m`（摺疊）翼展，尖銳雷達罩與前緣延伸邊條（LEX）含導流片、雙側圓弧進氣道與轉動 F404 風扇、外傾 20° 雙垂尾、雙 F404 噴口與後燃火焰、**艦載外翼向上摺疊機構**（停機斷電或機庫「專屬機構展示」自動向上摺疊至 `92°`）、**可動艦載攔阻尾鉤**（`f.tailhook`）與雙前輪彈射牽引桿。
+- **專屬座艙與實測**：專屬 Hornet 三具方形多功能顯示器（Left DDI / Center MPCD / Right DDI）、UFC 前端控制器、寬視角 HUD、HOTAS 操縱桿／雙推力桿／尾鉤撥桿、8 個可點擊開關與可調夜間背光；`verify-fa18-benchmark.cjs` 與 `verify-no-clipping.cjs` 通過（RCMQ 起飛後燃爬升至 `984 m @ 169.4 m/s`）。
+
+- **後續基準擴展狀態與誠實限制**：以上 6 架品質基準（`b773`、`sf748`、`sf16`/`f16v`、`an124`、`f14b`、`fa18c`）均已完成外觀、專屬座艙、機構動畫與代表任務驗收。其餘機型在未逐型精修前，仍依 `FLEET-100.csv` 與 `dist/fleet-expansion.js` 維持「程序模型／近似模型」與「共用座艙」誠實標示，不一次替 100 架貼上高精細完成標籤；此外 iPhone 版僅於視窗模擬（`844×390`）驗證，實體 iPhone／iOS Safari WebKit 實機仍待實測。

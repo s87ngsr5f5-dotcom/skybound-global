@@ -3174,7 +3174,8 @@ function initialize(){
     byId('hangarUnlock').textContent=plane.unlock?'前往 '+plane.unlock.label:'';
     for(const option of hangarView.options){
       option.disabled=(option.value==='cabin'&&plane.role==='fighter')||
-        (option.value==='cargoDoor'&&plane.role!=='cargo');
+        (option.value==='cargoDoor'&&plane.role!=='cargo')||
+        (option.value==='mechanism'&&!['f14b','fa18c'].includes(plane.id));
     }
     if(hangarView.selectedOptions[0]?.disabled) hangarView.value='orbit';
   }
@@ -6050,9 +6051,19 @@ function initialize(){
         data.updateFighterDeck?.(null,now);
         const h=data.half;
         const showCargo=hangarMode&&inspection==='cargoDoor';
+        const showMechanism=hangarMode&&inspection==='mechanism';
         animateCargoDoors(data,showCargo&&!profile.sideCargo,showCargo&&Boolean(profile.sideCargo),dt);
         data.setCabinHoldVisible?.(inspection==='cabin');
         data.syncExteriorCargo?.((showCargo||inspection==='cabin')?{noseDoor:showCargo,pallets:[24000,30000,20000]}:{noseDoor:false,pallets:[0,0,0]},dt);
+        if(data.f14HighDef||data.fa18HighDef){
+          data.updateAeroSurfaces?.({
+            aileron:0,elevator:0,rudder:0,flaps:0,spoilers:0,throttle:0,
+            airborne:false,speed:0,mach:0,gearExtension:1,
+            tailhook:showMechanism&&(Math.sin(now*0.0022)>0),
+            mechanismDemo:showMechanism,
+            engines:[false,false]
+          },dt);
+        }
         const station={nose:[0,3,-2.9],side:[2.8,3,0],tail:[0,3,2.9],belly:[.3,-9,2.6]}[inspection];
         if(inspection==='orbit'){
           if(hangarMode){
@@ -6060,6 +6071,10 @@ function initialize(){
             model.rotation.set(0,0,0);
             camera.position.set(p.x+Math.sin(angle)*h*2.32,model.position.y+h*hangarElevation,p.z+Math.cos(angle)*h*2.32);
           }else camera.position.set(p.x-h*1.62,model.position.y+h*.64,p.z+h*1.42);
+          camera.lookAt(model.position);
+        }else if(showMechanism){
+          model.rotation.set(0,0,0);
+          camera.position.set(p.x-h*1.75,model.position.y+h*0.88,p.z+h*1.45);
           camera.lookAt(model.position);
         }else if(showCargo){
           model.rotation.set(0,0,0);
@@ -6108,6 +6123,12 @@ function initialize(){
             }else if(data.f16HighDef){
               camera.position.set(p.x,model.position.y+.84,p.z-h*.420);
               camera.lookAt(p.x,model.position.y+.54,p.z-h*.422-.72);
+            }else if(data.f14HighDef){
+              camera.position.set(p.x,model.position.y+.96,p.z-5.20);
+              camera.lookAt(p.x,model.position.y+.70,p.z-6.50);
+            }else if(data.fa18HighDef){
+              camera.position.set(p.x,model.position.y+.90,p.z-4.81);
+              camera.lookAt(p.x,model.position.y+.66,p.z-6.10);
             }else if(profile.id==='b773'&&!interior){
               camera.position.set(p.x-.72,model.position.y+data.radius*.17+.60,p.z-h*.56+1.20);
               camera.lookAt(p.x-.38,model.position.y+data.radius*.17+.14,p.z-h*.56-1.31);
