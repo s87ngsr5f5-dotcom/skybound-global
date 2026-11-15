@@ -583,7 +583,7 @@ function createTaipeiCity(scene,ground,airports){
   const tyre=new THREE.CylinderGeometry(.33,.33,.22,8);tyre.rotateZ(Math.PI/2);
   const tyres=new THREE.InstancedMesh(tyre,new THREE.MeshStandardMaterial({color:0x252b2e,roughness:.95}),256);
   root.add(vehicles,cabins,headlamps,tailLamps,tyres);
-  const matrix=new THREE.Object3D(),cars=Array.from({length:64},(_,i)=>({route:null,t:i*.618%1}));
+  const matrix=new THREE.Object3D(),cars=Array.from({length:64},(_,i)=>({route:null,t:Math.random(),pace:.85+Math.random()*.3}));
   for(let i=0;i<64;i++)vehicles.setColorAt(i,new THREE.Color(['#dedfdc','#c3b14a','#4a6573','#a8b2b2','#faf6e7','#ae4e43'][i%6]));
   let trafficTime=0;
   function traffic(dt,x,z,paused,mobile){
@@ -596,12 +596,12 @@ function createTaipeiCity(scene,ground,airports){
     headlamps.visible=tailLamps.visible=day<.4;
     function instance(mesh,i,px,py,pz,w,h,d,angle){matrix.position.set(px,py,pz);matrix.scale.set(w,h,d);matrix.rotation.set(0,angle,0);matrix.updateMatrix();mesh.setMatrixAt(i,matrix.matrix);}
     for(let i=0;i<count;i++){
-      const car=cars[i],r=available[(i*17)%available.length];
+      const car=cars[i];
       // Route remains selected while its tile is loaded: no per-frame jumps.
-      if(!car.route||!available.includes(car.route))car.route=r;
+      if(!car.route||!available.includes(car.route))car.route=available[Math.floor(Math.random()*available.length)];
       const [width,bridge,p]=car.route,points=[];let length=0;
       for(let n=2;n<p.length;n+=2){const segment=Math.hypot(p[n]-p[n-2],p[n+1]-p[n-1]);points.push(segment);length+=segment;}
-      if(!paused)car.t=(car.t+(width>15?17:10)*dt/Math.max(1,length))%1;
+      if(!paused)car.t=(car.t+(width>15?17:10)*car.pace*dt/Math.max(1,length))%1;
       let distance=car.t*length,j=0;while(j<points.length-1&&distance>points[j])distance-=points[j++];
       const f=distance/Math.max(.01,points[j]),n=j*2,dx=p[n+2]-p[n],dz=p[n+3]-p[n+1],norm=Math.max(.01,points[j]);
       const px=p[n]+dx*f-dz/norm*width*.23,pz=p[n+1]+dz*f+dx/norm*width*.23;

@@ -43,12 +43,12 @@
       startType: 'runway',
       weather: '0',
       time: '06:20',
-      objectiveDistM: 3200,
-      parTimeS: 95,
+      objectiveDistM: 6800,
+      parTimeS: 220,
       rewardMoney: 5000,
       rewardXp: 180,
       maxSafeG: 3.5,
-      targetText: '① 跑道離地爬升 ② 維持 600+ ft (183m) 掠過基隆河 ③ 累積巡航 3.2 km',
+      targetText: '① 跑道離地爬升 ② 維持 600+ ft (183m) 掠過基隆河 ③ 累積巡航 6.8 km',
       story: '清晨六點二十分，晨曦染金了大屯山與淡水河。你剛通過民航機師檢定，將與周教官駕駛 Cessna 172S 從松山 10 跑道首飛，依序完成離地、低空走廊巡航與平飛穩定考驗。',
       radio: [
         { delay: 1.5, speaker: '周教官 · RCSS教席', text: '「晨風，歡迎來到真正的天空！油門推滿，達 55 節輕輕拉桿離地。」' }
@@ -60,16 +60,16 @@
           radio: { speaker: '台北近場台 · Taipei Approach', text: '「Skybound-01 已離地！請繼續爬升並沿淡水河向西進入第二階段巡航。」' }
         },
         {
-          label: '階段 2/3 · 保持 600+ ft (183m) 巡航累積 1.8 km',
-          check: (f, st) => !f.ended && !f.ground && f.y >= 183 && st.flownM >= 1800,
+          label: '階段 2/3 · 保持 600+ ft (183m) 巡航累積 3 km',
+          check: (f, st) => !f.ended && !f.ground && f.y >= 183 && st.flownM >= 3000,
           radio: { speaker: '副駕駛 · 周教官', text: '「看左側信義區 101 玻璃帷幕在晨光中反光了！穩住姿態完成最後一段航程！」' }
         },
         {
-          label: '階段 3/3 · 穩定 600+ ft (183m) 完成 3.2 km 盆地巡禮',
-          check: (f, st) => !f.ended && !f.ground && f.y >= 183 && st.flownM >= 3200
+          label: '階段 3/3 · 穩定 600+ ft (183m) 完成 6.8 km 盆地巡禮',
+          check: (f, st) => !f.ended && !f.ground && f.y >= 183 && st.flownM >= 6800
         }
       ],
-      winCondition: (f, st) => !f.ended && !f.ground && st.flownM >= 3200 && f.y >= 183
+      winCondition: (f, st) => !f.ended && !f.ground && st.flownM >= 6800 && f.y >= 183
     },
     {
       id: 2,
@@ -84,12 +84,12 @@
       startType: 'runway',
       weather: 'clouds',
       time: '16:35',
-      objectiveDistM: 5000,
-      parTimeS: 105,
+      objectiveDistM: 12000,
+      parTimeS: 165,
       rewardMoney: 8000,
       rewardXp: 240,
       maxSafeG: 3.4,
-      targetText: '① 松山離場爬升 ② 安全閃避信義高樓區 (> 900 ft) ③ 巡航飛往桃園 5 km',
+      targetText: '① 松山離場爬升 ② 安全閃避信義高樓區 (> 900 ft) ③ 巡航飛往桃園 12 km',
       story: '全新塗裝的 A220-300 完成松山靜態檢驗，急須調度飛往桃園國際機場投入春運。金色斜陽下雲層低垂，市區摩天樓林立，切記拉高安全離地高，一旦擦撞大樓將立即爆毀！',
       radio: [
         { delay: 1.5, speaker: '松山塔台 · Songshan Tower', text: '「Horizon-220，10 號跑道允許起飛，離地後避開 101 高樓群！」' }
@@ -101,16 +101,16 @@
           radio: { speaker: '機長座艙警告 · GPWS', text: '「高度安全確認！前方進入都會高樓空域，請爬升至 1,000 ft 以上保持淨空。」' }
         },
         {
-          label: '階段 2/3 · 爬升越過摩天樓群 (> 1,000 ft · 2.8 km)',
-          check: (f, st) => !f.ended && f.y >= 305 && st.flownM >= 2800,
-          radio: { speaker: '桃機進場管制 · RCTP APP', text: '「Horizon-220 雷達識別完成！繼續向西推進完成 5 km 調度航段。」' }
+          label: '階段 2/3 · 爬升越過摩天樓群 (> 1,000 ft · 5.6 km)',
+          check: (f, st) => !f.ended && f.y >= 305 && st.flownM >= 5600,
+          radio: { speaker: '桃機進場管制 · RCTP APP', text: '「Horizon-220 雷達識別完成！繼續向西推進完成 12 km 調度航段。」' }
         },
         {
-          label: '階段 3/3 · 穩定維持高空走廊達 5.0 km',
-          check: (f, st) => !f.ended && !f.ground && f.y >= 305 && st.flownM >= 5000
+          label: '階段 3/3 · 穩定維持高空走廊達 12 km',
+          check: (f, st) => !f.ended && !f.ground && f.y >= 305 && st.flownM >= 12000
         }
       ],
-      winCondition: (f, st) => !f.ended && !f.ground && st.flownM >= 5000 && f.y >= 305
+      winCondition: (f, st) => !f.ended && !f.ground && st.flownM >= 12000 && f.y >= 305
     },
     {
       id: 3,
@@ -683,7 +683,7 @@
 
   function requiredGates(ch) {
     if (!Number.isInteger(ch.id) || ch.id < 1 || ch.id > 15) return 0;
-    return ch.id <= 2 ? 1 : ch.id <= 5 ? 2 : 3;
+    return ch.id <= 5 ? 2 : 3;
   }
 
   function buildMissionSkyGates(ch) {

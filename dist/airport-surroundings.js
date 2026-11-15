@@ -159,6 +159,39 @@ function createAirportSurroundings(parent,airport,layout){
     }
     traffic.add(v);moving.push({root:v,wheels,distance:i*(length*.65+11),speed:bus?4.1:5.8});stats.movingVehicles++;
   }
+  // A visiting regional jet occupies an outer stand, clear of the player stand.
+  const standX=gateWall-side*33, standZ=apronZ+buildingLength*.34;
+  function jetPart(material,x,y,z,sx,sy,sz){
+    add(new THREE.SphereGeometry(1,sx>10?20:8,sx>10?12:4),material,standX+side*x,y,standZ+z,sx,sy,sz);
+  }
+  jetPart(white,0,2.9,0,12.6,1.46,1.5);
+  jetPart(glazing,9.65,3.66,0,1.42,.45,.98);
+  for(const wing of [-1,1]){
+    for(let n=0;n<12;n++){
+      jetPart(white,-n*.32,2.48,wing*(1.2+n*.79),3.55-n*.19,.19,.92);
+    }
+    jetPart(blue,-.45,1.77,wing*4.6,2.05,.61,.6);
+    jetPart(darkMetal,1.24,1.77,wing*4.6,.32,.48,.48);
+    jetPart(white,-9.25,3.4,wing*2.4,2.45,.16,2.55);
+    jetPart(rubber,-1.25,.58,wing*2.15,.53,.53,.21);
+    for(let n=0;n<16;n++)jetPart(glazing,6.8-n*.77,3.27,wing*(1.42*Math.sqrt(1-((6.8-n*.77)/12.6)**2)),.2,.24,.08);
+  }
+  jetPart(blue,-9.9,4.65,0,2.15,2.75,.2);
+  jetPart(rubber,8.25,.5,0,.38,.43,.22);
+
+  const truck=new THREE.Group();
+  movingBox(truck,white,2.15,1.55,3.4,0,1.53,.55);
+  movingBox(truck,yellow,2.05,1.45,1.5,0,1.36,-1.85);
+  movingBox(truck,glazing,1.84,.55,.1,0,1.7,-2.63);
+  const truckWheels=[];
+  for(const sx of [-1,1])for(const axle of [-1.78,1.55]){
+    const wheel=new THREE.Mesh(wheelGeometry,rubber);
+    wheel.position.set(sx,.39,axle);truck.add(wheel);truckWheels.push(wheel);
+  }
+  traffic.add(truck);
+  moving.push({root:truck,wheels:truckWheels,distance:0,speed:2.8,
+    laneX:gateWall-side*9,laneZ:apronZ-buildingLength*.31,straight:buildingLength*.24});
+  stats.movingVehicles++;
   // Airside equipment is parked off the centreline and away from the active central gate.
   for(const end of [-1,1]){
     const x=gateWall-side*12,z=apronZ+end*(buildingLength/2-17);
@@ -258,14 +291,14 @@ function createAirportSurroundings(parent,airport,layout){
     road.roughness=byId('weather').value==='wet'?.38:.91;
     traffic.visible=root.visible&&Math.hypot(x-airport.x,z-airport.z)<2400;
     if(traffic.visible)for(const v of moving){
-      const r=3.3,straight=length-18,curve=Math.PI*r,lap=straight*2+curve*2;
+      const r=3.3,straight=v.straight??(length-18),curve=Math.PI*r,lap=straight*2+curve*2;
       v.distance=(v.distance+dt*v.speed)%lap;
       let d=v.distance,cx,cz,yaw;
       if(d<straight){cx=-r;cz=-straight/2+d;yaw=Math.PI;}
       else if((d-=straight)<curve){const a=Math.PI-d/r;cx=r*Math.cos(a);cz=straight/2+r*Math.sin(a);yaw=-a;}
       else if((d-=curve)<straight){cx=r;cz=straight/2-d;yaw=0;}
       else{d-=straight;const a=-d/r;cx=r*Math.cos(a);cz=-straight/2+r*Math.sin(a);yaw=-a;}
-      v.root.position.set(roadX+cx,0,apronZ+cz);v.root.rotation.y=yaw;
+      v.root.position.set((v.laneX??roadX)+cx,0,(v.laneZ??apronZ)+cz);v.root.rotation.y=yaw;
       for(const wheel of v.wheels)wheel.rotation.x-=dt*v.speed/.34;
     }
   }
