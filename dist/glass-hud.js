@@ -79,9 +79,10 @@ function makeGlassReadouts(canvas){
     ink.fillStyle=gold;ink.fill();
     capsule(String(Math.round(degrees)%360).padStart(3,'0')+'°',center,compassY+38*unit,gold);
 
-    const tapeOffset=Math.min(width*.22,height*.38,Math.max(36*unit,width*.5-76*unit));
+    const cockpit=view==='駕駛艙';
+    const tapeOffset=cockpit ? Math.max(16*unit,width*.5-78*unit) : Math.min(width*.22,height*.38,Math.max(36*unit,width*.5-76*unit));
     const ias=displayKmh(speeds.ias);
-    scaleRail(ias,ias>1100?100:50,center-tapeOffset,y,-1,'IAS',cyan);
+    scaleRail(ias,ias>1100?100:50,center-tapeOffset,y,-1,'IAS km/h',cyan);
     scaleRail(f.y,f.y>5000?100:50,center+tapeOffset,y,1,'ALT m',gold);
 
     const rising=f.vy>=0;
@@ -90,7 +91,11 @@ function makeGlassReadouts(canvas){
     const mach='M '+speeds.mach.toFixed(2),power=(f.aircraft.helicopter?'ROTOR ':'THR ')+Math.round(f.power*100)+'%';
     const gText=f.gForce!==undefined?(f.gForce>=0?'+':'')+f.gForce.toFixed(1)+'G':'';
     const geText=f.groundEffect?.active?' · GE':'';
-    if(width>=320&&innerWidth>innerHeight){
+    if(cockpit){
+      const statusY=Math.min(height-10*unit,y+height*.23+15*unit);
+      label(power,center-tapeOffset-36*unit,statusY,10,'center',ice);
+      label(vertical,center+tapeOffset+36*unit,statusY,10,'center',ice);
+    }else if(width>=320&&innerWidth>innerHeight){
       const leftCol=Math.max(44*unit,center-tapeOffset-38*unit);
       const rightCol=Math.min(width-44*unit,center+tapeOffset+38*unit);
       const gearText=f.aircraft.helicopter?'NR '+Math.round((f.rotorRPM??0)*100)+'%':f.gear?'GEAR DOWN':'GEAR UP';

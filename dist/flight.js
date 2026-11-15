@@ -3190,6 +3190,14 @@ function initialize(){
     window.dispatchEvent(new CustomEvent('skybound:unlock-mission',{detail:{chapter:plane.unlock.chapter}}));
   };
   hangarAircraft.onchange=updateHangarInfo;
+  for(const [id,step] of [['hangarPrev',-1],['hangarNext',1]]){
+    byId(id).onclick=()=>{
+      const count=hangarAircraft.options.length;
+      if(!count)return;
+      hangarAircraft.selectedIndex=(hangarAircraft.selectedIndex+step+count)%count;
+      hangarAircraft.dispatchEvent(new Event('change'));
+    };
+  }
   hangarFilter.onchange=()=>populateHangar(hangarAircraft.value);
   hangarView.onchange=()=>{hangarZoom=1;hangarYaw=null;hangarElevation=.59;};
   byId('hangarControlsToggle').onclick=()=>{

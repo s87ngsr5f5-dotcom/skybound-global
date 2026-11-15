@@ -1833,14 +1833,13 @@
     if (tab === 'welcome') {
       const nextCh = ALL_CHAPTERS.find(ch => !prog[ch.id]) || CHAPTERS[0];
       stage.innerHTML = `
-        <div class="dispatch-home">
-          <img class="dispatch-photo" src="${nextCh.image}" alt="" fetchpriority="high">
+        <div class="dispatch-home hangar-home">
+          <img class="dispatch-photo" src="assets/campaign/hangar-777.jpg" alt="機庫內的 Boeing 777-300ER" fetchpriority="high">
           <section class="dispatch-brief">
-            <div class="dispatch-route">${nextCh.departure} → ${nextCh.destination}</div>
-            <h2>${nextCh.title.split('：').pop()}</h2>
-            <p>${nextCh.code} · ${nextCh.aircraft.toUpperCase()} · ${nextCh.time}</p>
-            <button type="button" id="hubQuickStartBtn" class="campaign-launch-btn" data-quick-ch="${nextCh.id}">開始任務</button>
-            <button type="button" id="hubQuickFreeBtn" class="hub-back-btn">自由起飛</button>
+            <h2>飛行準備</h2>
+            <button type="button" id="hubQuickFreeBtn" class="campaign-launch-btn">開始飛行</button>
+            <button type="button" id="hubQuickStartBtn" class="hub-back-btn" data-quick-ch="${nextCh.id}">執飛 ${nextCh.code} · ${nextCh.title.split('：').pop()}</button>
+            <button type="button" id="hubOpenHangarBtn" class="hub-back-btn">進入機庫</button>
           </section>
         </div>`;
       return;
@@ -1904,7 +1903,7 @@
                   <span class="campaign-chip">${ch.targetText}</span>
                   <span class="campaign-chip" style="border-color:rgba(255,209,102,0.55);color:#ffe8a3;">${bonusObj.label}</span>
                 </div>
-                <canvas id="campaignRouteCanvas" style="width:100%;height:110px;border-radius:10px;border:1px solid rgba(110,215,242,0.28);margin:6px 0;" aria-label="任務航路與 3D 光門預覽圖"></canvas>
+                <small class="route-caption">航線示意</small><canvas id="campaignRouteCanvas" style="width:100%;height:110px;border-radius:10px;border:1px solid rgba(110,215,242,0.28);margin:6px 0;" aria-label="任務航路與 3D 光門預覽圖"></canvas>
                 <div class="campaign-feature-actions">
                   <button type="button" id="hubLaunchChapterBtn" class="campaign-launch-btn">立即出發執飛 ${ch.code} →</button>
                   <button type="button" class="hub-back-btn" data-jump-tab="upgrades">前往性能改裝工坊</button>
@@ -2394,7 +2393,7 @@
     if (!modal || !img || !title || !text || !actions) return;
 
     img.src = ch.image;
-    title.textContent = won ? `★ ${ch.code} · 任務圓滿達成！` : `💥 ${ch.code} · 任務中斷墜毀`;
+    title.textContent = won ? `任務完成 · ${ch.code}` : `任務失敗 · ${ch.code}`;
     title.style.color = won ? '#ffd976' : '#ff6b6b';
 
     if (starsEl) {
@@ -2453,7 +2452,7 @@
     const retryBtn = document.createElement('button');
     retryBtn.type = 'button';
     retryBtn.className = won ? 'hub-back-btn' : 'campaign-launch-btn';
-    retryBtn.textContent = ch.challengeType === 'mystery' ? '🎲 再抽下一抽盲盒' : '🔄 重新挑戰本關卡';
+    retryBtn.textContent = ch.challengeType === 'mystery' ? '🎲 再抽下一抽盲盒' : '再次挑戰';
     retryBtn.onclick = () => {
       modal.hidden = true;
       document.getElementById('menu')?.click();
@@ -2468,7 +2467,7 @@
     hubBtn.onclick = () => {
       modal.hidden = true;
       document.getElementById('menu')?.click();
-      setTimeout(() => openHub(ch.isChallenge ? 'challenges' : 'campaign'), 120);
+      setTimeout(() => openHub(ch.isChallenge ? 'challenges' : 'welcome'), 120);
     };
     actions.appendChild(hubBtn);
 
