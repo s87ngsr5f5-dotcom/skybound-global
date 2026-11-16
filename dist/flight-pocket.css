@@ -95,3 +95,8 @@ body:not(.flight-ui) #flightLookSurface{display:none}
 .control-guide dl{margin:8px 0 24px}.control-guide dl>div{display:grid;grid-template-columns:minmax(100px,27%) 1fr;gap:16px;padding:13px 0;border-bottom:1px solid #354951}
 .control-guide dt{font-weight:700;color:#f1ce8c}.control-guide dd{margin:0;line-height:1.65;color:#dce5e9}.control-guide ol{padding-left:24px;line-height:1.9}.control-guide p{color:#b4c7d0;line-height:1.6}
 @media(max-width:500px){.control-guide dl>div{grid-template-columns:1fr;gap:5px;padding:11px 0}.control-guide h2{font-size:23px}}
+
+.store-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}.store-grid article{border-top:2px solid #b99c61;padding:14px 8px;background:#17252d}.store-grid h4{margin:4px 0;font-size:18px}.store-grid .actions button{min-height:44px}.store-grid strong{color:#f2d08f}.paint-swatch{height:55px;background:linear-gradient(150deg,var(--paint-primary) 40%,var(--paint-accent) 41%,var(--paint-accent) 56%,var(--paint-tail) 57%)}
+#hangarCommerce{max-height:160px;overflow:auto;font-size:13px}#hangarCommerce button{min-height:40px;margin:3px}#hangarCommerce p{margin:5px 0}
+
+@media(max-height:600px){.hangar-home .dispatch-brief{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-width:480px}.hangar-home .dispatch-brief h2{grid-column:1/-1}.hangar-home .dispatch-brief button{margin:0!important;font-size:13px;min-height:42px;padding:7px}}

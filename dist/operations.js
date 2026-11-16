@@ -123,7 +123,7 @@ function makePassengerFlight(departure,destination,aircraft,wind,fuel,weather,ti
   return Object.assign(f,{mission:'passenger',lesson:'airline',fuel:0,fuelStart:fuel,passengers:brief.passengers,
     service:{id:crypto.randomUUID(),rent,owned,targetFuel:fuel,referencePayload:brief.capacity+brief.passengers*95,
       boarded:0,delivered:0,door:false,pushed:false,pushing:0,progress:0,
-      mode:null,seatBelts:true,cabinLights:true,comfort:100,weather,time,brief}});
+      mode:null,seatBelts:true,cabinLights:true,comfort:100,groundcrewUpgrade:typeof FleetCommerce!=='undefined'&&FleetCommerce.kitOwned('groundcrew'),comfortUpgrade:typeof FleetCommerce!=='undefined'&&FleetCommerce.kitOwned('comfort'),weather,time,brief}});
 }
 function runwayTowReady(f){
   if(!f.regional||!f.ground||f.airborne||f.finished||f.tow||f.power>.08||
@@ -242,7 +242,7 @@ function updatePassengerService(f,dt){
     const previous=service.bridgeElapsed||0;
     service.bridgeElapsed=previous+dt;
     const delay=Math.min(service.bridgeDelay??passengerBridgeSeconds,passengerBridgeSeconds);
-    service.progress+=6*(Math.max(0,service.bridgeElapsed-delay)-Math.max(0,previous-delay));
+    service.progress+=6*(service.groundcrewUpgrade?1.3:1)*(Math.max(0,service.bridgeElapsed-delay)-Math.max(0,previous-delay));
     const count=Math.floor(service.progress);
     if(count){
       service.progress-=count;
@@ -264,7 +264,7 @@ function updatePassengerService(f,dt){
   if(!f.ground){
     const motion=Math.max(0,Math.abs(f.bank)-.30)+Math.max(0,Math.abs(f.pitchRate)-.10);
     if(motion>0){
-      service.comfort=Math.max(0,service.comfort-motion*dt*.9);
+      service.comfort=Math.max(0,service.comfort-motion*dt*.9*(service.comfortUpgrade?.75:1));
       service.roughPhase=f.phase==='approach'?'進場':'飛行中';
     }
   }
@@ -629,3 +629,9 @@ function activeTarget(f){
 if(typeof module!=='undefined') Object.assign(globalThis,{makeRegionalFlight,startEngine,updateRegionalFlight,activeTarget,readFlightLog,makeCruiseTrial,makeClimbLesson,climbReady,navigationControls,rangeShot,makeRegionalContract,attachContract,makePassengerFlight,updatePassengerService,savePassenger,readCareer,recordFlight,passengerBrief});
 
 
+
+// One parking coordinate is shared by guidance, the yellow map marker and towing.
+function arrivalParkingTarget(f){
+ if(!f?.destination||!f.ground||!f.landed||f.finished)return null;
+ return {...parkingPoint(f.destination),y:f.destination.elevation,code:f.destination.code+' A1',name:'指定停機位 A1'};
+}

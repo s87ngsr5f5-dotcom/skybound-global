@@ -4374,11 +4374,12 @@ for(const plane of fleet){
  plane.unlock=specialAircraft[plane.id]||null;
 }
 function aircraftUnlocked(plane){
+ if(plane?.purchasePrice){try{const c=JSON.parse(localStorage.getItem('skybound.career.v1')||'{}');if(!c.owned?.[plane.id])return false;}catch{return false;}}
  if(!plane?.unlock)return true;
  try { const p=JSON.parse(localStorage.getItem('skybound.campaignProgress.v1')||'{}');return Number(p?.[plane.unlock.chapter]?.stars)>=1; }catch{return false;}
 }
 function fleetMatches(plane,category){return category==='all'||(category==='special'?Boolean(plane.unlock):plane.category===category);}
-function aircraftLockText(plane){return aircraftUnlocked(plane)?'已開放':'完成 '+plane.unlock.label+' 解鎖';}
+function aircraftLockText(plane){if(aircraftUnlocked(plane))return plane.purchasePrice?'已購買':'已開放';if(plane.purchasePrice)return '購買 '+plane.purchasePrice.toLocaleString()+' 遊戲金幣 · 任務可試飛';return '完成 '+plane.unlock.label+' 解鎖';}
 if(typeof module!=='undefined')Object.assign(globalThis,{fleetCategories,expansionFleet,aircraftUnlocked,fleetMatches});
 
 Object.assign(fleet.find(p=>p.id==='sa380'),{fullDoubleDeck:true});

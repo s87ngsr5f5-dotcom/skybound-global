@@ -15,6 +15,7 @@ const aircraftSkins = (() => {
     { id: 'camo', name: '戰術迷彩 (Digital Stealth)', primary: '#37474f', accent: '#607d8b', tail: '#263238', text: '#cfd8dc', label: '401 TFW · LOW VIS' },
     { id: 'rescue', name: '空勤搜救 (NASC Rescue)', primary: '#e65100', accent: '#ffd54f', tail: '#bf360c', text: '#ffffff', label: 'NASC RESCUE' }
   ];
+  if(typeof FleetCommerce!=='undefined')LIVERY_THEMES.push(...FleetCommerce.paints);
   let selectedTheme = 'default';
   try {
     if (typeof localStorage !== 'undefined') {
@@ -25,9 +26,9 @@ const aircraftSkins = (() => {
   function getThemeSpec(themeId) {
     return LIVERY_THEMES.find(t => t.id === (themeId || selectedTheme)) || LIVERY_THEMES[0];
   }
-  function getSelectedTheme() { return selectedTheme; }
+  function getSelectedTheme() { return typeof FleetCommerce!=='undefined'&&!FleetCommerce.paintOwned(selectedTheme)?'default':selectedTheme; }
   function setSelectedTheme(themeId) {
-    if (LIVERY_THEMES.some(t => t.id === themeId)) {
+    if (LIVERY_THEMES.some(t => t.id === themeId) && (typeof FleetCommerce==='undefined'||FleetCommerce.paintOwned(themeId))) {
       selectedTheme = themeId;
       try { if (typeof localStorage !== 'undefined') localStorage.setItem('skybound.liveryTheme', themeId); } catch {}
     }

@@ -1,0 +1,24 @@
+'use strict';
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const commerceMemory=new Map();let failStore=false;
+global.localStorage={getItem:k=>commerceMemory.get(k)||null,setItem:(k,v)=>{if(failStore&&k==='skybound.career.v1')throw Error('quota');commerceMemory.set(k,v)}};
+for(const file of ['elevation','physics','regional-elevation','kinmen-elevation','region','fleet','benchmarks','operations','helicopter','fleet-expansion','fleet-commerce','aircraft-skins'])vm.runInThisContext(fs.readFileSync('dist/'+file+'.js','utf8'),{filename:file});
+const seedCommerce=money=>commerceMemory.set(careerKey,JSON.stringify({money,receipts:{}}));
+seedCommerce(650000);
+const sellable=fleet.filter(p=>p.purchasePrice);assert(sellable.length>=9);assert(sellable.every(p=>p.purchasePrice>=200000&&p.purchasePrice<=400000));
+assert(aircraftUnlocked(fleet.find(p=>p.id==='a223')));assert(!aircraftUnlocked(fleet.find(p=>p.id==='b773')));
+assert(FleetCommerce.purchase('plane','b773').ok);assert.equal(readMoney(),360000);assert(aircraftUnlocked(fleet.find(p=>p.id==='b773')));
+assert(FleetCommerce.purchase('plane','b773').already);assert.equal(readMoney(),360000);assert.equal(Object.keys(readCareer().storeReceipts).length,1);
+assert(!FleetCommerce.purchase('plane','an124').ok);assert.equal(readMoney(),360000);
+assert(!FleetCommerce.purchase('invalid','comfort').ok);
+assert.equal(aircraftSkins.setSelectedTheme('nightgold'),'default');assert(FleetCommerce.purchase('paint','nightgold').ok);assert.equal(aircraftSkins.setSelectedTheme('nightgold'),'nightgold');
+assert.equal(readMoney(),324000);assert(FleetCommerce.purchase('paint','nightgold').already);assert.equal(readMoney(),324000);
+const plane=fleet.find(p=>p.id==='a223'),from=allAirports.find(a=>a.code==='RCTP'),to=allAirports.find(a=>a.code==='RCKH'),brief=passengerBrief(plane,from,to);
+function contract(){const f=makePassengerFlight(from,to,plane,0,brief.estimated+brief.reserve,'0','13:00');f.battery=true;f.bridge=true;setPassengerDoor(f,true);return f;}
+const base=contract();updatePassengerService(base,10);base.ground=false;base.bank=.8;base.pitchRate=.1;const before=base.service.comfort;updatePassengerService(base,10);const baseLoss=before-base.service.comfort;
+assert(FleetCommerce.purchase('kit','comfort').ok);assert(FleetCommerce.purchase('kit','groundcrew').ok);
+const enhanced=contract();updatePassengerService(enhanced,10);assert(enhanced.service.boarded>base.service.boarded);enhanced.ground=false;enhanced.bank=.8;enhanced.pitchRate=.1;const beforeEnhanced=enhanced.service.comfort;updatePassengerService(enhanced,10);assert(Math.abs((beforeEnhanced-enhanced.service.comfort)/baseLoss-.75)<1e-9);
+assert.equal(arrivalParkingTarget(enhanced),null);enhanced.ground=true;enhanced.landed=true;const marker=arrivalParkingTarget(enhanced),spot=parkingPoint(to);assert.equal(marker.x,spot.x);assert.equal(marker.z,spot.z);assert.equal(marker.code,'RCKH A1');
+commerceMemory.set('skybound.campaignProgress.v1','{"6":{"stars":1}}');assert(aircraftUnlocked(fleet.find(p=>p.id==='f22a')));
+seedCommerce(1000000);failStore=true;assert(!FleetCommerce.purchase('plane','b744').ok);failStore=false;assert.equal(readMoney(),1000000);assert(!FleetCommerce.owned('b744'));
+console.log('PASS commerce:',sellable.length,'aircraft, prices, ownership, unique receipts, insufficient funds, storage failure, paints, crew/comfort effects, mission reward compatibility, parking coordinate.');

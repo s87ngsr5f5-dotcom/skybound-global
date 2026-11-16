@@ -485,6 +485,9 @@ function buildBenchmarkAirframe(profile,scene){
         side*span,wingDihedralY(1),tip+wingChordAt(1)*.4);
       tank.name=profile.id+' wingtip fuel tank';
     }
+    if(['b744','sa380'].includes(profile.id)&&typeof AeroCraft!=='undefined'){
+      for(const v of [.28,.46,.64]){const fairing=mesh(closeDetails,AeroCraft.buildCanoeGeometry(half*.14,radius*.08,radius*.10),surface,side*span*v,wingY-.30,wingLeadAt(v)+wingChordAt(v)*.92);fairing.name=profile.id+' flap track fairing';}
+    }
     const aV0=wingV(.54),aV1=wingV(.82),aC0=wingChordAt(aV0),aC1=wingChordAt(aV1);
     const aTE0=wingLeadAt(aV0)+aC0*.84,aTE1=wingLeadAt(aV1)+aC1*.84;
     const aileron=new THREE.Group();

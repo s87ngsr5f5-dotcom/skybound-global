@@ -1392,7 +1392,8 @@
           <ul class="hub-menu-list" role="tablist">
             <li><button type="button" class="hub-menu-btn" data-hub-tab="welcome"><div class="hub-menu-btn-main"><span>飛行首頁</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>飛行任務</span></div><span class="hub-menu-badge">19 關</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>改裝工坊</span></div><span class="hub-menu-badge">工坊</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="shop"><div class="hub-menu-btn-main"><span>機庫商店與塗裝</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>性能改裝</span></div><span class="hub-menu-badge">工坊</span></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="multiplayer"><div class="hub-menu-btn-main"><span>線上飛行</span></div><span class="hub-menu-badge" id="hubMpSideBadge">大廳</span></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="challenges"><div class="hub-menu-btn-main"><span>每日挑戰</span></div><span class="hub-menu-badge">6 模式</span></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="tactical"><div class="hub-menu-btn-main"><span>戰術訓練</span></div></button></li>
@@ -1898,12 +1899,13 @@
             <button type="button" id="hubQuickFreeBtn" class="campaign-launch-btn">開始飛行</button>
             <button type="button" id="hubQuickStartBtn" class="hub-back-btn" data-quick-ch="${nextCh.id}">執飛 ${nextCh.code} · ${nextCh.title.split('：').pop()}</button>
             <button type="button" id="hubOpenHangarBtn" class="hub-back-btn">進入機庫</button>
-            <button type="button" class="hub-back-btn" data-jump-tab="help">操控說明</button>
+            <button type="button" class="hub-back-btn" data-store-passenger="a223">載客任務</button><button type="button" class="hub-back-btn" data-jump-tab="shop">商店與塗裝</button><button type="button" class="hub-back-btn" data-jump-tab="help">操控說明</button>
           </section>
         </div>`;
       return;
     }
 
+    if(tab==='shop'){FleetCommerce.renderShop(stage);return;}
     if(tab==='help'){
       const mode=ensureDOM._helpMode||(document.getElementById('deviceMode')?.value==='mobile'?'mobile':'desktop');
       const inverted=document.getElementById('invert')?.checked!==false;
@@ -1985,7 +1987,7 @@
                 <h3>${ch.title}</h3>
                 <p class="campaign-story-copy">${ch.story}</p>
                 <div class="campaign-meta-chips">
-                  <span class="campaign-chip">機型：${ch.aircraft.toUpperCase()}</span>
+                  <span class="campaign-chip">機型：${ch.aircraft.toUpperCase()} · 任務借用，無須先購買</span>
                   <span class="campaign-chip">區域：${ch.departure} 周邊</span>
                   <span class="campaign-chip">${ch.durationLabel}</span>
                   <span class="campaign-chip mission-prize">${missionPrizes[ch.id] ? "首通解鎖："+missionPrizes[ch.id] : "獎品：遊戲金幣"}</span><span class="campaign-chip">報酬：+$${ch.rewardMoney.toLocaleString()} · +${ch.rewardXp} XP</span>
@@ -2566,7 +2568,7 @@
     if (panel) { panel.scrollTop = 0; panel.focus({preventScroll:true}); }
   }
 
-  let pendingLocalMission=null;
+  let pendingLocalMission=null,pendingLoanerAircraft=null;
   function launchMission(ch) {
     onlineFlightRequested = false;
     closeHub();
@@ -2616,6 +2618,8 @@
       settled: false
     };
 
+    if(ch.contractOnly){activeMission=null;const route=document.getElementById('airlineRoute');if(route)route.value='RCKH';}
+    pendingLoanerAircraft=ch.aircraft;
     pendingLocalMission=ch.localCircuit?{departure:ch.departure,gates}:null;
     if (ch.quickPreset) {
       const qBtn = document.querySelector(`#quickFlights [data-quick="${ch.quickPreset}"]`);
@@ -2625,7 +2629,8 @@
       document.getElementById('fly')?.click();
     }
 
-    pendingLocalMission=null;
+    pendingLocalMission=null;pendingLoanerAircraft=null;
+    if(ch.contractOnly)return;
     const objHud = document.getElementById('storyObjectiveHud');
     if (objHud) {
       const firstLabel = ch.stages?.[0]?.label || ch.targetText;
@@ -2643,6 +2648,13 @@
     document.getElementById('hubFreeFlyBtn').disabled=!available;
   });
   globalScope.addEventListener?.('skybound:unlock-mission',event=>startChapter(event.detail.chapter));
+  globalScope.addEventListener?.('skybound:commerce-change',()=>{refreshCareerUI();if(activeTab==='shop'&&!document.getElementById('titleHub')?.hidden)renderStage('shop');});
+  globalScope.addEventListener?.('skybound:trial-aircraft',event=>{
+    const plane=fleet.find(p=>p.id===event.detail.id);if(!plane)return;
+    if(event.detail.passenger&&plane.role==='passenger')launchMission({aircraft:plane.id,departure:'RCTP',destination:'RCKH',lesson:'airline',startType:'cold',weather:'0',time:'13:00',contractOnly:true});
+    else launchMission({...CHAPTERS[5],id:'trial-'+plane.id,code:'試飛',aircraft:plane.id,departure:'RCTP',destination:'RCTP',isChallenge:true,rewardMoney:8000,rewardXp:100,title:plane.name+' 試飛'});
+  });
+
   function startChapter(chapterId) {
     const ch = ALL_CHAPTERS.find(c => c.id === chapterId) || CHAPTERS[0];
     selectedChapterId = ch.id;
@@ -2818,6 +2830,7 @@
     worldChapters: WORLD_CHAPTERS,
     shortChapters: SHORT_CHAPTERS,
     getPendingLocalMission:()=>pendingLocalMission,
+    getPendingLoanerAircraft:()=>pendingLoanerAircraft,
     buildMissionSkyGates,
     allChapters: ALL_CHAPTERS,
     medals: MEDALS,

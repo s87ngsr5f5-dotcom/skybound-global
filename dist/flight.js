@@ -50,6 +50,11 @@ if(renderer) initialize();
 function initialize(){
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#9ccbea');
+  const parkingBeacon=new THREE.Group();
+  const parkingGold=new THREE.MeshBasicMaterial({color:0xffd24c,transparent:true,opacity:.85,depthWrite:false});
+  const parkingRing=new THREE.Mesh(new THREE.RingGeometry(8,11,40),parkingGold);parkingRing.rotation.x=-Math.PI/2;parkingRing.position.y=.35;
+  const parkingArrow=new THREE.Mesh(new THREE.ConeGeometry(4,9,4),parkingGold);parkingArrow.rotation.z=Math.PI;parkingArrow.position.y=19;
+  parkingBeacon.add(parkingRing,parkingArrow);parkingBeacon.visible=false;scene.add(parkingBeacon);
   scene.fog = new THREE.FogExp2('#a4c9dd',0.000026);
   const camera = new THREE.PerspectiveCamera(64,1,.6,155000);
   let taiwanOverview, overviewActive=false;
@@ -2650,7 +2655,7 @@ function initialize(){
     byId('plan').hidden=byId('edition').hidden=true;
     byId('hud').hidden=byId('menu').hidden=false;
     flightBar.hidden=flightAircraft.hidden=false;
-    flightAircraft.textContent=flight.aircraft.name.split(' · ')[0];
+    flightAircraft.textContent=flight.aircraft.name.split(' · ')[0]+(flight.missionLoaner&&typeof FleetCommerce!=='undefined'&&!FleetCommerce.owned(flight.aircraft.id)?' · 任務借用':'');
     document.body.classList.add('flight-ui');
     if(typeof window!=='undefined'){
       const upgMods=window.SkyboundCampaign?.getUpgradeModifiers?.();
@@ -2714,8 +2719,10 @@ function initialize(){
   }
   function start(approach,restart=false,preset=restart?flight?.quickPreset:null){
     try{
-      if(!aircraftUnlocked(selectedAircraft()))throw new Error(aircraftLockText(selectedAircraft()));
+      const loaner=window.SkyboundCampaign?.getPendingLoanerAircraft?.()||(restart?flight?.missionLoaner:null);
+      if(!aircraftUnlocked(selectedAircraft())&&loaner!==selectedAircraft().id)throw new Error(aircraftLockText(selectedAircraft()));
       const lesson=byId('lesson').value;
+      if(lesson==='airline')updateAirlinePlan();
       const shortMission=window.SkyboundCampaign?.getPendingLocalMission?.()||(restart?flight?.shortMission:null);
       const selection=regionalContracts[lesson]?regionalContractPlan(lesson):
         parsePlan(['free','cold','taxi','benchmark'].includes(lesson));
@@ -2911,6 +2918,7 @@ function initialize(){
           power:0.65,fuel:2200,gear:false,flaps:0,tailhook:false,ground:false
         });
       }
+      flight.missionLoaner=loaner;
       beginFlight();
       if(savesMission){
         flight.checkpointId=(typeof crypto!=='undefined'&&crypto.randomUUID)?crypto.randomUUID():'m_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
@@ -2924,6 +2932,7 @@ function initialize(){
     }
   }
   function menu(){
+    parkingBeacon.visible=false;
     flightAudio.stopSpeech();
     setMobilePanel('');
     setOverview(false);
@@ -3205,8 +3214,9 @@ function initialize(){
     byId('hangarInfo').textContent=plane.type+' · 機長 '+(plane.geometry[0]*2).toFixed(1)+
       ' m · 翼展 '+(plane.geometry[2]*2).toFixed(1)+' m · '+aircraftLockText(plane)+' ｜ '+parts.join(' · ');
     byId('hangarFly').disabled=!aircraftUnlocked(plane);
-    byId('hangarUnlock').hidden=aircraftUnlocked(plane);
+    byId('hangarUnlock').hidden=!plane.unlock||aircraftUnlocked(plane);
     byId('hangarUnlock').textContent=plane.unlock?'前往 '+plane.unlock.label:'';
+    if(typeof FleetCommerce!=='undefined')renderHangarCommerce(plane);
     for(const option of hangarView.options){
       option.disabled=(option.value==='cabin'&&plane.role==='fighter')||
         (option.value==='cargoDoor'&&plane.role!=='cargo')||
@@ -3221,6 +3231,22 @@ function initialize(){
     window.dispatchEvent(new CustomEvent('skybound:unlock-mission',{detail:{chapter:plane.unlock.chapter}}));
   };
   hangarAircraft.onchange=updateHangarInfo;
+  function renderHangarCommerce(plane){
+    let panel=byId('hangarCommerce');if(!panel){panel=document.createElement('div');panel.id='hangarCommerce';byId('hangarInfo').after(panel);}
+    const preview=FleetCommerce.paintDisplay(),paint=FleetCommerce.paints.find(p=>p.id===preview);
+    panel.innerHTML=`${plane.purchasePrice?`<p>${plane.purchasePrice.toLocaleString()} 金幣 · ${FleetCommerce.owned(plane.id)?'已擁有':'未購買'}</p><button data-store-kind="plane" data-store-id="${plane.id}" ${FleetCommerce.owned(plane.id)||readMoney()<plane.purchasePrice?'disabled':''}>購買這架飛機</button><button data-store-trial="${plane.id}">任務試飛</button>`:''}${paint?`<p>預覽：${paint.name} · ${paint.price.toLocaleString()} 金幣</p><button data-store-kind="paint" data-store-id="${paint.id}" ${FleetCommerce.paintOwned(paint.id)||readMoney()<paint.price?'disabled':''}>購買塗裝</button>${FleetCommerce.paintOwned(paint.id)?`<button data-store-equip="${paint.id}">套用塗裝</button>`:''}`:''}<p id="commerceFeedback" role="status"></p>`;
+  }
+  window.addEventListener('skybound:shop-preview',event=>{
+    if(flight)return;
+    byId('aircraft').value=event.detail.planeId;
+    window.SkyboundCampaign?.closeHub();openInspection(true);
+    hangarAircraft.value=event.detail.planeId;updateHangarInfo();
+  });
+  window.addEventListener('skybound:trial-aircraft',()=>{if(hangarMode)closeInspection();});
+  window.addEventListener('skybound:commerce-change',()=>{populateAircraft(selectedAircraft().id);updateAirlinePlan();if(hangarMode)updateHangarInfo();});
+  if(typeof FleetCommerce!=='undefined')for(const select of [liveryThemeSelect,hangarLiverySelect])if(select)for(const paint of FleetCommerce.paints)select.add(new Option(paint.name+' · 商店塗裝',paint.id));
+  syncLiveryThemeUI();
+
   for(const [id,step] of [['hangarPrev',-1],['hangarNext',1]]){
     byId(id).onclick=()=>{
       const count=hangarAircraft.options.length;
@@ -3282,6 +3308,7 @@ function initialize(){
   }
   function closeInspection(){
     const wasHangar=hangarMode;
+    if(typeof FleetCommerce!=='undefined')FleetCommerce.clearPreview();
     inspectionMode=hangarMode=false;
     hangarPointers.clear();
     document.body.classList.remove('hangar-active');
@@ -4590,6 +4617,7 @@ function initialize(){
     });
   }
   function drawNav(f,target){
+    const parkingGoal=arrivalParkingTarget(f);if(parkingGoal)target=parkingGoal;
     const panel=byId('hud').dataset.mobilePanel;
     const mini=!panel&&document.body.classList.contains('mobile-mode')&&!overviewActive;
     if(panel!=='nav'&&!mini) return;
@@ -4615,19 +4643,20 @@ function initialize(){
       return;
     }
     if(mini){
-      const goal=f.destination||target;
-      const dx=goal.x-f.x,dz=goal.z-f.z,range=Math.max(2500,Math.abs(dx),Math.abs(dz));
+      const goal=parkingGoal||f.destination||target;
+      const dx=goal.x-f.x,dz=goal.z-f.z,range=Math.max(parkingGoal?160:2500,Math.abs(dx),Math.abs(dz));
       const scale=Math.min(width-46,height-48)/range;
       const project=p=>[width/2+(p.x-(f.x+goal.x)/2)*scale,height/2+(p.z-(f.z+goal.z)/2)*scale];
       drawTaiwanMap(radar,project);
+      if(parkingGoal){const ap=f.destination;mapPath(radar,[airportPoint(ap,-ap.length/2,0),airportPoint(ap,ap.length/2,0)],project,'#cad5da',5);}
       mapPath(radar,[f,goal],project,'#ffd27a',3);
       const [gx,gy]=project(goal),[px,py]=project(f);
-      radar.fillStyle='#ffd27a';radar.beginPath();radar.arc(gx,gy,5,0,Math.PI*2);radar.fill();
+      radar.fillStyle='#ffd27a';radar.beginPath();radar.arc(gx,gy,parkingGoal?7:5,0,Math.PI*2);radar.fill();if(parkingGoal){radar.strokeStyle='#fff6bc';radar.lineWidth=2;radar.stroke();}
       radar.save();radar.translate(px,py);radar.rotate(f.heading);radar.fillStyle='#ffffff';
       radar.beginPath();radar.moveTo(0,-9);radar.lineTo(6,7);radar.lineTo(0,4);radar.lineTo(-6,7);radar.closePath();radar.fill();radar.restore();
       radar.fillStyle='#0b202dee';radar.fillRect(0,height-23,width,23);
       radar.fillStyle='#ffffff';radar.font='600 12px system-ui';radar.textAlign='left';
-      radar.fillText((goal.code||goal.name||'目的地').slice(0,9)+' · '+(Math.hypot(dx,dz)/1000).toFixed(1)+' km',7,height-8,width-14);
+      radar.fillText((parkingGoal?'停機位 A1':goal.code||goal.name||'目的地').slice(0,9)+' · '+(parkingGoal&&Math.hypot(dx,dz)<1000?Math.round(Math.hypot(dx,dz))+' m':(Math.hypot(dx,dz)/1000).toFixed(1)+' km'),7,height-8,width-14);
       radar.font='bold 11px system-ui';radar.fillText('北 ↑',7,15);
       radar.restore();return;
     }
@@ -4669,6 +4698,7 @@ function initialize(){
     mapPath(radar,[target,...nextLegs],project,'#9ae6fc');
     radar.setLineDash([]);
     mapPath(radar,[f,target],project,'#80dcff');
+    if(parkingGoal){const [gx,gy]=project(parkingGoal);radar.fillStyle='#ffdc56';radar.strokeStyle='#111b25';radar.lineWidth=2;radar.beginPath();radar.arc(gx,gy,7,0,Math.PI*2);radar.fill();radar.stroke();radar.font='bold 13px system-ui';radar.fillText('停機位 A1',gx+10,gy-8);}
     const [ownX,ownY]=project(f);
     // Extended Runway Centerline / Localizer Guidance
     if(destination&&!f.ground){
@@ -5044,7 +5074,7 @@ function initialize(){
     if(f.service){
       const service=f.service;
       if(f.awaitingService) return service.delivered===f.passengers?'下機完成 · 關艙門並收回空橋':'關閉引擎 · 接空橋、開艙門讓旅客下機';
-      if(f.landed) return arrivalTowReady(f)?'已停穩 · 可請拖車拖到機位':'已接地 · 煞停後可請拖車';
+      if(f.landed){const gate=arrivalParkingTarget(f);const metres=gate?Math.round(Math.hypot(f.x-gate.x,f.z-gate.z)):0;return '指定停機位 A1 · '+metres+' m · 地圖黃點'+(arrivalTowReady(f)?' · 可請拖車到機位':' · 煞停後可請拖車');}
       if(!service.pushed) return service.pushing?'地勤推離中':service.boarded===f.passengers&&f.fuel>=service.targetFuel?
         '關艙門、收空橋，再按「拖車牽引至跑道」':'停妥後接空橋並開艙門，同時加油';
     }
@@ -5556,8 +5586,9 @@ function initialize(){
     const previewInspection=hangarMode?hangarView.value:inspectionMode?byId('inspect').value:'orbit';
     if(hangarStage) hangarStage.visible=hangarMode;
     const model=aircraftModel(profile);
-    if(typeof aircraftSkins!=='undefined'&&aircraftSkins.getSelectedTheme&&aircraftSkins.reapplyLivery&&model.userData?.skinTheme!==aircraftSkins.getSelectedTheme()){
-      aircraftSkins.reapplyLivery(model,profile,THREE,aircraftSkins.getSelectedTheme());
+    const themeForView=hangarMode&&typeof FleetCommerce!=='undefined'&&FleetCommerce.paintDisplay()||(typeof aircraftSkins!=='undefined'?aircraftSkins.getSelectedTheme():'default');
+    if(typeof aircraftSkins!=='undefined'&&aircraftSkins.getSelectedTheme&&aircraftSkins.reapplyLivery&&model.userData?.skinTheme!==themeForView){
+      aircraftSkins.reapplyLivery(model,profile,THREE,themeForView);
     }
     const livery=hangarLiveries[profile.id]||!flight&&byId('liveryPreview').checked;
     if(!renderer.instrumentOnly) updateDownloadedAircraft(model,profile,flight,livery,renderer.capabilities.getMaxAnisotropy());
@@ -6052,6 +6083,8 @@ function initialize(){
       glassCanvas.hidden=attitudePanel.hidden;
       if(!f.regional&&!f.ground&&f.waypoint<4&&Math.hypot(legacyRoute[f.waypoint].x-f.x,legacyRoute[f.waypoint].z-f.z)<420) f.waypoint++;
       const target=f.regional?activeTarget(f):legacyRoute[f.waypoint];
+      const park=arrivalParkingTarget(f);parkingBeacon.visible=Boolean(park)&&!overviewActive;
+      if(park){parkingBeacon.position.set(park.x,park.y,park.z);if(!f.parkingHinted){f.parkingHinted=true;showPill(f.destination.code+' 抵達 · 前往停機位 A1（地圖黃點）');}}
       if(!paused&&++trailFrame%60===0){trail.push({x:f.x,z:f.z});if(trail.length>140) trail.shift();}
       if(now>=nextHudDraw){
         nextHudDraw=now+33;
