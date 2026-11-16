@@ -82,7 +82,7 @@ function buildBenchmarkAirframe(profile,scene){
         [half*.72,radius*.78],[half,radius*.64]],surface,profile.bodyHeight??.86);
     }
     const canopyZ=-half*(f16?.41:profile.sideIntakes?.39:.36),canopyY=radius*(f16?.53:.45);
-    const canopyLength=half*(f16?.24:profile.sideIntakes?.20:.21);
+    const canopyLength=half*(profile.tandemCanopy?.32:f16?.24:profile.sideIntakes?.20:.21);
     const canopyWidth=radius*(profile.sideIntakes?.46:.43);
     const canopyHeight=radius*(f16?.33:.24);
     const canopyBase=mesh(group,new THREE.SphereGeometry(1,32,14),paint,0,canopyY-.015,canopyZ);
@@ -385,7 +385,7 @@ function buildBenchmarkAirframe(profile,scene){
     const wingRake=v=>profile.rakedTip?Math.max(0,(v-.88)/.12):0;
     const wingChordAt=v=>{const r=wingRake(v),yehudi=(!fighter&&v<.32)?Math.sin(v/.32*Math.PI*.5)*.14*chord:0;return chord*(1-(1-tipRatio)*v)*(1-r*.84)+yehudi;};
     const wingLeadAt=v=>root+wingSweep*v+wingRake(v)*2.1;
-    const wingDihedralY=v=>wingY+v*v*(antonov?-1.15:fighter?-.05:.72);
+    const wingDihedralY=v=>wingY+v*v*(profile.dihedral??(antonov?-1.15:fighter?-.05:(profile.wingFlex??.72)));
     if(typeof AeroCraft!=='undefined'){
       // True multi-station cambered supercritical NACA airfoil loft with Yehudi trailing-edge kink, dihedral & washout
       const wingStations=[];
@@ -433,11 +433,11 @@ function buildBenchmarkAirframe(profile,scene){
             group.add(tipMsl);
           }
         }else{
-          const wHeight=Math.min(span*.09,upperDeck==='long'?2.65:2.15);
+          const wHeight=profile.wingFence?Math.min(.8,span*.04):(profile.wingletHeight??Math.min(span*.09,upperDeck==='long'?2.65:2.15));
           const wChord=Math.max(.35,Math.min(chord*.24,tipC*1.05));
           const wlGeo=AeroCraft.buildBlendedWinglet(wChord,wHeight,wHeight*.65,.34,side<0);
           mesh(group,wlGeo,paint,side*(span-.05),tipWy-.02,tipLz+tipC*.04);
-          if(profile.splitWinglet){
+          if(profile.splitWinglet||profile.wingFence){
             const lowerWl=AeroCraft.buildBlendedWinglet(wChord*.82,wHeight*.44,wHeight*.28,.48,side<0);
             const lwMesh=mesh(group,lowerWl,paint,side*(span-.09),tipWy-.04,tipLz+tipC*.08);
             lwMesh.scale.y=-1;
@@ -446,7 +446,7 @@ function buildBenchmarkAirframe(profile,scene){
       }
       // Contoured swept NACA horizontal stabilizer (zero flat slabs)
       if(!profile.delta){
-        const hRootZ=half*.54,hTipZ=half*.73,hSpan=span*(profile.stabilatorSpan??(f16?.55:fighter?.36:.33)),hY=profile.tTail?radius*.62+half*.34:radius*(fighter?-.02:.10);
+        const hRootZ=half*.54,hTipZ=half*.73,hSpan=span*(profile.stabilatorSpan??(f16?.55:fighter?.36:.33)),hY=profile.tTail?radius*.62+half*.34:profile.cruciform?radius*.62+half*.16:radius*(fighter?-.02:.10);
         const hGeo=AeroCraft.buildWingLoft([
           {x:radius*.34,leadZ:hRootZ,chord:half*(f16?.26:.19),y:hY,thick:.09,camber:0,twist:0},
           {x:hSpan,leadZ:hTipZ,chord:half*.085,y:hY+(fighter?-.06:.18),thick:.075,camber:0,twist:-.02}
@@ -479,6 +479,11 @@ function buildBenchmarkAirframe(profile,scene){
         {x:span*.39,leadZ:-half*.37,chord:half*.07,y:radius*.14,thick:.06,camber:0}
       ],{slices:16,mirror:side<0}),surface);
       canard.name=profile.id+' canard';
+    }
+    if(profile.tipTanks&&typeof AeroCraft!=='undefined'){
+      const tank=mesh(group,AeroCraft.buildCanoeGeometry(half*.48,radius*.23,radius*.23),surface,
+        side*span,wingDihedralY(1),tip+wingChordAt(1)*.4);
+      tank.name=profile.id+' wingtip fuel tank';
     }
     const aV0=wingV(.54),aV1=wingV(.82),aC0=wingChordAt(aV0),aC1=wingChordAt(aV1);
     const aTE0=wingLeadAt(aV0)+aC0*.84,aTE1=wingLeadAt(aV1)+aC1*.84;
@@ -532,7 +537,7 @@ function buildBenchmarkAirframe(profile,scene){
           const nac=hull(group,[[z-radius*1.8,radius*.29],[z-radius,radius*.36],[z+radius*1.8,radius*.26],[z+radius*2.1,.06]],surface);
           nac.position.set(x,y,0);nac.name=profile.id+' turboprop engine';
           const prop=new THREE.Group();prop.position.set(x,y,z-radius*1.85);group.add(prop);fans.push(prop);
-          const pr=Math.min(span*.20,radius*1.42,Math.max(radius*.85,y+profile.gearHeight-.26)),blades=profile.id==='a400m'?8:6;
+          const pr=Math.min(span*.20,radius*1.42,Math.max(radius*.85,y+profile.gearHeight-.26)),blades=profile.propBlades??(profile.id==='a400m'?8:6);
           for(let b=0;b<blades;b++){
             const blade=mesh(prop,AeroCraft.buildTwistedBlade(pr,radius*.15,radius*.07,.38),dark);blade.rotation.z=b*Math.PI*2/blades;blade.rotation.x=.22;
           }
@@ -541,9 +546,9 @@ function buildBenchmarkAirframe(profile,scene){
           const minSafeY=-profile.gearHeight+Math.max(.26,size*.22)+size*1.02;
           const idealY=ewY-size*.86-.08;
           const nacY=profile.overwingEngines?ewY+size+.32:Math.max(idealY,minSafeY);
-          const pylonH=profile.overwingEngines?Math.max(.22,nacY-size*.78-ewY+.03):Math.max(.16,ewY-nacY-size*.72-.04);
+          const pylonH=profile.overwingEngines?Math.max(.22,nacY-size*.78-ewY+.03):Math.max(.02,ewY-nacY-size*.72-.04);
           const nac=AeroCraft.buildTurbofanNacelle(THREE,size,length,{surface,metal,dark},{
-            chevron:detailed||freight||engineCount===2,
+            chevron:profile.engineChevrons??false,
             pylonHeight:pylonH,
             pylonBaseY:size*.72,
             overwing:Boolean(profile.overwingEngines)
@@ -613,8 +618,9 @@ function buildBenchmarkAirframe(profile,scene){
   const bogies=antonov?[[0,-half*.65,2],...[-1,1].flatMap(side=>
     Array.from({length:5},(_,i)=>[side*radius*.98,-3.8+i*2.18,1]))]:
     fighter?[[0,-half*.54,1],[-1.12,1.3,1],[1.12,1.3,1]]:
-    !upperDeck&&engineCount<=3?[[0,-half*.71,1],[-span*.128,2,profile.mainAxles??2],[span*.128,2,profile.mainAxles??2]]:
+    !profile.bodyGear?[[0,-half*.71,1],[-span*.128,2,profile.mainAxles??2],[span*.128,2,profile.mainAxles??2]]:
     [[0,-half*.71,1],[-span*.128,2,2],[span*.128,2,2],[-radius*.82,7.8,bodyAxles],[radius*.82,7.8,bodyAxles]];
+  if(profile.centerGearAxles)bogies.push([0,half*.23,profile.centerGearAxles]);
   const tireShapes=new Map();
   for(const [x,z,axles] of bogies){
     const size=fighter?.32:antonov?.61:radius>2.9?.64:radius<1.5?Math.max(.24,Math.min(.44,profile.gearHeight*.24)):.55;

@@ -858,12 +858,12 @@ function initialize(){
     }
     const wingMat=fuselage.clone();wingMat.side=THREE.DoubleSide;
     const flapMat=accent.clone();flapMat.side=THREE.DoubleSide;
-    const leadRoot=-length*.40,rootChord=length*.55,tipChord=length*.19;
+    const leadRoot=-length*.40,rootChord=length*.55,tipChord=rootChord*(profile.wingTipRatio??.35);
     const highWing=wingHeight>radius*.25;
     const wStations=[
       {x:radius*.62,leadZ:leadRoot,chord:rootChord,y:wingHeight,thick:.13,camber:.032,twist:.03},
-      {x:span*.45,leadZ:leadRoot+sweep*.42,chord:rootChord*.74+tipChord*.26,y:wingHeight+(highWing?.04:.14),thick:.115,camber:.028,twist:.01},
-      {x:span,leadZ:leadRoot+sweep,chord:tipChord,y:wingHeight+(highWing?.12:.34),thick:.095,camber:.020,twist:-.03,tipCurlY:.08}
+      {x:span*.45,leadZ:leadRoot+sweep*.42,chord:rootChord*.74+tipChord*.26,y:wingHeight+(profile.dihedral??(highWing?.04:.14)),thick:.115,camber:.028,twist:.01},
+      {x:span,leadZ:leadRoot+sweep,chord:tipChord,y:wingHeight+(profile.dihedral??(highWing?.12:.34)),thick:.095,camber:.020,twist:-.03,tipCurlY:.08}
     ];
     const wingAt=absX=>{
       const [s0,s1,s2]=wStations;
@@ -879,7 +879,7 @@ function initialize(){
         const wGeo=AeroCraft.buildWingLoft(wStations,{slices:28,capTip:true,mirror:side<0});
         group.add(new THREE.Mesh(wGeo,wingMat));
         // Aerodynamic horizontal stabilizer (camber 0 NACA-0010 tailplane)
-        const hTailY=profile.jet?radius*1.58:radius*.24;
+        const hTailY=profile.tTail?radius*2.18:profile.jet?radius*1.58:radius*.24;
         const hGeo=AeroCraft.buildWingLoft([
           {x:radius*.12,leadZ:length*.59,chord:length*.28,y:hTailY,thick:.10,camber:0,twist:0},
           {x:span*.35,leadZ:length*.69,chord:length*.14,y:hTailY+(profile.jet?0:.04),thick:.085,camber:0,twist:0}
@@ -896,7 +896,7 @@ function initialize(){
         hinge.add(new THREE.Mesh(fGeo,flapMat));
         group.add(hinge);surfaces.push(hinge);
         // Contoured diagonal wing strut fairing connecting fuselage belly to high-wing underside
-        if(highWing){
+        if(highWing&&profile.struts!==false){
           const wS=wingAt(span*.44);
           const dx=side*(span*.44-radius*.62), dy=(wS.y-.04)-(-radius*.38), sLen=Math.hypot(dx,dy);
           const strutGeo=new THREE.CylinderGeometry(radius*.045,radius*.055,sLen,10);
@@ -923,6 +923,17 @@ function initialize(){
       const nav=new THREE.Mesh(new THREE.SphereGeometry(.10,10,8),new THREE.MeshBasicMaterial({color:side<0?0xdc3934:0x35dba0}));
       nav.position.set(side*span,wStations[2].y,leadRoot+sweep+tipChord*.22);
       group.add(nav);navLights.push(nav);
+    }
+    if(profile.winglets&&typeof AeroCraft!=='undefined'){
+      for(const side of [-1,1]){
+        const tip=wStations[2],height=Math.min(span*.085,.85);
+        const wl=new THREE.Mesh(AeroCraft.buildBlendedWinglet(tip.chord*.8,height,height*.38,.26,side<0),accent);
+        wl.position.set(side*span,tip.y,tip.leadZ);wl.name=profile.id+' winglet';group.add(wl);
+      }
+    }
+    if(profile.bellyPod&&typeof AeroCraft!=='undefined'){
+      const pod=new THREE.Mesh(AeroCraft.buildCanoeGeometry(length*.95,radius*.60,radius*.40),fuselage);
+      pod.position.set(0,-radius*.91,0);pod.name=profile.id+' belly cargo pod';group.add(pod);
     }
     // Swept NACA-0010 vertical fin with curved dorsal fillet
     if(typeof AeroCraft!=='undefined'){
@@ -970,7 +981,7 @@ function initialize(){
         const propGroup=new THREE.Group();propGroup.position.set(x,y,z);
         const cone=new THREE.Mesh(new THREE.ConeGeometry(radius*.22,radius*.48,18),chrome);
         cone.rotation.x=-Math.PI/2;propGroup.add(cone);
-        const bladeCount=count===1?2:3;
+        const bladeCount=profile.propBlades??(count===1?2:3);
         const maxSafePropR=Math.max(radius*.65,y+profile.gearHeight-.22);
         const bRadius=Math.min(span*(count===1?.23:.18),maxSafePropR);
         const bladeGeo=typeof AeroCraft!=='undefined'

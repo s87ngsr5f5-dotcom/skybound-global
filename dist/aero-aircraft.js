@@ -84,7 +84,7 @@
       for (let j = 0; j < slices; j++) {
         const a = s * ringCount + j;
         const b = a + ringCount;
-        if (!mirror) {
+        if (mirror) {
           indices.push(a, a + 1, b, a + 1, b + 1, b);
         } else {
           indices.push(a, b, a + 1, a + 1, b, b + 1);
@@ -100,7 +100,7 @@
       uvs.push(1, 0.5);
       const base = (totalRings - 1) * ringCount;
       for (let j = 0; j < slices; j++) {
-        if (!mirror) indices.push(base + j, base + j + 1, tipCenterIdx);
+        if (mirror) indices.push(base + j, base + j + 1, tipCenterIdx);
         else indices.push(base + j, tipCenterIdx, base + j + 1);
       }
     }
@@ -139,7 +139,7 @@
       for (let j = 0; j < slices; j++) {
         const a = s * ringCount + j;
         const b = a + ringCount;
-        indices.push(a, b, a + 1, a + 1, b, b + 1);
+        indices.push(a, a + 1, b, a + 1, b + 1, b);
       }
     }
 
@@ -150,7 +150,7 @@
       uvs.push(1, 0.5);
       const base = (stations.length - 1) * ringCount;
       for (let j = 0; j < slices; j++) {
-        indices.push(base + j, tipIdx, base + j + 1);
+        indices.push(base + j, base + j + 1, tipIdx);
       }
     }
 
@@ -391,7 +391,7 @@
     group.add(fanGroup);
 
     // Swept NACA aerodynamic pylon connecting nacelle cleanly into wing interior (never poking through upper skin)
-    const pylonH = Math.max(0.16, options.pylonHeight ?? size * 0.52);
+    const pylonH = Math.max(0.02, options.pylonHeight ?? size * 0.52);
     const pylonY = options.overwing ? -(size * 0.78 + pylonH) : (options.pylonBaseY ?? size * 0.72);
     const pylon = mesh(buildAeroPylonGeometry(pylonH, size * 1.75, size * 2.05, 0.13, size * 0.55), surface, 0, pylonY, size * 0.05);
     if (options.pylonPitch) pylon.rotation.x = options.pylonPitch;

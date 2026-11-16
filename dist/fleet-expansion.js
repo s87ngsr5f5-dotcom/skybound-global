@@ -4400,3 +4400,53 @@ for(const p of fleet.filter(p=>p.category==='prop'&&p.geometry[0]>8)){
  p.role='passenger';p.turboprop=true;p.passengers=Math.max(12,Math.round(p.geometry[0]*5));
  p.nacelleRadius=p.geometry[1]*.4;
 }
+
+// Visual-only subtype configuration. Does not alter mass, controls or performance.
+const airframeRefinements = {
+ c172s:{struts:true,propBlades:2,wingTipRatio:.72},
+ c152:{struts:true,propBlades:2,wingTipRatio:.80},
+ p2006t:{struts:false,propBlades:2,wingTipRatio:.52},
+ pa28:{struts:false,propBlades:2,wingTipRatio:.60},
+ da40:{struts:false,propBlades:3,tTail:true,winglets:true,wingTipRatio:.33},
+ da42:{struts:false,propBlades:3,tTail:true,winglets:true,wingTipRatio:.30},
+ da20:{struts:false,propBlades:2,tTail:true,wingTipRatio:.38},
+ g58:{struts:false,propBlades:3,wingTipRatio:.48},
+ sr22:{struts:false,propBlades:3,wingTipRatio:.48},
+ c182:{struts:true,propBlades:3,wingTipRatio:.72},
+ c206:{struts:true,propBlades:3,wingTipRatio:.70},
+ bonanza:{struts:false,propBlades:3,wingTipRatio:.48},
+ extra330:{struts:false,propBlades:3,wingTipRatio:.62,dihedral:0},
+ pc21:{struts:false,propBlades:5,wingTipRatio:.42},
+ tbm930:{struts:false,propBlades:5,winglets:true,wingTipRatio:.40},
+ pc12:{struts:false,propBlades:5,tTail:true,winglets:true,wingTipRatio:.45},
+ king350:{struts:false,propBlades:4,tTail:true,winglets:true,wingTipRatio:.43},
+ twotter:{struts:true,propBlades:3,wingTipRatio:.84},
+ c208:{struts:true,propBlades:3,wingTipRatio:.73,bellyPod:true},
+ atr72:{propBlades:6,tTail:true,noWinglet:true,wingTipRatio:.48},
+ atr42:{propBlades:6,tTail:true,noWinglet:true,wingTipRatio:.48},
+ q400:{propBlades:6,tTail:true,noWinglet:true,wingTipRatio:.38},
+ dornier228:{propBlades:4,noWinglet:true,wingTipRatio:.63},
+ saab340:{propBlades:4,noWinglet:true,wingTipRatio:.46},
+ cj4:{noWinglet:true},hondajet:{tTail:true},
+ falcon7x:{tTail:false,cruciform:true},falcon8x:{tTail:false,cruciform:true},
+ sa380:{wingFence:true,bodyGear:true},b744:{bodyGear:true,engineChevrons:false},
+ a318:{wingFence:true},a319:{wingFence:true},
+ a320neo:{wingletHeight:2.4},a321neo:{wingletHeight:2.4},
+ b38m:{splitWinglet:true,engineChevrons:true},
+ b738:{engineChevrons:false},b739:{engineChevrons:false},b738bcf:{engineChevrons:false},
+ a343:{centerGearAxles:1,nacelleRadius:.92,engineChevrons:false},
+ a346:{centerGearAxles:2,nacelleRadius:1.49,engineChevrons:false},
+ b772:{mainAxles:3,noWinglet:true,rakedTip:false},b77f:{mainAxles:3,rakedTip:true},
+ a35k:{mainAxles:3},
+ b788:{rakedTip:true,engineChevrons:true,wingFlex:1.9},
+ b789:{rakedTip:true,engineChevrons:true,wingFlex:2.1},
+ b78x:{rakedTip:true,engineChevrons:true,wingFlex:2.2},
+ e190e2:{rakedTip:true},e195e2:{rakedTip:true},
+ c130j:{propBlades:6},a400m:{propBlades:8},
+ f104g:{dihedral:-.28,tipTanks:true},
+ t50:{tandemCanopy:true},hawk:{tandemCanopy:true},at3:{tandemCanopy:true}
+};
+for(const plane of fleet){
+ Object.assign(plane,airframeRefinements[plane.id]||{});
+ if(airframeRefinements[plane.id])plane.visualRevision='subtype-pass-1';
+}

@@ -1,0 +1,1692 @@
+[
+  {
+    "id": "c172s",
+    "name": "Cessna 172S",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": true,
+      "propBlades": 2,
+      "wingTipRatio": 0.72
+    },
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "sf15",
+    "name": "F-15 Eagle",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "sf16",
+    "name": "F-16C Fighting Falcon",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "高品質基準 · F-16C Block 50 實機廓型",
+    "cockpit": "專屬 F-16C Block 50 類比+雙綠MFD座艙與HUD",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "f5e",
+    "name": "Northrop F-5E Tiger II",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "f16v",
+    "name": "F-16V 戰隼",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "高品質基準 · F-16V Block 70 CFT+APX-113+Sniper實機廓型",
+    "cockpit": "專屬 F-16V Block 70 雙彩MFD+Viper CPD與HUD",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "fck1",
+    "name": "F-CK-1 經國號",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "m2000",
+    "name": "幻象 2000-5 · Mirage",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "sa380",
+    "name": "Airbus A380-800",
+    "category": "airliner",
+    "visualChanges": {
+      "wingFence": true,
+      "bodyGear": true
+    },
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a223",
+    "name": "Airbus A220-300",
+    "category": "airliner",
+    "visualChanges": {},
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a320neo",
+    "name": "Airbus A320neo",
+    "category": "airliner",
+    "visualChanges": {
+      "wingletHeight": 2.4
+    },
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b38m",
+    "name": "Boeing 737 MAX 8",
+    "category": "airliner",
+    "visualChanges": {
+      "splitWinglet": true,
+      "engineChevrons": true
+    },
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b763er",
+    "name": "Boeing 767-300ER",
+    "category": "airliner",
+    "visualChanges": {},
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b773",
+    "name": "Boeing 777-300ER",
+    "category": "airliner",
+    "visualChanges": {},
+    "model": "高品質基準 · B777-300ER 實機廓型",
+    "cockpit": "專屬 777-300ER 六螢幕座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b744",
+    "name": "Boeing 747-400",
+    "category": "airliner",
+    "visualChanges": {
+      "bodyGear": true,
+      "engineChevrons": false
+    },
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b763f",
+    "name": "Boeing 767-300F",
+    "category": "cargo",
+    "visualChanges": {},
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "sf748",
+    "name": "Boeing 747-8F · Atlas",
+    "category": "cargo",
+    "visualChanges": {},
+    "model": "高品質基準 · B747-8F 實機廓型",
+    "cockpit": "專屬 747-8F 上層四發座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "an124",
+    "name": "Antonov An-124-100 Ruslan",
+    "category": "cargo",
+    "visualChanges": {},
+    "model": "高品質基準 · An-124-100 高翼下反/4具D-18T/24輪實機廓型",
+    "cockpit": "專屬 An-124-100 俄系翠綠雙人座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "sh6",
+    "name": "SKYBOUND H6 · 巡遊直升機",
+    "category": "helicopter",
+    "visualChanges": {},
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "aw101",
+    "name": "AW101 Merlin · 搜救巡邏直升機",
+    "category": "helicopter",
+    "visualChanges": {},
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "uh60",
+    "name": "UH-60M 黑鷹直升機 · 戰術搜救",
+    "category": "helicopter",
+    "visualChanges": {},
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "ah64",
+    "name": "AH-64E 阿帕契守護者 · 重型攻擊直升機",
+    "category": "helicopter",
+    "visualChanges": {},
+    "model": "既有近似模型 · 共用幾何",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "p2006t",
+    "name": "Tecnam P2006T",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 2,
+      "wingTipRatio": 0.52
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "c152",
+    "name": "Cessna 152",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": true,
+      "propBlades": 2,
+      "wingTipRatio": 0.8
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "pa28",
+    "name": "Piper PA-28 Archer",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 2,
+      "wingTipRatio": 0.6
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "da40",
+    "name": "Diamond DA40 NG",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 3,
+      "tTail": true,
+      "winglets": true,
+      "wingTipRatio": 0.33
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "da42",
+    "name": "Diamond DA42",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 3,
+      "tTail": true,
+      "winglets": true,
+      "wingTipRatio": 0.3
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "g58",
+    "name": "Beechcraft Baron G58",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 3,
+      "wingTipRatio": 0.48
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "sr22",
+    "name": "Cirrus SR22",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 3,
+      "wingTipRatio": 0.48
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "c182",
+    "name": "Cessna 182T",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": true,
+      "propBlades": 3,
+      "wingTipRatio": 0.72
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "c206",
+    "name": "Cessna 206H",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": true,
+      "propBlades": 3,
+      "wingTipRatio": 0.7
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "bonanza",
+    "name": "Beechcraft Bonanza G36",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 3,
+      "wingTipRatio": 0.48
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "da20",
+    "name": "Diamond DA20",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 2,
+      "tTail": true,
+      "wingTipRatio": 0.38
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "extra330",
+    "name": "Extra 330SC",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 3,
+      "wingTipRatio": 0.62,
+      "dihedral": 0
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "pc21",
+    "name": "Pilatus PC-21",
+    "category": "trainer",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 5,
+      "wingTipRatio": 0.42
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "tbm930",
+    "name": "Daher TBM 930",
+    "category": "prop",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 5,
+      "winglets": true,
+      "wingTipRatio": 0.4
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "pc12",
+    "name": "Pilatus PC-12 NGX",
+    "category": "prop",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 5,
+      "tTail": true,
+      "winglets": true,
+      "wingTipRatio": 0.45
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "king350",
+    "name": "Beechcraft King Air 350",
+    "category": "prop",
+    "visualChanges": {
+      "struts": false,
+      "propBlades": 4,
+      "tTail": true,
+      "winglets": true,
+      "wingTipRatio": 0.43
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "atr72",
+    "name": "ATR 72-600",
+    "category": "prop",
+    "visualChanges": {
+      "propBlades": 6,
+      "tTail": true,
+      "noWinglet": true,
+      "wingTipRatio": 0.48
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "atr42",
+    "name": "ATR 42-600",
+    "category": "prop",
+    "visualChanges": {
+      "propBlades": 6,
+      "tTail": true,
+      "noWinglet": true,
+      "wingTipRatio": 0.48
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "q400",
+    "name": "De Havilland Dash 8-400",
+    "category": "prop",
+    "visualChanges": {
+      "propBlades": 6,
+      "tTail": true,
+      "noWinglet": true,
+      "wingTipRatio": 0.38
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "twotter",
+    "name": "DHC-6 Twin Otter",
+    "category": "prop",
+    "visualChanges": {
+      "struts": true,
+      "propBlades": 3,
+      "wingTipRatio": 0.84
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "dornier228",
+    "name": "Dornier 228",
+    "category": "prop",
+    "visualChanges": {
+      "propBlades": 4,
+      "noWinglet": true,
+      "wingTipRatio": 0.63
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "saab340",
+    "name": "Saab 340B",
+    "category": "prop",
+    "visualChanges": {
+      "propBlades": 4,
+      "noWinglet": true,
+      "wingTipRatio": 0.46
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "c208",
+    "name": "Cessna 208B Grand Caravan",
+    "category": "prop",
+    "visualChanges": {
+      "struts": true,
+      "propBlades": 3,
+      "wingTipRatio": 0.73,
+      "bellyPod": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "cj4",
+    "name": "Cessna Citation CJ4",
+    "category": "business",
+    "visualChanges": {
+      "noWinglet": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "phenom300",
+    "name": "Embraer Phenom 300E",
+    "category": "business",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "g650",
+    "name": "Gulfstream G650ER",
+    "category": "business",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "g700",
+    "name": "Gulfstream G700",
+    "category": "business",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "global7500",
+    "name": "Bombardier Global 7500",
+    "category": "business",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "challenger350",
+    "name": "Bombardier Challenger 350",
+    "category": "business",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "falcon7x",
+    "name": "Dassault Falcon 7X",
+    "category": "business",
+    "visualChanges": {
+      "tTail": false,
+      "cruciform": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "falcon8x",
+    "name": "Dassault Falcon 8X",
+    "category": "business",
+    "visualChanges": {
+      "tTail": false,
+      "cruciform": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "hondajet",
+    "name": "HondaJet Elite II",
+    "category": "business",
+    "visualChanges": {
+      "tTail": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "lear75",
+    "name": "Learjet 75",
+    "category": "business",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a318",
+    "name": "Airbus A318-100",
+    "category": "airliner",
+    "visualChanges": {
+      "wingFence": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a319",
+    "name": "Airbus A319-100",
+    "category": "airliner",
+    "visualChanges": {
+      "wingFence": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a321neo",
+    "name": "Airbus A321neo",
+    "category": "airliner",
+    "visualChanges": {
+      "wingletHeight": 2.4
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a333",
+    "name": "Airbus A330-300",
+    "category": "airliner",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a339",
+    "name": "Airbus A330-900",
+    "category": "airliner",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a343",
+    "name": "Airbus A340-300",
+    "category": "airliner",
+    "visualChanges": {
+      "centerGearAxles": 1,
+      "nacelleRadius": 0.92,
+      "engineChevrons": false
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a346",
+    "name": "Airbus A340-600",
+    "category": "airliner",
+    "visualChanges": {
+      "centerGearAxles": 2,
+      "nacelleRadius": 1.49,
+      "engineChevrons": false
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a359",
+    "name": "Airbus A350-900",
+    "category": "airliner",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a35k",
+    "name": "Airbus A350-1000",
+    "category": "airliner",
+    "visualChanges": {
+      "mainAxles": 3
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b738",
+    "name": "Boeing 737-800",
+    "category": "airliner",
+    "visualChanges": {
+      "engineChevrons": false
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b739",
+    "name": "Boeing 737-900ER",
+    "category": "airliner",
+    "visualChanges": {
+      "engineChevrons": false
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b752",
+    "name": "Boeing 757-200",
+    "category": "airliner",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b772",
+    "name": "Boeing 777-200ER",
+    "category": "airliner",
+    "visualChanges": {
+      "mainAxles": 3,
+      "noWinglet": true,
+      "rakedTip": false
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b788",
+    "name": "Boeing 787-8",
+    "category": "airliner",
+    "visualChanges": {
+      "rakedTip": true,
+      "engineChevrons": true,
+      "wingFlex": 1.9
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b789",
+    "name": "Boeing 787-9",
+    "category": "airliner",
+    "visualChanges": {
+      "rakedTip": true,
+      "engineChevrons": true,
+      "wingFlex": 2.1
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b78x",
+    "name": "Boeing 787-10",
+    "category": "airliner",
+    "visualChanges": {
+      "rakedTip": true,
+      "engineChevrons": true,
+      "wingFlex": 2.2
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "e190e2",
+    "name": "Embraer E190-E2",
+    "category": "airliner",
+    "visualChanges": {
+      "rakedTip": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "e195e2",
+    "name": "Embraer E195-E2",
+    "category": "airliner",
+    "visualChanges": {
+      "rakedTip": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b77f",
+    "name": "Boeing 777F",
+    "category": "cargo",
+    "visualChanges": {
+      "mainAxles": 3,
+      "rakedTip": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b738bcf",
+    "name": "Boeing 737-800BCF",
+    "category": "cargo",
+    "visualChanges": {
+      "engineChevrons": false
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "b752f",
+    "name": "Boeing 757-200PF",
+    "category": "cargo",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a306f",
+    "name": "Airbus A300-600F",
+    "category": "cargo",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a332f",
+    "name": "Airbus A330-200F",
+    "category": "cargo",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "md11f",
+    "name": "McDonnell Douglas MD-11F",
+    "category": "cargo",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "dc10f",
+    "name": "McDonnell Douglas DC-10-30F",
+    "category": "cargo",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "c130j",
+    "name": "Lockheed Martin C-130J",
+    "category": "cargo",
+    "visualChanges": {
+      "propBlades": 6
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "a400m",
+    "name": "Airbus A400M",
+    "category": "cargo",
+    "visualChanges": {
+      "propBlades": 8
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "c17",
+    "name": "Boeing C-17 Globemaster III",
+    "category": "cargo",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用客貨機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "f15c",
+    "name": "F-15C Eagle",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "fa18c",
+    "name": "F/A-18C Hornet",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "高細節子型（LEX／外傾雙尾／折翼／尾鉤）",
+    "cockpit": "F/A-18C 專屬 3-MFD + UFC + HUD 座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "f14b",
+    "name": "F-14B Tomcat",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "高細節子型（連續可變後掠翼／雙 F110／尾鉤）",
+    "cockpit": "F-14B Tomcat 專屬雙座 VDI/TID + HUD 座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "f22a",
+    "name": "F-22A Raptor",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "f35a",
+    "name": "F-35A Lightning II",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "rafalec",
+    "name": "Dassault Rafale C",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "typhoon",
+    "name": "Eurofighter Typhoon",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "su27",
+    "name": "Sukhoi Su-27",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "mig29",
+    "name": "Mikoyan MiG-29",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "f104g",
+    "name": "F-104G Starfighter",
+    "category": "fighter",
+    "visualChanges": {
+      "dihedral": -0.28,
+      "tipTanks": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "gripenc",
+    "name": "Saab JAS 39C Gripen",
+    "category": "fighter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "t50",
+    "name": "KAI T-50 Golden Eagle",
+    "category": "fighter",
+    "visualChanges": {
+      "tandemCanopy": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "hawk",
+    "name": "BAE Hawk T2",
+    "category": "fighter",
+    "visualChanges": {
+      "tandemCanopy": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "at3",
+    "name": "AIDC AT-3 自強號",
+    "category": "fighter",
+    "visualChanges": {
+      "tandemCanopy": true
+    },
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用戰機座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "r44",
+    "name": "Robinson R44 Raven II",
+    "category": "helicopter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "bell206",
+    "name": "Bell 206B JetRanger",
+    "category": "helicopter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "h145",
+    "name": "Airbus H145",
+    "category": "helicopter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  },
+  {
+    "id": "s92",
+    "name": "Sikorsky S-92A",
+    "category": "helicopter",
+    "visualChanges": {},
+    "model": "程序模型 · 待逐型精修",
+    "cockpit": "共用通用座艙",
+    "verification": "model builds and hangar renders; not a completed fidelity acceptance",
+    "pending": [
+      "reference silhouette review",
+      "dedicated cockpit review",
+      "animation and close-detail review",
+      "triangle budget / LOD review"
+    ]
+  }
+]
