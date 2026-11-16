@@ -23,8 +23,8 @@ function makeGlassReadouts(canvas){
     label(text,x+2*unit,y,13,'center',ice);
     if(sub) label(sub,x,y-h/2-8*unit,9,'center',accent);
   }
-  function scaleRail(value,step,x,y,side,title,accent){
-    const span=height*.23,gap=span*.34;
+  function scaleRail(value,step,x,y,side,title,accent,railSpan){
+    const span=railSpan||height*.23,gap=span*.34;
     const lowerSpan=side>0&&innerWidth>innerHeight&&height<320?span*.62:span;
     const curveX=t=>x-side*Math.pow(Math.abs(t)/span,1.8)*7*unit;
     ink.beginPath();
@@ -60,14 +60,17 @@ function makeGlassReadouts(canvas){
     ink.setTransform(dpr,0,0,dpr,0,0);
     ink.clearRect(0,0,width,height);
     if(document.body.classList.contains('mobile-mode')){
-      const cells=[['空速 km/h',Math.round(speeds.ias*3.6)],['高度 m',Math.round(f.y)],['航向',String(Math.round((f.heading*180/Math.PI+360)%360)).padStart(3,'0')+'°']];
-      unit=1;
-      cells.forEach(([title,value],i)=>{
-        const cw=width/3,x=i*cw;
-        ink.fillStyle='rgba(8,20,28,.87)';ink.fillRect(x+2,0,cw-4,Math.min(height,52));
-        label(title,x+cw/2,12,10,'center','#b6cad4');
-        label(String(value),x+cw/2,34,18,'center','#ffffff');
-      });
+      // Transparent speed/altitude tapes; leave the middle of the view clear.
+      unit=width<500?.90:1;
+      const center=width/2,y=height*.46,offset=width*.115;
+      const ias=displayKmh(speeds.ias),span=Math.min(92,height*.22);
+      scaleRail(ias,ias>1100?100:50,center-offset,y,-1,'IAS km/h',cyan,span);
+      scaleRail(f.y,f.y>5000?100:50,center+offset,y,1,'ALT m',gold,span);
+      // Retain the compact heading at its existing top position.
+      const degrees=String(Math.round((f.heading*180/Math.PI+360)%360)%360).padStart(3,'0')+'°';
+      ink.fillStyle='rgba(8,20,28,.87)';ink.fillRect(center-40,58,80,52);
+      label('航向',center,70,10,'center','#b6cad4');
+      label(degrees,center,92,18,'center','#ffffff');
       return;
     }
     const center=width/2,y=height*.58;

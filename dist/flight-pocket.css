@@ -78,3 +78,10 @@ canvas.world{filter:saturate(1.13)}
 .hangar-home .arrival-horizon{opacity:.2}.hangar-home .arrival-cloud{opacity:.4}
 @keyframes hangar-arrival{from{transform:scale(1.035);opacity:.6}to{transform:scale(1);opacity:1}}
 @media(prefers-reduced-motion:reduce){.hangar-home .dispatch-photo{animation:none}}
+
+/* Restore transparent IAS/ALT tapes only. No central instrument background. */
+body.mobile-mode.flight-ui #glassReadouts,body.mobile-mode.flight-ui.cockpit-active #glassReadouts{
+ top:0!important;left:0!important;right:0!important;bottom:0!important;
+ transform:none!important;width:100%!important;height:100%!important;
+ min-width:0!important;max-height:none!important;pointer-events:none;
+}
