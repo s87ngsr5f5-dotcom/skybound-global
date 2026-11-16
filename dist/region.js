@@ -33,6 +33,7 @@ const internationalAirports=[
   airport('RPLL','馬尼拉尼諾伊',14.5086,121.0194,61.0,3737,60,22.9,'06','24',-185),
   airport('VTBS','曼谷蘇凡納布',13.6900,100.7501,15.0,4000,60,2.1,'01R','19L',-195)
 ];
+internationalAirports.push(airport("WMKK","吉隆坡國際",2.762835,101.7120015,146.0,4123.944,60.0456,21.031200000000002,"14L","32R"),airport("WIII","雅加達蘇加諾哈達",-6.13646,106.65900049999999,68.0,3660.0384000000004,60.0456,10.3632,"07R","25L"));
 var allAirports=[...taiwanAirports,...internationalAirports];
 function runwayCoordinates(x,z,r){
   const dx=x-r.x,dz=z-r.z,s=Math.sin(r.heading),c=Math.cos(r.heading);
@@ -211,6 +212,7 @@ function detailedMountainHeight(x,z,base){
   return base+(detail-base)*blend;
 }
 function internationalTerrainHeight(x,z){
+  if(typeof pilotTerrainHeight==='function'){const sample=pilotTerrainHeight(x,z);if(sample!==null)return sample;}
   if(Math.abs(x)<360000&&Math.abs(z)<360000) return 0;
   const {lat,lon}=latLon(x,z);
   const noise=(Math.sin(x*.00043)+Math.cos(z*.00039)+Math.sin((x+z)*.00021))*.33;
@@ -505,6 +507,15 @@ const internationalRegions=[
     ]
   }
 ];
+internationalRegions.push(...[{"id": "MY_KUL", "name": "馬來西亞 · 吉隆坡城市試作區", "airportCode": "WMKK", "centerLat": 3.155, "centerLon": 101.7075, "spanKm": 68, "box": {"s": 2, "n": 4, "w": 101, "e": 102}, "landmarks": [], "urbanZones": [], "rivers": [], "bridges": []}, {"id": "ID_CGK", "name": "印尼 · 雅加達城市試作區", "airportCode": "WIII", "centerLat": -6.175, "centerLon": 106.825, "spanKm": 50, "box": {"s": -7, "n": -6, "w": 106, "e": 107}, "landmarks": [], "urbanZones": [], "rivers": [], "bridges": []}]);
+// Project region metadata once for maps and relief patches.
+for(const reg of internationalRegions){
+ reg.center=geoPoint(reg.centerLat,reg.centerLon);
+ const span=reg.spanKm*1000;
+ if(reg.box){const nw=geoPoint(reg.box.n,reg.box.w),se=geoPoint(reg.box.s,reg.box.e);reg.bounds=[nw.x,nw.z,se.x-nw.x,se.z-nw.z];}
+ else reg.bounds=[reg.center.x-span/2,reg.center.z-span/2,span,span];
+ for(const zone of reg.urbanZones||[])Object.assign(zone,geoPoint(zone.lat,zone.lon),{r:zone.rKm*1000});
+}
 function regionalHeight(x,z){
   let height=0;
   if(x>=-18000&&x<=18000&&z>=-18000&&z<=18000){

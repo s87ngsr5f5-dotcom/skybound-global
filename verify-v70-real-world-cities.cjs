@@ -59,7 +59,7 @@ for (const file of ['region.js', 'world-city.js', 'taiwan-city.js', 'flight.js']
     class MeshStandardMaterial { constructor(o) { Object.assign(this, o); } }
     return {
       Color, Vector2, Object3D, Group, Mesh, InstancedMesh, BufferGeometry, Float32BufferAttribute,
-      BufferAttribute: Float32BufferAttribute, CanvasTexture, MeshStandardMaterial,
+      BufferAttribute: Float32BufferAttribute, CanvasTexture, MeshStandardMaterial, MeshPhysicalMaterial:MeshStandardMaterial,
       RepeatWrapping: 1, SRGBColorSpace: 'srgb',
       ShapeUtils: { triangulateShape: (c) => c.length >= 3 ? [[0, 1, 2], ...(c.length >= 4 ? [[0, 2, 3]] : [])] : [] }
     };
@@ -113,7 +113,7 @@ for (const file of ['region.js', 'world-city.js', 'taiwan-city.js', 'flight.js']
     assert.ok(ap && wc.inside(ap.lat, ap.lon), `worldCity.inside() covers international hub ${code}`);
   }
   assert.strictEqual(wc.inside(25.0339, 121.5645), false, 'worldCity.inside() returns false for Taipei 101');
-  assert.strictEqual(Object.keys(wc.REG_PALETTES).length, 8, 'REG_PALETTES defines palettes for all 8 overseas regions');
+  assert.strictEqual(Object.keys(wc.REG_PALETTES).length, 10, 'REG_PALETTES defines palettes for all 8 overseas regions');
 }
 
 // 3. Validate extracted real OSM data in dist/world-city/

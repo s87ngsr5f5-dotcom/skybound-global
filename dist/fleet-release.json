@@ -1,5 +1,5 @@
 {
-  "version": "0.72",
+  "version": "0.73",
   "registeredAircraft": 100,
   "newProfiles": 79,
   "categories": {
@@ -14,5 +14,9 @@
   "specialUnlocks": 6,
   "modelTier": "parametric-prototypes-and-existing-models",
   "highFidelityFleetComplete": false,
-  "releaseChannel": "production"
+  "releaseChannel": "production",
+  "cityPilots": [
+    "MY_KUL",
+    "ID_CGK"
+  ]
 }

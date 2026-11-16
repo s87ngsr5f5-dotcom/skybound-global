@@ -18,9 +18,9 @@ function buildBenchmarkAirframe(profile,scene){
   const detailed=profile.role==='passenger'&&engineCount===2;
   const color=fighter?0x778798:freight?0xd9e2e4:0xf2f5f7;
   const panelBump=typeof AeroCraft!=='undefined'?AeroCraft.getPanelBumpTexture(THREE):null;
-  const surface=new THREE.MeshPhysicalMaterial({color,roughness:detailed?.30:.44,metalness:fighter?.30:.12,clearcoat:.85,clearcoatRoughness:.12,bumpMap:panelBump,bumpScale:.014});
+  const surface=new THREE.MeshPhysicalMaterial({color,roughness:detailed?.30:.44,metalness:fighter?.22:.08,clearcoat:.62,clearcoatRoughness:.24,bumpMap:panelBump,bumpScale:.014});
   const stockColor=profile.trimColor??(fighter?0x556571:freight?0x173d5d:0x146a80);
-  const paint=new THREE.MeshPhysicalMaterial({color:stockColor,roughness:.32,clearcoat:.85,clearcoatRoughness:.12,bumpMap:panelBump,bumpScale:.012});
+  const paint=new THREE.MeshPhysicalMaterial({color:stockColor,roughness:.32,clearcoat:.62,clearcoatRoughness:.24,bumpMap:panelBump,bumpScale:.012});
   const rubber=new THREE.MeshStandardMaterial({color:0x151a1e,roughness:.94});
   const metal=new THREE.MeshStandardMaterial({color:0x667886,roughness:.28,metalness:.68});
   const dark=new THREE.MeshStandardMaterial({color:0x14212b,roughness:.66});

@@ -47,7 +47,7 @@ for (const file of jsFiles) {
   vm.runInContext(regionCode, sandbox, { filename: 'region.js' });
   vm.runInContext(airwaysCode, sandbox, { filename: 'airways-nav.js' });
 
-  assert.strictEqual(sandbox.internationalRegions.length, 9, 'internationalRegions has all 9 theatres (TW + 8 overseas)');
+  assert.strictEqual(sandbox.internationalRegions.length, 11, 'internationalRegions has all 9 theatres (TW + 8 overseas)');
   const regionIds = sandbox.internationalRegions.map(r => r.id);
   for (const id of ['TW', 'JP_TYO', 'JP_KIX', 'JP_OKA', 'HK_HKG', 'KR_ICN', 'SG_SIN', 'PH_MNL', 'TH_BKK']) {
     assert.ok(regionIds.includes(id), `internationalRegions includes ${id}`);

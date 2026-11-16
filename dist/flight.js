@@ -4465,7 +4465,7 @@ function initialize(){
           <option value="SG_SIN">🇸🇬 新加坡</option>
           <option value="PH_MNL">🇵🇭 馬尼拉灣</option>
           <option value="TH_BKK">🇹🇭 曼谷湄南河</option>
-          <option value="WORLD">🌏 亞太全覽</option>
+          <option value="MY_KUL">馬來西亞 · 吉隆坡試作區</option><option value="ID_CGK">印尼 · 雅加達試作區</option><option value="WORLD">🌏 亞太全覽</option>
         </select>
       </div>
     `;
@@ -6216,12 +6216,15 @@ function initialize(){
           'tour-city':[25.0262,121.5534,650,25.0351,121.5649,190],
           'tour-glass':[25.0377,121.5622,160,25.0396,121.5642,95],
           'tour-downtown':[25.0401,121.5047,550,25.0470,121.5160,85],
+          'tour-kualalumpur':[3.148,101.697,750,3.158,101.710,130],
+          'tour-jakarta':[-6.187,106.813,650,-6.173,106.826,90],
           'tour-woods':[25.1122,121.5770,34,25.1132,121.5777,12]
         };
         const t=tours[tour],eye=geoPoint(t[0],t[1]),target=geoPoint(t[3],t[4]);
         camera.position.set(eye.x,terrainHeight(eye.x,eye.z)+t[2],eye.z);
         camera.up.set(0,1,0);
         camera.lookAt(target.x,terrainHeight(target.x,target.z)+t[5],target.z);
+        if(tour==='tour-kualalumpur'||tour==='tour-jakarta')updateTerrain(eye.x,eye.z);
       }
     }
     const viewerX=flight?.x??selectedAirport('departure').x;

@@ -831,6 +831,8 @@
   ];
 
   const SCENERY_CARDS = [
+    {id:'tour-kualalumpur',tag:'馬來西亞 · 試作區',title:'吉隆坡真實建築輪廓',desc:'市中心 6,184 棟 OSM 輪廓；立面生成、缺漏樓高估算。',inspect:'tour-kualalumpur'},
+    {id:'tour-jakarta',tag:'印尼 · 試作區',title:'雅加達真實建築輪廓',desc:'市中心 17,260 棟 OSM 輪廓；立面生成、缺漏樓高估算。',inspect:'tour-jakarta'},
     { id: 'tour-city', tag: '台北信義', image: 'assets/campaign/ch2.jpg', title: '台北 101 與摩天高樓夜景', desc: '近距離檢視高擬真玻璃帷幕大樓與夜晚都市繁華燈火。', inspect: 'tour-city' },
     { id: 'tour-terminal', tag: '國際樞紐', image: 'assets/campaign/ch7.jpg', title: '出發機場航廈與空橋巡覽', desc: '細節滿點的機場塔台、登機門、空橋與滑行道。', inspect: 'tour-terminal' },
     { id: 'tour-river', tag: '都會動脈', image: 'assets/campaign/ch1.jpg', title: '基隆河岸橋樑與都會車流', desc: '立體公路交流道網與橋樑上川流不息的車輛與夜燈。', inspect: 'tour-river' },
@@ -2103,7 +2105,7 @@
     if (tab === 'tactical') {
       const cards = TACTICAL_CARDS.map(c => `
         <button type="button" class="hub-art-action-card" data-hub-quick="${c.quick}">
-          <img src="${c.image}" alt="${c.title}">
+          ${c.image ? `<img src="${c.image}" alt="${c.title}">` : ''}
           <div>
             <span class="hub-action-pill">${c.tag}</span>
             <strong>${c.title}</strong>
@@ -2168,7 +2170,7 @@
     if (tab === 'scenery') {
       const cards = SCENERY_CARDS.map(c => `
         <button type="button" class="hub-art-action-card" data-hub-inspect="${c.inspect}">
-          <img src="${c.image}" alt="${c.title}">
+          ${c.image ? `<img src="${c.image}" alt="${c.title}">` : ''}
           <div>
             <span class="hub-action-pill">${c.tag}</span>
             <strong>${c.title}</strong>

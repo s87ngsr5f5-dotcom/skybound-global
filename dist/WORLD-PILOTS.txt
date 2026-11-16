@@ -1,0 +1,13 @@
+城市試作區 / City pilots
+2026-11-16
+吉隆坡範圍：3.14–3.17 N, 101.695–101.72 E。6,184 棟。
+雅加達範圍：6.19–6.16 S, 106.81–106.84 E。17,260 棟。
+© OpenStreetMap contributors, ODbL-1.0: https://www.openstreetmap.org/copyright
+Derived footprint dataset and per-building height methods: world-city/pilot-provenance.json
+Height tags, floor-derived heights and estimated defaults are distinguished. Facades are generated. Multipolygon holes and a full national footprint inventory are not included.
+Terrain: Terrain Tiles / Mapzen, accessed 2026-11-16. Global SRTM / GMTED2010 terrain data courtesy of the U.S. Geological Survey. https://github.com/tilezen/joerd/blob/master/docs/attribution.md
+Three 1-degree HGT cells resampled from 3601x3601 to 121x121; negative and void heights clamped to zero. Not full-resolution or survey-grade terrain.
+WMKK / WIII runway data: OurAirports, Public Domain, accessed 2026-11-16. https://ourairports.com/data/
+Airports have generated terminals/aprons and one selected runway each; not detailed airport reconstructions.
+Projection: existing Taiwan-origin planar coordinates retained for compatibility; physical scale and true runway angles need regional projection correction at these latitudes. This is a limited scenery pilot, not a complete high-fidelity country release.
+Google Maps data is not included. Official Google Photorealistic 3D Tiles requires API setup, billing and attribution; no scraping or offline packaging is implemented.

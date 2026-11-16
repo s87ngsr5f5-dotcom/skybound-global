@@ -8,6 +8,8 @@ function createWorldCity(scene, ground, airports = []) {
   scene.add(root);
 
   const WORLD_BOUNDS = [
+    [3.14,101.695,3.17,101.72], // Malaysian pilot district
+    [-6.19,106.81,-6.16,106.84], // Indonesian pilot district
     [35.37, 139.54, 35.87, 140.50], // 0: JP_TYO (Tokyo/Haneda/Yokohama/Chiba/Narita)
     [34.32, 135.10, 34.82, 135.68], // 1: JP_KIX (Osaka/Kansai/Kobe)
     [26.05, 127.56, 26.50, 127.94], // 2: JP_OKA (Okinawa Naha/Shuri/Chatan)
@@ -156,7 +158,8 @@ function createWorldCity(scene, ground, airports = []) {
     roughness: 0.85,
     metalness: 0.04
   });
-  const glassMat = new THREE.MeshStandardMaterial({
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    clearcoat: .75, clearcoatRoughness: .20, envMapIntensity: .85,
     map: glassWallTex,
     emissiveMap: nightEmissiveTex,
     emissive: new THREE.Color('#cfe6ff'),
@@ -275,6 +278,8 @@ function createWorldCity(scene, ground, airports = []) {
     }
   };
 
+  REG_PALETTES[8]={...REG_PALETTES[5],houseRoof:[0x8a4d36,0x665753,0xa7694c],glassWall:[0xa1adb0,0x8c9c9f,0xc0c2bd,0x82979e]};
+  REG_PALETTES[9]={...REG_PALETTES[6],houseRoof:[0x9a4d32,0xb96c43,0x755144],aptWall:[0xd9d1bd,0xc4c4bb,0xe4ddce]};
   function pickColor(arr, tone, fallbackSalt) {
     if (!arr || !arr.length) return new THREE.Color(0xc8c8c8);
     const f = Math.max(0, Math.min(0.999, Number.isFinite(tone) ? tone : fallbackSalt));
@@ -465,6 +470,7 @@ function createWorldCity(scene, ground, airports = []) {
     const m = new THREE.Mesh(g, mat);
     m.name = name;
     m.receiveShadow = true;
+    m.castShadow = true;
     group.add(m);
   }
 
@@ -554,8 +560,8 @@ function createWorldCity(scene, ground, airports = []) {
         if (h >= 28 && (maxX - minX) > 14 && (maxZ - minZ) > 14) {
           const cw = Math.max(6, (maxX - minX) * 0.42), cd = Math.max(6, (maxZ - minZ) * 0.42), ch = Math.min(7.5, h * 0.08);
           const cap = [[bx - cw / 2, bz - cd / 2], [bx + cw / 2, bz - cd / 2], [bx + cw / 2, bz + cd / 2], [bx - cw / 2, bz + cd / 2]];
-          emitWalls(indBuf, cap, topY, topY + ch, bx, bz, rCol);
-          emitUpPoly(flatBuf, cap, topY + ch, rCol);
+          emitWalls(indBuf, cap, topY-ch, topY, bx, bz, rCol);
+          emitUpPoly(flatBuf, cap, topY, rCol);
         }
       } else {
         // Concrete apartment / shophouse (`kind === 0`)
@@ -763,7 +769,7 @@ function createWorldCity(scene, ground, airports = []) {
       activeKeys.add(key);
       if (!loaded.has(key) && !loading.has(key) && loading.size < 4) {
         loading.add(key);
-        fetch('world-city/' + key + '.json?v=70')
+        fetch('world-city/' + key + '.json?v=pilot1')
           .then(r => (r.ok ? r.json() : null))
           .then(data => {
             if (data) jobs.push({ key, regId: rec[4], it: buildTile(key, data, rec[4]) });
@@ -788,7 +794,7 @@ function createWorldCity(scene, ground, airports = []) {
         roadWanted.add(key);
         if (!loadedRoads.has(key) && !loadingRoads.has(key) && loadingRoads.size < 3) {
           loadingRoads.add(key);
-          fetch('world-city/roads/' + key + '.json?v=70')
+          fetch('world-city/roads/' + key + '.json?v=pilot1')
             .then(r => (r.ok ? r.json() : null))
             .then(data => {
               if (data) roadJobs.push({ key, it: buildRoadChunk(key, data) });
@@ -835,9 +841,9 @@ function createWorldCity(scene, ground, airports = []) {
   }
 
   Promise.all([
-    fetch('world-city/index.json?v=70').then(r => (r.ok ? r.json() : null)).catch(() => null),
-    fetch('world-city/roads/index.json?v=70').then(r => (r.ok ? r.json() : null)).catch(() => null),
-    fetch('world-city/settlements.json?v=70').then(r => (r.ok ? r.json() : null)).catch(() => null)
+    fetch('world-city/index.json?v=pilot1').then(r => (r.ok ? r.json() : null)).catch(() => null),
+    fetch('world-city/roads/index.json?v=pilot1').then(r => (r.ok ? r.json() : null)).catch(() => null),
+    fetch('world-city/settlements.json?v=pilot1').then(r => (r.ok ? r.json() : null)).catch(() => null)
   ]).then(([idx, rIdx, sIdx]) => {
     if (idx && Array.isArray(idx.tiles)) {
       tiles = idx.tiles;
