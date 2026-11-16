@@ -37,6 +37,7 @@ assert(finishRunwayTow(f));
 assert(!startEngine(f,0));
 f.battery=true;
 f.engines.forEach((_,index)=>assert(startEngine(f,index)));
+f.flaps=1; // Heavy-cargo takeoff configuration, not clean-wing rotation.
 f.parkingBrake=false;
 for(let i=0;i<120*135&&f.y<departure.elevation+460&&!f.ended;i++){
   const pitch=flightSpeeds(f).ias*knotsPerMps>=aircraft.rotation?.62:0;

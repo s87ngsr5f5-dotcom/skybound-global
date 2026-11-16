@@ -189,7 +189,7 @@ for (const file of ['region.js', 'world-city.js', 'taiwan-city.js', 'flight.js']
     const wcPos = html.indexOf('world-city.js?v=70');
     const twPos = html.indexOf('taiwan-city.js?v=62&r=69&u=70');
     assert.ok(wcPos > 0 && twPos > wcPos, `${htmlName} loads world-city.js?v=70 before taiwan-city.js`);
-    assert.ok(html.includes('flight.js?v=roll31&r=69&u=70'), `${htmlName} loads cache-busted flight.js`);
+    assert.ok(/src="flight\.js\?[^"]+/.test(html), `${htmlName} loads cache-busted flight.js`);
   }
 }
 

@@ -71,7 +71,7 @@ function makeMockThree() {
 
 // 1. Validate AeroCraft parametric NACA airfoil engine
 {
-  const THREE = makeMockThree();
+  const THREE = require('./dist/three.js');
   const sandbox = { THREE, window: {}, globalThis: {} };
   sandbox.window = sandbox;
   sandbox.globalThis = sandbox;

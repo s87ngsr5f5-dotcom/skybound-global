@@ -1027,7 +1027,7 @@ function initialize(){
     }
     const gaPropDisc=new THREE.Mesh(
       new THREE.CircleGeometry(radius*1.48,28),
-      new THREE.MeshBasicMaterial({map:typeof aeroAircraft!=='undefined'?aeroAircraft.getPropBlurTexture(THREE):null,
+      new THREE.MeshBasicMaterial({map:typeof AeroCraft!=='undefined'?AeroCraft.getPropBlurTexture(THREE):null,
         transparent:true,opacity:.22,depthWrite:false,side:THREE.DoubleSide})
     );
     gaPropDisc.position.set(0,gY-radius*.10,gZ-length*.29);

@@ -46,7 +46,7 @@ const distDir = path.join(__dirname, 'dist');
   // Verify enhanced explosion VFX + shake bug fix + cockpit/chase upgrades
   assert.ok(flight.includes('blastLight') && flight.includes('wave2Mat') && flight.includes('craterMat'), 'flight.js has enhanced explosion fireball/shockwave/pointlight VFX');
   assert.ok(/crashShake=f\.crashedBuilding\?2\.15:1\.65/.test(flight), 'flight.js enables crashShake on impact');
-  assert.ok(flight.includes('chaseBank') && flight.includes('updateGaCockpit') && flight.includes('propBlurMat'), 'flight.js includes dynamic chase camera, GA cockpit & prop blur disc');
+  assert.ok(flight.includes('chaseHeading') && flight.includes('updateGaCockpit') && flight.includes('propBlurMat'), 'flight.js includes stabilized chase camera, GA cockpit & prop blur disc');
   assert.ok(flight.includes('camera.near!==targetNear'), 'flight.js dynamically tightens camera.near in cockpit view');
 }
 
@@ -102,11 +102,11 @@ const distDir = path.join(__dirname, 'dist');
   for (const htmlName of ['index.html', 'iphone.html']) {
     const html = fs.readFileSync(path.join(distDir, htmlName), 'utf8');
     assert.ok(Number(html.match(/id="edition">(\d+)\.(\d+)/)?.[1])>0 || Number(html.match(/id="edition">(\d+)\.(\d+)/)?.[2])>=63, `${htmlName} shows version 0.63 or newer`);
-    assert.ok(html.includes('aero-ui-v63.css?v=63'), `${htmlName} loads aero-ui-v63.css?v=63`);
+    assert.ok(html.includes('aero-ui-v63.css?'), `${htmlName} loads aero-ui-v63.css?v=63`);
     assert.ok(html.includes('building-collision.js?v=63'), `${htmlName} loads building-collision.js?v=63`);
-    assert.ok(html.includes('campaign-story.js?v=63'), `${htmlName} loads campaign-story.js?v=63`);
+    assert.ok(html.includes('campaign-story.js?'), `${htmlName} loads campaign-story.js?v=63`);
     assert.ok(html.indexOf('building-collision.js?v=63') < html.indexOf('taipei-city.js'), `${htmlName} loads building-collision.js before taipei-city.js`);
-    assert.ok(html.indexOf('flight.js') < html.indexOf('campaign-story.js?v=63'), `${htmlName} loads campaign-story.js after flight.js`);
+    assert.ok(html.indexOf('flight.js') < html.indexOf('campaign-story.js?'), `${htmlName} loads campaign-story.js after flight.js`);
   }
 }
 

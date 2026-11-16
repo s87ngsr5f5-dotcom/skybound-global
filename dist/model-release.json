@@ -1,7 +1,9 @@
 {
-  "revision": "model-pass-1",
+  "revision": "model-pass-1-checked",
   "modelCommit": "36b6601",
   "subtypeConfigurations": 54,
   "modelBuildsChecked": 100,
-  "highDetailFleetComplete": false
+  "highDetailFleetComplete": false,
+  "releaseChecksPassed": 52,
+  "propBlurFix": true
 }

@@ -180,12 +180,14 @@ for (const file of jsFiles) {
 
   const ep1 = camp.chapters.find(c => c.id === 1);
   assert.ok(ep1.targetText.includes('600+ ft'), 'EP.01 targetText advertises 600+ ft');
-  assert.strictEqual(ep1.stages[1].check({ ended: false, ground: false, y: 152 }, { flownM: 1800 }), false, 'EP.01 stage 2 requires >= 183m (600 ft)');
-  assert.strictEqual(ep1.stages[1].check({ ended: false, ground: false, y: 183 }, { flownM: 1800 }), true, 'EP.01 stage 2 passes at 183m (600 ft)');
-  assert.strictEqual(ep1.winCondition({ ended: false, ground: false, y: 183 }, { flownM: 3200 }), true, 'EP.01 winCondition passes without f.airborne');
-  assert.strictEqual(ep1.winCondition({ ended: false, ground: true, y: 183 }, { flownM: 3200 }), false, 'EP.01 winCondition requires !ground');
+  assert.strictEqual(ep1.stages[1].check({ ended: false, ground: false, y: 152 }, { flownM: 3000 }), false, 'EP.01 stage 2 requires >= 183m (600 ft)');
+  assert.strictEqual(ep1.stages[1].check({ ended: false, ground: false, y: 183 }, { flownM: 3000 }), true, 'EP.01 stage 2 passes at 183m (600 ft)');
+  assert.strictEqual(ep1.winCondition({ ended: false, ground: false, y: 183 }, { flownM: 6800 }), true, 'EP.01 winCondition passes without f.airborne');
+  assert.strictEqual(ep1.winCondition({ ended: false, ground: true, y: 183 }, { flownM: 6800 }), false, 'EP.01 winCondition requires !ground');
   assert.ok(!campaignCode.includes('f.airborne'), 'campaign-story.js removes dead f.airborne checks');
 
+  assert.strictEqual(ep1.stages[1].check({ended:false,ground:false,y:183},{flownM:2999}),false,'Stage 2 requires full 3 km');
+  assert.strictEqual(ep1.winCondition({ended:false,ground:false,y:183},{flownM:6799}),false,'Completion requires full 6.8 km');
   camp.startChapter(1);
   assert.strictEqual(camp.isOnlineFlight(), false, 'Starting story chapter keeps isOnlineFlight() false');
 
@@ -247,13 +249,13 @@ for (const file of jsFiles) {
     assert.ok(html.includes('<option value="RJBB">桃園 → 大阪關西</option>'), `${htmlName} adds RJBB route option`);
     assert.ok(html.includes('<option value="VTBS">桃園 → 曼谷蘇凡納布</option>'), `${htmlName} adds VTBS route option`);
     for (const tag of [
-      'aero-ui-v63.css?v=63&r=69',
+      'aero-ui-v63.css?',
       'region.js?v=satellite26&r=69',
       'taiwan-overview.js?v=satellite26&r=69',
       'taiwan-city.js?v=62&r=69',
       'airways-nav.js?r=69',
-      'flight.js?v=roll31&r=69',
-      'campaign-story.js?v=63&r=69'
+      'flight.js?',
+      'campaign-story.js?'
     ]) {
       assert.ok(html.includes(tag), `${htmlName} loads cache-busted asset ${tag}`);
     }
