@@ -64,7 +64,7 @@ function makeGlassReadouts(canvas){
       unit=1;
       cells.forEach(([title,value],i)=>{
         const cw=width/3,x=i*cw;
-        ink.fillStyle='rgba(8,20,28,.87)';ink.fillRect(x+2,0,cw-4,height);
+        ink.fillStyle='rgba(8,20,28,.87)';ink.fillRect(x+2,0,cw-4,Math.min(height,52));
         label(title,x+cw/2,12,10,'center','#b6cad4');
         label(String(value),x+cw/2,34,18,'center','#ffffff');
       });
