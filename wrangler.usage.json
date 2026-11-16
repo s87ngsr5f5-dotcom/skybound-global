@@ -1,0 +1,7 @@
+{
+  "name":"skybound-usage",
+  "main":"dist/_worker.js",
+  "compatibility_date":"2026-10-01",
+  "workers_dev":true,
+  "d1_databases":[{"binding":"STATS","database_name":"skybound-usage","database_id":"b9034909-00b0-4c0a-8347-9650a20ef665"}]
+}
