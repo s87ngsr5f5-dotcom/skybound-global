@@ -1437,8 +1437,10 @@ function initialize(){
     models.set(profile.id,model);
     return model;
   }
+  let lookClickBlockUntil=0;
   const raycaster=new THREE.Raycaster();
   addEventListener('click',event=>{
+    if(performance.now()<lookClickBlockUntil)return;
     if(event.target.closest('button,input,select,textarea,details,a'))return;
     if(!flight||!airlinerDetails[flight.aircraft.id]||cameraMode!==1||flight.cabinView||replay)return;
     const mouse=new THREE.Vector2(event.clientX/innerWidth*2-1,1-event.clientY/innerHeight*2);
@@ -1847,8 +1849,8 @@ function initialize(){
     const savedView=options.cockpitView;
     if(savedView){
       cockpitView.preset=clamp(Math.trunc(savedView.preset)||0,0,twoSeats(aircraft)?2:1);
-      cockpitView.yaw=clamp(Number(savedView.yaw)||0,-100*rad,100*rad);
-      cockpitView.pitch=clamp(Number(savedView.pitch)||0,-58*rad,48*rad);
+      cockpitView.yaw=wrapAngle(Number(savedView.yaw)||0);
+      cockpitView.pitch=clamp(Number(savedView.pitch)||0,-58*rad,65*rad);
       cockpitView.zoom=clamp(Number(savedView.zoom)||0,-14,22);
     }
     changeView();
@@ -3002,7 +3004,7 @@ function initialize(){
     }
     if(code==='KeyV'){flight.bankCommand=0;flight.levelWings=true;}
     if(code==='KeyN') cycleCockpitView();
-    if(code==='Home'&&cockpitActive()){
+    if(code==='Home'){
       cockpitView.preset=0;
       resetLook();
       changeView();
@@ -3109,15 +3111,20 @@ function initialize(){
     if(flight) flight.bankCommand=0;
   }
   addEventListener('blur',releaseFlightInputs);
+  addEventListener('orientationchange',releaseFlightInputs);
   document.addEventListener('visibilitychange',()=>{
     releaseFlightInputs();
     accumulator=0;
     last=performance.now();
   });
   touchControls.mode.addEventListener('change',releaseFlightInputs);
-  const overControls=target=>target.closest('button,details,input,select,textarea,a,.systems,.right,header,#touchFlight,#mobileExtras,#tacticalGuide,#tacticalReport');
+  const lookSurface=document.createElement('div');
+  lookSurface.id='flightLookSurface';lookSurface.setAttribute('aria-hidden','true');
+  byId('hud').prepend(lookSurface);
+  let lastLookTap=null;
+  const overControls=target=>target.closest('button,details,input,select,textarea,a,.systems,.right,header,#touchStick,#touchRudderControl,#touchThrottleControl,#touchQuick,#mobileExtras,#tacticalGuide,#tacticalReport');
   addEventListener('contextmenu',event=>{
-    if(cockpitActive()&&!overControls(event.target)) event.preventDefault();
+    if(flight&&!overControls(event.target)) event.preventDefault();
   });
   addEventListener('wheel',event=>{
     if(!cockpitActive()||overControls(event.target)) return;
@@ -3132,10 +3139,11 @@ function initialize(){
       pointer.left=event.clientX;pointer.top=event.clientY;
       return;
     }
-    if(event.button===2&&cockpitActive()){
+    if((event.button===2||event.pointerType==='touch')&&!flight.cabinView&&!cockpitView.drag){
       event.preventDefault();
       pointer.active=false;
-      cockpitView.drag={id:event.pointerId,x:event.clientX,y:event.clientY};
+      cockpitView.drag={id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,distance:0,touch:event.pointerType==='touch',started:performance.now(),target:event.target};
+      try{event.target.setPointerCapture(event.pointerId);}catch{}
       return;
     }
     if(event.button!==0||event.pointerType==='touch'||!settings.mouse||cockpitView.drag) return;
@@ -3145,8 +3153,9 @@ function initialize(){
   addEventListener('pointermove',event=>{
     const drag=cockpitView.drag;
     if(drag?.id===event.pointerId){
-      cockpitView.yaw=clamp(cockpitView.yaw-(event.clientX-drag.x)*.004,-100*rad,100*rad);
-      cockpitView.pitch=clamp(cockpitView.pitch-(event.clientY-drag.y)*.004,-58*rad,48*rad);
+      cockpitView.yaw=wrapAngle(cockpitView.yaw-(event.clientX-drag.x)*.005);
+      drag.distance+=Math.hypot(event.clientX-drag.x,event.clientY-drag.y);
+      cockpitView.pitch=clamp(cockpitView.pitch-(event.clientY-drag.y)*.004,-58*rad,65*rad);
       drag.x=event.clientX;
       drag.y=event.clientY;
       return;
@@ -3160,7 +3169,16 @@ function initialize(){
     if(event.pointerId===cockpitView.drag?.id) cockpitView.drag=null;
   });
   addEventListener('pointerup',event=>{
-    if(event.pointerId===cockpitView.drag?.id&&event.button===2) cockpitView.drag=null;
+    if(event.pointerId===cockpitView.drag?.id){
+      const drag=cockpitView.drag;
+      if(drag.distance>=8)lookClickBlockUntil=performance.now()+400;
+      if(drag.touch&&drag.distance<8&&performance.now()-drag.started<350){
+        if(lastLookTap&&performance.now()-lastLookTap.time<320&&Math.hypot(event.clientX-lastLookTap.x,event.clientY-lastLookTap.y)<32){resetLook();lastLookTap=null;}
+        else lastLookTap={time:performance.now(),x:event.clientX,y:event.clientY};
+      }else lastLookTap=null;
+      cockpitView.drag=null;
+      try{drag.target.releasePointerCapture(event.pointerId);}catch{}
+    }
     if(event.button===0&&event.pointerId===pointer.id) pointer.active=false;
     if(event.target instanceof HTMLInputElement&&event.target.type==='range'&&event.target.closest('#quickControls')) event.target.blur();
   });
@@ -5934,18 +5952,19 @@ function initialize(){
         }else{
           if(chaseHeading===null||!continuous) chaseHeading=heading;
           else chaseHeading+=wrapAngle(heading-chaseHeading)*(1-Math.exp(-dt*2.8));
-          const fwdX=Math.sin(chaseHeading),fwdZ=-Math.cos(chaseHeading);
+          const orbitHeading=chaseHeading+cockpitView.yaw;
+          const fwdX=Math.sin(orbitHeading),fwdZ=-Math.cos(orbitHeading);
           const speedBoost=clamp(((f.speed||0)-25)/220,0,1);
           const distance=profile.geometry[0]*(profile.helicopter?3.1:(profile.id==='b773'||profile.id==='sf748'||profile.id==='an124')?2.7:5)*(1+speedBoost*0.09);
           const elevOffset=profile.helicopter?profile.gearHeight*2.55:profile.gearHeight*3.9;
           camera.position.set(
-            pos.x-fwdX*distance,
-            pos.y+elevOffset,
-            pos.z-fwdZ*distance
+            pos.x-fwdX*distance*Math.cos(cockpitView.pitch),
+            pos.y+elevOffset+Math.sin(cockpitView.pitch)*distance,
+            pos.z-fwdZ*distance*Math.cos(cockpitView.pitch)
           );
           const lookAhead=profile.helicopter?11:14;
           const lookBaseY=profile.helicopter?1.1:.55;
-          camera.lookAt(pos.x+fwdX*lookAhead,pos.y+lookBaseY,pos.z+fwdZ*lookAhead);
+          camera.lookAt(pos.x+Math.sin(chaseHeading)*lookAhead,pos.y+lookBaseY,pos.z-Math.cos(chaseHeading)*lookAhead);
         }
       }else{
         const airliner=twoSeats(profile);

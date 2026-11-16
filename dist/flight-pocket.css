@@ -85,3 +85,7 @@ body.mobile-mode.flight-ui #glassReadouts,body.mobile-mode.flight-ui.cockpit-act
  transform:none!important;width:100%!important;height:100%!important;
  min-width:0!important;max-height:none!important;pointer-events:none;
 }
+
+/* Empty scene receives look gestures; controls above retain their own pointers. */
+#flightLookSurface{position:absolute;inset:0;pointer-events:auto;touch-action:none;background:transparent}
+body:not(.flight-ui) #flightLookSurface{display:none}
