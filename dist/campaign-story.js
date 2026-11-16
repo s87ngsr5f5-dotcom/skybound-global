@@ -2724,9 +2724,11 @@
       const nextGate = Array.isArray(activeMission.gates) ? activeMission.gates.find(g => !g.passed) : null;
       const gateHint = nextGate ? ` · ◎ ${(Math.hypot(nextGate.x - f.x, nextGate.z - f.z) / 1000).toFixed(1)}km` : '';
       if (f.ground && activeMission.stageIdx === 0 && ch.startType !== 'carrier') {
-        const takeoffTip = iasKt < 55
-          ? (isTouchMode ? `請向上拖曳右側「油門滑桿」加速 (${iasKt}/55 kt)` : `按住 [W] 推滿油門加速 (${iasKt}/55 kt)`)
-          : (isTouchMode ? `已達 ${iasKt} kt！輕推左側「飛行搖桿」抬頭離地` : `已達 ${iasKt} kt！按 [↑] 或輕拉滑鼠抬頭離地`);
+        const rotateKt=f.aircraft?.rotation||55;
+        const speedKmh=Math.round(iasKt*1.852),rotateKmh=Math.round(rotateKt*1.852);
+        const takeoffTip = iasKt < rotateKt
+          ? (isTouchMode ? `請向上拖曳右側「油門滑桿」加速 (${speedKmh}/${rotateKmh} km/h)` : `按住 [W] 推滿油門加速 (${speedKmh}/${rotateKmh} km/h)`)
+          : (isTouchMode ? `已達 ${speedKmh} km/h！輕推左側「飛行搖桿」抬頭離地` : `已達 ${speedKmh} km/h！按 [↑] 或輕拉滑鼠抬頭離地`);
         objHud.textContent = `${ch.code} · 🛫 ${takeoffTip} · (${altFt} ft / ${altM}m)`;
       } else {
         objHud.textContent = `${ch.code} · ${stagePrefix} · ${st.gatesPassed}/${requiredGates(ch)} 航點${gateHint}${st.gatesPassed>=3&&!ch.finishLanding ? " · 穩定 "+Math.floor(st.stableS)+"/"+ch.skillDuration+" 秒" : ""}`;
