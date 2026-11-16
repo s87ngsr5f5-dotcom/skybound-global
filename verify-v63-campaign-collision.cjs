@@ -87,6 +87,8 @@ const distDir = path.join(__dirname, 'dist');
   const storyCtx = { window: null, document: docMock, performance: { now: () => 0 }, localStorage: { getItem: () => null, setItem: () => {} }, setInterval: () => {} };
   storyCtx.window = storyCtx;
   vm.createContext(storyCtx);
+  storyCtx.fleet=[];
+  vm.runInContext(fs.readFileSync(path.join(distDir, 'flight-licensing.js'), 'utf8'), storyCtx);
   vm.runInContext(storySrc, storyCtx);
   assert.ok(storyCtx.SkyboundCampaign && storyCtx.SkyboundCampaign.chapters.length === 7, 'SkyboundCampaign exposes 7 story chapters');
   storyCtx.SkyboundCampaign.chapters.forEach((ch, idx) => {

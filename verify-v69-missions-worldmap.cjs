@@ -164,13 +164,15 @@ for (const file of jsFiles) {
   sandbox.globalThis = sandbox;
   sandbox.window.dispatchEvent = () => {};
   vm.createContext(sandbox);
+  sandbox.fleet=[];
+  vm.runInContext(readDist('flight-licensing.js'), sandbox, { filename:'flight-licensing.js' });
   vm.runInContext(campaignCode, sandbox, { filename: 'campaign-story.js' });
 
   const camp = sandbox.SkyboundCampaign;
   assert.ok(camp, 'SkyboundCampaign global is exposed');
   assert.strictEqual(camp.chapters.length, 7, 'Story chapters length === 7 (Taiwan mainline)');
   assert.strictEqual(camp.worldChapters.length, 8, 'World expedition chapters length === 8 (WP.08..WP.15)');
-  assert.strictEqual(camp.allChapters.length, 19, 'allChapters combines to 15 total missions');
+  assert.strictEqual(camp.allChapters.length, 35, '19 original missions plus 4 exams and 12 licensed missions');
   assert.strictEqual(typeof camp.isOnlineFlight, 'function', 'SkyboundCampaign exposes isOnlineFlight()');
   assert.strictEqual(typeof camp.refreshCareerUI, 'function', 'SkyboundCampaign exposes refreshCareerUI()');
   assert.strictEqual(camp.isOnlineFlight(), false, 'isOnlineFlight() defaults to false for solo play');
@@ -197,7 +199,7 @@ for (const file of jsFiles) {
   const wp15 = camp.allChapters.find(c => c.id === 15);
   assert.ok(wp14 && wp14.code === 'WP.14' && wp14.departure === 'RJBB', 'allChapters includes WP.14 Osaka Kansai (RJBB)');
   assert.ok(wp15 && wp15.code === 'WP.15' && wp15.departure === 'VTBS', 'allChapters includes WP.15 Bangkok Suvarnabhumi (VTBS)');
-  assert.strictEqual(ids.length, 19, 'allChapters has 15 unique chapters');
+  assert.strictEqual(new Set(ids).size, 35, '35 unique chapter IDs preserve original 19 missions');
   assert.ok(camp.medals.some(m => m.id === 'world_conqueror'), 'MEDALS includes world_conqueror');
   assert.ok(camp.medals.some(m => m.id === 'aerobatic_ace'), 'MEDALS includes aerobatic_ace');
 

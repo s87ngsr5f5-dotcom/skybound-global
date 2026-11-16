@@ -4374,6 +4374,7 @@ for(const plane of fleet){
  plane.unlock=specialAircraft[plane.id]||null;
 }
 function aircraftUnlocked(plane){
+ try{if(JSON.parse(localStorage.getItem('skybound.career.v1')||'{}').owned?.[plane?.id])return true;}catch{}
  if(plane?.purchasePrice){try{const c=JSON.parse(localStorage.getItem('skybound.career.v1')||'{}');if(!c.owned?.[plane.id])return false;}catch{return false;}}
  if(!plane?.unlock)return true;
  try { const p=JSON.parse(localStorage.getItem('skybound.campaignProgress.v1')||'{}');return Number(p?.[plane.unlock.chapter]?.stars)>=1; }catch{return false;}

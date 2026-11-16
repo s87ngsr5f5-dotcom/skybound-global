@@ -697,6 +697,10 @@
     ch.winCondition = (f,st)=>!f.ended && st.gatesPassed>=3 && (ch.finishLanding ? f.ground && st.wasAirborne && st.nearAirport && Math.hypot(f.vx||0,f.vz||0)<3 : !f.ground && st.stableS>=ch.skillDuration);
   }
 
+  const LICENSE_CHAPTERS=FlightLicensing.build(CHAPTERS[0]);
+  ALL_CHAPTERS.push(...LICENSE_CHAPTERS);
+  for(const ch of LICENSE_CHAPTERS)missionPrizes[ch.id]=FlightLicensing.rewardLabel(ch);
+
 
   function getBonusObjective(ch) {
     if (ch.bonusObj) return ch.bonusObj;
@@ -1391,6 +1395,7 @@
           <div id="hubCareerCard" class="hub-career-card"></div>
           <ul class="hub-menu-list" role="tablist">
             <li><button type="button" class="hub-menu-btn" data-hub-tab="welcome"><div class="hub-menu-btn-main"><span>飛行首頁</span></div></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="licenses"><div class="hub-menu-btn-main"><span>飛行駕照</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>飛行任務</span></div><span class="hub-menu-badge">19 關</span></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="shop"><div class="hub-menu-btn-main"><span>機庫商店與塗裝</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>性能改裝</span></div><span class="hub-menu-badge">工坊</span></button></li>
@@ -1905,6 +1910,7 @@
       return;
     }
 
+    if(tab==='licenses'){FlightLicensing.render(stage);return;}
     if(tab==='shop'){FleetCommerce.renderShop(stage);return;}
     if(tab==='help'){
       const mode=ensureDOM._helpMode||(document.getElementById('deviceMode')?.value==='mobile'?'mobile':'desktop');
@@ -1949,7 +1955,7 @@
             <img class="campaign-ch-thumb" loading="lazy" decoding="async" src="${item.image}" alt="${item.title}">
             <div>
               <strong>${item.code} · ${item.title}</strong>
-              <small>${item.durationLabel} · ${missionPrizes[item.id] ? "獎品："+missionPrizes[item.id] : "報酬：$"+item.rewardMoney.toLocaleString()}</small>
+              <small>${item.requiredLicense?(FlightLicensing.access(item)?'已具資格':'需 '+FlightLicensing.name(item.requiredLicense))+' · ':''}${item.durationLabel} · ${missionPrizes[item.id] ? "獎品："+missionPrizes[item.id] : "報酬：$"+item.rewardMoney.toLocaleString()}</small>
             </div>
             <span class="campaign-stars">${starsStr}</span>
           </button>`;
@@ -1959,9 +1965,13 @@
       const cardsHtml = `
         <div class="mp-room-chips" style="margin-bottom:6px;">
           <button type="button" class="mp-chip${curFilter === 'all' ? ' active' : ''}" data-campaign-filter="all">全部 (${ALL_CHAPTERS.length}章)</button>
-          <button type="button" class="mp-chip${curFilter === 'tw' ? ' active' : ''}" data-campaign-filter="tw">🇹🇼 台灣短程 (11關)</button>
-          <button type="button" class="mp-chip${curFilter === 'world' ? ' active' : ''}" data-campaign-filter="world">🌍 海外短程 (8關)</button>
+          <button type="button" class="mp-chip${curFilter === 'tw' ? ' active' : ''}" data-campaign-filter="tw">🇹🇼 台灣短程 (${CHAPTERS.length+SHORT_CHAPTERS.length}關)</button>
+          <button type="button" class="mp-chip${curFilter === 'world' ? ' active' : ''}" data-campaign-filter="world">🌍 海外短程 (${WORLD_CHAPTERS.length}關)</button>
+          <button type="button" class="mp-chip${curFilter === 'exams' ? ' active' : ''}" data-campaign-filter="exams">駕照考試 (4)</button>
+          <button type="button" class="mp-chip${curFilter === 'licensed' ? ' active' : ''}" data-campaign-filter="licensed">資格任務 (12)</button>
         </div>
+        ${curFilter==='all'||curFilter==='exams'?LICENSE_CHAPTERS.filter(c=>c.isExam).map(renderChBtn).join(''):''}
+        ${curFilter==='all'||curFilter==='licensed'?LICENSE_CHAPTERS.filter(c=>!c.isExam).map(renderChBtn).join(''):''}
         ${showTw ? `<div class="campaign-group-label" style="font-size:11.5px;color:#ffd976;font-weight:700;padding:2px 6px;">🇹🇼 台灣 · 起降與航線</div>${[...CHAPTERS,...SHORT_CHAPTERS].map(renderChBtn).join('')}` : ''}
         ${showWorld ? `<div class="campaign-group-label" style="font-size:11.5px;color:#72e5ff;font-weight:700;padding:8px 6px 2px;">🌍 海外 · 當地短程飛行</div>${WORLD_CHAPTERS.map(renderChBtn).join('')}` : ''}
       `;
@@ -1971,7 +1981,7 @@
           <div class="hub-section-head">
             <div>
               <h2>任務（${completedCount}/${ALL_CHAPTERS.length} 章 · ★ ${totalStars}/${ALL_CHAPTERS.length * 3}）</h2>
-              <p>一般訓練速度約 5–10 分鐘；高速與快轉會縮短時間。任務可直接選擇。</p>
+              <p>一般訓練速度約 5–10 分鐘；高速與快轉會縮短時間。考試通過後開放資格任務。</p>
             </div>
           </div>
           <div class="campaign-layout">
@@ -1989,14 +1999,14 @@
                 <div class="campaign-meta-chips">
                   <span class="campaign-chip">機型：${ch.aircraft.toUpperCase()} · 任務借用，無須先購買</span>
                   <span class="campaign-chip">區域：${ch.departure} 周邊</span>
-                  <span class="campaign-chip">${ch.durationLabel}</span>
-                  <span class="campaign-chip mission-prize">${missionPrizes[ch.id] ? "首通解鎖："+missionPrizes[ch.id] : "獎品：遊戲金幣"}</span><span class="campaign-chip">報酬：+$${ch.rewardMoney.toLocaleString()} · +${ch.rewardXp} XP</span>
+                  <span class="campaign-chip">${ch.durationLabel}</span><span class="campaign-chip">${ch.requiredLicense?"要求："+FlightLicensing.name(ch.requiredLicense)+(FlightLicensing.access(ch)?" · 已具資格":" · 未取得"):"無先修資格要求"}</span>
+                  <span class="campaign-chip mission-prize">${ch.licensedMission?FlightLicensing.rewardLabel(ch):missionPrizes[ch.id] ? "首通解鎖："+missionPrizes[ch.id] : "獎品：遊戲金幣"}</span><span class="campaign-chip">報酬：+$${ch.rewardMoney.toLocaleString()} · +${ch.rewardXp} XP</span>
                   <span class="campaign-chip">${ch.targetText}</span>
                   <span class="campaign-chip" style="border-color:rgba(255,209,102,0.55);color:#ffe8a3;">${bonusObj.label}</span>
                 </div>
                 <small class="route-caption">航線示意</small><canvas id="campaignRouteCanvas" style="width:100%;height:110px;border-radius:10px;border:1px solid rgba(110,215,242,0.28);margin:6px 0;" aria-label="任務航路與 3D 光門預覽圖"></canvas>
                 <div class="campaign-feature-actions">
-                  <button type="button" id="hubLaunchChapterBtn" class="campaign-launch-btn">開始任務</button>
+                  <button type="button" id="hubLaunchChapterBtn" class="campaign-launch-btn" ${FlightLicensing.access(ch)?"":"disabled"}>${FlightLicensing.access(ch)?(ch.isExam?"開始考試":"開始任務"):"需先取得對應駕照"}</button><button type="button" class="hub-back-btn" data-jump-tab="licenses">飛行駕照</button>
                   <button type="button" class="hub-back-btn" data-jump-tab="upgrades">改裝工坊</button>
                 </div>
               </div>
@@ -2408,6 +2418,12 @@
         moneyEarned = Math.round(moneyEarned * 1.5);
         xpEarned = Math.round(xpEarned * 1.4);
       }
+      if(ch.licensedMission){
+        const grant=FlightLicensing.award(ch,st,moneyEarned,globalScope.__skyboundFlight);
+        if(!grant.ok)return {storageError:grant.message};
+        if(grant.already){moneyEarned=0;xpEarned=0;}
+        if(grant.license)evalRes.criteria.push({ok:true,label:'已取得 '+grant.license});
+      }
       markChapterComplete(ch.id, evalRes.stars);
       if (evalRes.stars === 3) grantMedal(meta, 'perfectionist', newlyUnlocked);
       if (ch.isWorld) grantMedal(meta, 'world_conqueror', newlyUnlocked);
@@ -2458,7 +2474,7 @@
     meta.missionsCompleted += 1;
     grantMedal(meta, 'first_wings', newlyUnlocked);
     saveCareerMeta(meta);
-    awardSimMoney(moneyEarned);
+    if(!ch.licensedMission)awardSimMoney(moneyEarned);
     const newRank = getRankInfo(meta.xp).current.title;
 
     return {
@@ -2570,6 +2586,7 @@
 
   let pendingLocalMission=null,pendingLoanerAircraft=null;
   function launchMission(ch) {
+    if(!FlightLicensing.access(ch)){openHub('licenses');return;}
     onlineFlightRequested = false;
     closeHub();
     hideFlightStoryOverlays();
@@ -2601,6 +2618,7 @@
     activeMission = {
       ch,
       gates,
+      runId:globalScope.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),
       gatesPassed: 0,
       aerobaticDone: false,
       startedAt: performance.now(),
@@ -2699,7 +2717,7 @@
     activeMission.lastFlightElapsed=simTime;
     if(!f.ground) activeMission.wasAirborne=true;
     const bankAbs=Math.abs(f.bank||0),speedKmh=(f.speed||0)*3.6;
-    const skillOk=ch.skill==='turn' ? bankAbs>=.349 && bankAbs<=.785 && Math.abs(f.pitch||0)<.20 :
+    const skillOk=ch.licensedMission?FlightLicensing.skillOk(ch,f):ch.skill==='turn' ? bankAbs>=.349 && bankAbs<=.785 && Math.abs(f.pitch||0)<.20 :
       bankAbs<.21 && Math.abs(f.pitch||0)<.14 && Math.abs(f.gForce||1)<(ch.smoothLimit||1.8) && (ch.skill!=='speed'||speedKmh>=300&&speedKmh<=450);
     if(!f.ground && !f.ended && activeMission.gatesPassed>=3 && skillOk) activeMission.stableS+=missionDt;
     const nearAirport=typeof allAirports!=='undefined' && allAirports.some(a=>a.code===ch.departure && Math.abs((f.x-a.x)*Math.cos(a.heading)+(f.z-a.z)*Math.sin(a.heading))<(a.width||45)*.7 && Math.abs((f.x-a.x)*Math.sin(a.heading)-(f.z-a.z)*Math.cos(a.heading))<a.length*.6);
@@ -2734,6 +2752,7 @@
     }
 
     const st = {
+      runId:activeMission.runId,
       stableS:activeMission.stableS,
       wasAirborne:activeMission.wasAirborne,
       nearAirport,
@@ -2780,7 +2799,7 @@
           : (isTouchMode ? `已達 ${speedKmh} km/h！${pitchUpTouch}左側「飛行搖桿」抬頭離地` : `已達 ${speedKmh} km/h！按 [${pitchUpKey}] 抬頭離地`);
         objHud.textContent = `${ch.code} · 🛫 ${takeoffTip} · (${altFt} ft / ${altM}m)`;
       } else {
-        objHud.textContent = `${ch.code} · ${stagePrefix} · ${st.gatesPassed}/${requiredGates(ch)} 航點${gateHint}${st.gatesPassed>=3&&!ch.finishLanding ? " · 穩定 "+Math.floor(st.stableS)+"/"+ch.skillDuration+" 秒" : ""}`;
+        objHud.textContent = `${ch.code} · ${stagePrefix} · ${st.gatesPassed}/${requiredGates(ch)} 航點${gateHint}${st.gatesPassed>=3&&(!ch.finishLanding||ch.licensedMission) ? " · 穩定 "+Math.floor(st.stableS)+"/"+ch.skillDuration+" 秒" : ""}`;
       }
     }
 
@@ -2800,10 +2819,14 @@
       return;
     }
 
+    const qualificationFailure=ch.licensedMission?FlightLicensing.failure(ch,f,st):null;
+    if(qualificationFailure&&!activeMission.settled){activeMission.settled=true;showDebrief(ch,false,qualificationFailure,null);return;}
+
     const allStagesDone = stages.length > 0 ? activeMission.stageIdx >= stages.length : true;
     if (allStagesDone && ch.winCondition(f, st) && st.gatesPassed >= requiredGates(ch) && !activeMission.settled) {
       activeMission.settled = true;
       const rewardInfo = settleWinRewards(ch, st);
+      if(rewardInfo.storageError){activeMission.settled=false;if(objHud)objHud.textContent=rewardInfo.storageError;return;}
       if (objHud) objHud.textContent = `✓ ${ch.code} 任務達成！(${'★'.repeat(rewardInfo.stars)})`;
       showRadio('戰情中心 · MISSION CONTROL', `「漂亮！${ch.code}『${ch.title}』獲得 ${rewardInfo.stars}★，賞金 +$${rewardInfo.moneyEarned.toLocaleString()}！」`, 6500);
       setTimeout(() => {
@@ -2829,6 +2852,7 @@
     chapters: CHAPTERS,
     worldChapters: WORLD_CHAPTERS,
     shortChapters: SHORT_CHAPTERS,
+    licenseChapters:LICENSE_CHAPTERS,
     getPendingLocalMission:()=>pendingLocalMission,
     getPendingLoanerAircraft:()=>pendingLoanerAircraft,
     buildMissionSkyGates,
