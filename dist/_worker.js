@@ -41,7 +41,11 @@ export default {
     const path = new URL(request.url).pathname.replace(/\/$/,'');
     const service = 'https://skybound-usage.skybound-global-ops.workers.dev';
     if (!env.STATS && new URL(request.url).origin !== service) {
-      if (path === '/admin') return Response.redirect(service + '/admin',302);
+      if (path === '/admin' && request.method === 'GET') {
+        const headers = new Headers();
+        if (request.headers.has('authorization')) headers.set('authorization',request.headers.get('authorization'));
+        return fetch(service + '/admin',{headers,redirect:'manual'});
+      }
       if (path === '/api/community' && request.method === 'GET') return fetch(service + path);
       if (path === '/api/event' && request.method === 'POST') {
         const url = new URL(request.url);
