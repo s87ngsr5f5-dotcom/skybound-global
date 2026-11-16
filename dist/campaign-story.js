@@ -1835,6 +1835,19 @@
       const nextCh = ALL_CHAPTERS.find(ch => !prog[ch.id]) || CHAPTERS[0];
       stage.innerHTML = `
         <div class="dispatch-home hangar-home">
+          <div class="arrival-cinema" aria-hidden="true">
+            <div class="arrival-horizon"></div><div class="arrival-cloud arrival-cloud-a"></div><div class="arrival-cloud arrival-cloud-b"></div>
+            <svg class="arrival-aircraft" viewBox="0 0 600 220" fill="none">
+              <defs><linearGradient id="arrivalMetal" x1="210" y1="70" x2="310" y2="155" gradientUnits="userSpaceOnUse"><stop stop-color="#f4f1e6"/><stop offset=".5" stop-color="#b9cbd2"/><stop offset="1" stop-color="#476575"/></linearGradient></defs>
+              <path d="M42 132 245 121 397 34 426 37 332 121 500 121 539 89 552 91 539 130 567 137 562 143 515 143 349 141 421 186 396 187 273 144 76 145Q38 144 42 132Z" fill="url(#arrivalMetal)"/>
+              <path d="m72 132 21-5 20 1-5 5Z" fill="#142a39"/><path d="m505 121 34-32 13 2-13 39Z" fill="#d5ab60"/>
+              <path d="M125 132H240" stroke="#263e4a" stroke-width="3" stroke-dasharray="3 6"/>
+              <path d="m309 101 30-1 15 8-2 13-39-1Z" fill="#58717c"/><ellipse cx="312" cy="111" rx="5" ry="10" fill="#162c38"/>
+              <path d="m305 144 31 1 15 8-3 12-38-4Z" fill="#879da6"/><ellipse cx="310" cy="153" rx="5" ry="9" fill="#162c38"/>
+              <path d="M45 141h-110" stroke="#d6dfe2" stroke-opacity=".3" stroke-width="1"/>
+            </svg>
+            <span class="arrival-caption">SKYBOUND GLOBAL<span>準備下一趟飛行</span></span>
+          </div>
           <img class="dispatch-photo" src="assets/campaign/hangar-777.jpg" alt="機庫內的 Boeing 777-300ER" fetchpriority="high">
           <section class="dispatch-brief">
             <h2>飛行準備</h2>
