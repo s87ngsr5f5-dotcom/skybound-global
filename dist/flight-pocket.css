@@ -1,0 +1,15 @@
+#expandMini {display:none}
+body.flight-ui #hud[data-mobile-panel="nav"] #flightNavigation,
+body.flight-ui #hud[data-mobile-panel="radar"] #tacticalPanel:not([hidden]) {display:block!important}
+.mobile-mode.flight-ui #touchQuick #touchCombatBar:not([hidden]) {
+  grid-column:1/-1; display:grid;grid-template-columns:repeat(4,minmax(44px,1fr));gap:4px;margin:0
+}
+.mobile-mode.flight-ui #touchQuick:has(#touchCombatBar:not([hidden])) {min-width:188px}
+.mobile-mode.flight-ui #touchQuick #touchCombatBar button {min-height:44px;min-width:44px;white-space:nowrap;padding:2px;font-size:14px;line-height:1.1}
+.mobile-mode.flight-ui #hud[data-mobile-panel=""] #flightNavigation {
+  display:block!important;position:absolute;left:max(8px,env(safe-area-inset-left));top:48px;right:auto;bottom:auto;
+  width:clamp(106px,16vw,148px);height:auto;max-height:none;padding:0;overflow:hidden;border-radius:4px
+}
+.mobile-mode.flight-ui #hud[data-mobile-panel=""] #flightNavigation > :not(#radar):not(#expandMini) {display:none!important}
+.mobile-mode.flight-ui #hud[data-mobile-panel=""] #flightNavigation #radar {display:block;width:100%;height:clamp(65px,18dvh,90px);margin:0;pointer-events:none}
+.mobile-mode.flight-ui #hud[data-mobile-panel=""] #flightNavigation #expandMini {display:flex;align-items:flex-end;justify-content:flex-end;position:absolute;inset:0;width:100%;height:100%;z-index:1;background:transparent;border:0;color:white;text-shadow:0 1px 3px black;font-size:12px;padding:3px}

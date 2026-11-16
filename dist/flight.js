@@ -3445,8 +3445,9 @@ function initialize(){
       if(hudMp) hudMp.hidden=true;
     }
     byId('hud').dataset.mobilePanel=name;
+    byId('openFlightRadar').hidden=!flight?.tactical;
     document.body.classList.toggle('flight-panel-open',Boolean(name));
-    byId('tacticalPanel').open=name==='nav'&&Boolean(flight?.tactical);
+    byId('tacticalPanel').open=name==='radar'&&Boolean(flight?.tactical);
     for(const button of mobilePanels){
       button.setAttribute('aria-expanded',String(button.dataset.panel===name));
     }
@@ -3466,7 +3467,7 @@ function initialize(){
     if(!byId('quickControls').open&&byId('hud').dataset.mobilePanel==='settings')setMobilePanel('');
   });
   byId('tacticalPanel').addEventListener('toggle',()=>{
-    if(!byId('tacticalPanel').open&&flight?.tactical&&byId('hud').dataset.mobilePanel==='nav')setMobilePanel('');
+    if(!byId('tacticalPanel').open&&flight?.tactical&&byId('hud').dataset.mobilePanel==='radar')setMobilePanel('');
   });
   for(const button of mobilePanels){
     button.onclick=()=>{
@@ -3474,6 +3475,8 @@ function initialize(){
       setMobilePanel(byId('hud').dataset.mobilePanel===button.dataset.panel?'':button.dataset.panel);
     };
   }
+  byId('expandMini').onclick=()=>setMobilePanel('nav');
+  byId('openFlightRadar').onclick=()=>setMobilePanel('radar');
   byId('touchSettings').onclick=()=>{
     setMobilePanel('settings');
     byId('quickControls').open=true;
@@ -4554,7 +4557,9 @@ function initialize(){
     });
   }
   function drawNav(f,target){
-    if(byId('hud').dataset.mobilePanel!=='nav') return;
+    const panel=byId('hud').dataset.mobilePanel;
+    const mini=!panel&&document.body.classList.contains('mobile-mode')&&!overviewActive;
+    if(panel!=='nav'&&!mini) return;
     const canvas=radar.canvas;
     const dpr=Math.min(window.devicePixelRatio||1,2);
     const displayW=canvas.clientWidth||326;
@@ -6023,7 +6028,7 @@ function initialize(){
         byId('skipRunwayTow').disabled=paused||Boolean(replay);
         drawFlightNext(f);
       }
-      if(now>=nextNavDraw){drawNav(f,target);nextNavDraw=now+100;}
+      if(now>=nextNavDraw){drawNav(f,target);nextNavDraw=now+(byId('hud').dataset.mobilePanel==='nav'?100:400);}
     }else{
       approachGates.visible=false;
       taxiLamp.intensity=0;
