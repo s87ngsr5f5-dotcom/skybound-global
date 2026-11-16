@@ -4587,10 +4587,27 @@ function initialize(){
     radar.scale(dpr,dpr);
     const width=displayW,height=displayH;
     radar.fillStyle='#12364d';radar.fillRect(0,0,width,height);
-    if(f.regional&&!f.battery){
+    if(f.regional&&!f.battery&&!mini){
       byId('speedDetails').textContent='';byId('nav').textContent='航電未供電';byId('coords').textContent='';
       radar.restore();
       return;
+    }
+    if(mini){
+      const goal=f.destination||target;
+      const dx=goal.x-f.x,dz=goal.z-f.z,range=Math.max(2500,Math.abs(dx),Math.abs(dz));
+      const scale=Math.min(width-46,height-48)/range;
+      const project=p=>[width/2+(p.x-(f.x+goal.x)/2)*scale,height/2+(p.z-(f.z+goal.z)/2)*scale];
+      drawTaiwanMap(radar,project);
+      mapPath(radar,[f,goal],project,'#ffd27a',3);
+      const [gx,gy]=project(goal),[px,py]=project(f);
+      radar.fillStyle='#ffd27a';radar.beginPath();radar.arc(gx,gy,5,0,Math.PI*2);radar.fill();
+      radar.save();radar.translate(px,py);radar.rotate(f.heading);radar.fillStyle='#ffffff';
+      radar.beginPath();radar.moveTo(0,-9);radar.lineTo(6,7);radar.lineTo(0,4);radar.lineTo(-6,7);radar.closePath();radar.fill();radar.restore();
+      radar.fillStyle='#0b202dee';radar.fillRect(0,height-23,width,23);
+      radar.fillStyle='#ffffff';radar.font='600 12px system-ui';radar.textAlign='left';
+      radar.fillText((goal.code||goal.name||'目的地').slice(0,9)+' · '+(Math.hypot(dx,dz)/1000).toFixed(1)+' km',7,height-8,width-14);
+      radar.font='bold 11px system-ui';radar.fillText('北 ↑',7,15);
+      radar.restore();return;
     }
     const destination=f.destination;
     const destinationDistance=destination?Math.hypot(destination.x-f.x,destination.z-f.z):Infinity;

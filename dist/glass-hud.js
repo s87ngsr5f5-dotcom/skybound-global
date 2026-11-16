@@ -59,6 +59,17 @@ function makeGlassReadouts(canvas){
     }
     ink.setTransform(dpr,0,0,dpr,0,0);
     ink.clearRect(0,0,width,height);
+    if(document.body.classList.contains('mobile-mode')){
+      const cells=[['空速 km/h',Math.round(speeds.ias*3.6)],['高度 m',Math.round(f.y)],['航向',String(Math.round((f.heading*180/Math.PI+360)%360)).padStart(3,'0')+'°']];
+      unit=1;
+      cells.forEach(([title,value],i)=>{
+        const cw=width/3,x=i*cw;
+        ink.fillStyle='rgba(8,20,28,.87)';ink.fillRect(x+2,0,cw-4,height);
+        label(title,x+cw/2,12,10,'center','#b6cad4');
+        label(String(value),x+cw/2,34,18,'center','#ffffff');
+      });
+      return;
+    }
     const center=width/2,y=height*.58;
     const degrees=((f.heading*180/Math.PI)%360+360)%360;
     const compassY=14*unit,headingGap=height*.092;

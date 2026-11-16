@@ -13,3 +13,23 @@ body.flight-ui #hud[data-mobile-panel="radar"] #tacticalPanel:not([hidden]) {dis
 .mobile-mode.flight-ui #hud[data-mobile-panel=""] #flightNavigation > :not(#radar):not(#expandMini) {display:none!important}
 .mobile-mode.flight-ui #hud[data-mobile-panel=""] #flightNavigation #radar {display:block;width:100%;height:clamp(65px,18dvh,90px);margin:0;pointer-events:none}
 .mobile-mode.flight-ui #hud[data-mobile-panel=""] #flightNavigation #expandMini {display:flex;align-items:flex-end;justify-content:flex-end;position:absolute;inset:0;width:100%;height:100%;z-index:1;background:transparent;border:0;color:white;text-shadow:0 1px 3px black;font-size:12px;padding:3px}
+
+/* Compact phone flight layout: map, readouts and touch controls occupy separate zones. */
+.mobile-mode.flight-ui #glassReadouts{top:58px;left:50%;transform:translateX(-50%);width:clamp(220px,38vw,320px);height:52px;pointer-events:none}
+.mobile-mode.flight-ui #hud[data-mobile-panel=""] #flightNavigation{top:58px;left:0;width:clamp(140px,19vw,174px);border:1px solid #b6cad4;border-radius:4px;background:#102b3b}
+.mobile-mode.flight-ui #hud[data-mobile-panel=""] #flightNavigation #radar{height:112px}
+.mobile-mode.flight-ui #hud[data-mobile-panel=""] #flightNavigation #expandMini{align-items:flex-start;padding:4px;font-size:14px}
+.mobile-mode.flight-ui #waypointChip{display:none!important}
+.mobile-mode.flight-ui #stats{left:calc(var(--stick-size) + 12px);bottom:var(--flight-bottom);max-width:calc(100% - var(--stick-size) - 260px)}
+.mobile-mode.flight-ui #flightLoad{font-size:12px;line-height:1.4;white-space:normal}
+.mobile-mode.flight-ui #touchQuick button{font-size:14px!important;line-height:1.2!important;word-break:keep-all;min-height:44px;padding:4px!important}
+.mobile-mode.flight-ui #touchQuick{gap:5px;width:224px!important;max-width:40vw}
+.mobile-mode.flight-ui #flightGuide,.mobile-mode.flight-ui #gateGuide,.mobile-mode.flight-ui #tacticalGuide{max-width:calc(100% - var(--stick-size) - 270px);bottom:calc(var(--flight-bottom) + 35px);font-size:12px}
+.mobile-mode.flight-ui #hud[data-mobile-panel="nav"] #flightNavigation{width:min(420px,calc(100vw - 40px));max-height:calc(100dvh - 80px);top:56px;right:0;left:auto;font-size:14px}
+@media(orientation:portrait){
+ .mobile-mode.flight-ui #glassReadouts{top:58px;left:auto;right:0;transform:none;width:calc(100% - 152px);min-width:170px}
+ .mobile-mode.flight-ui #hud[data-mobile-panel=""] #flightNavigation{width:140px}
+ .mobile-mode.flight-ui #touchQuick{width:190px!important;max-width:49vw}
+ .mobile-mode.flight-ui #stats{left:0;bottom:calc(var(--stick-size) + var(--flight-bottom) + 12px);max-width:48%}
+ .mobile-mode.flight-ui #flightGuide,.mobile-mode.flight-ui #gateGuide,.mobile-mode.flight-ui #tacticalGuide{max-width:92%;bottom:calc(var(--throttle-height) + var(--flight-bottom) + 70px)}
+}
