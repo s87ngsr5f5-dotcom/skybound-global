@@ -268,23 +268,54 @@ const carrierOps = (() => {
     const cableMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5, metalness: 0.85 });
 
     // 1. Ship Hull
-    const hullGeo = new THREE.BoxGeometry(carrier.width - 12, carrier.deckElevation, carrier.length - 20);
-    const hullMesh = new THREE.Mesh(hullGeo, steelMat);
-    hullMesh.position.set(0, carrier.deckElevation / 2, 0);
-    root.add(hullMesh);
-
-    // 2. Bulbous Bow
-    const bowGeo = new THREE.ConeGeometry(18, 52, 6);
-    const bowMesh = new THREE.Mesh(bowGeo, steelMat);
-    bowMesh.rotation.x = Math.PI / 2;
-    bowMesh.position.set(0, carrier.deckElevation * 0.4, -carrier.length / 2 + 10);
-    root.add(bowMesh);
+    // Flared ship hull: narrow waterline, a fine bow and broad stern under deck overhangs.
+    const hullPositions=[],hullIndices=[];
+    const stations=[[-carrier.length/2+8,1.5],[-carrier.length*.38,16],[-carrier.length*.22,22],[carrier.length*.28,23],[carrier.length/2-12,19]];
+    stations.forEach(([z,w])=>{
+      hullPositions.push(-w*.67,-4,z,w*.67,-4,z,-w,carrier.deckElevation-1.2,z,w,carrier.deckElevation-1.2,z);
+    });
+    for(let j=0;j<stations.length-1;j++){
+      const a=j*4,b=a+4;
+      for(const [u,v] of [[0,1],[1,3],[3,2],[2,0]])hullIndices.push(a+u,b+u,a+v,a+v,b+u,b+v);
+    }
+    hullIndices.push(0,2,1,1,2,3,16,17,18,17,19,18);
+    for(let i=0;i<hullIndices.length;i+=3){const t=hullIndices[i+1];hullIndices[i+1]=hullIndices[i+2];hullIndices[i+2]=t;}
+    const hullGeo=new THREE.BufferGeometry();hullGeo.setAttribute('position',new THREE.Float32BufferAttribute(hullPositions,3));hullGeo.setIndex(hullIndices);hullGeo.computeVertexNormals();
+    const hullMesh=new THREE.Mesh(hullGeo,steelMat);hullMesh.name='Flared carrier hull';root.add(hullMesh);
 
     // 3. Flight Deck Platform
     const deckGeo = new THREE.BoxGeometry(carrier.width, 1.8, carrier.length);
     const deckMesh = new THREE.Mesh(deckGeo, deckMat);
     deckMesh.position.set(0, carrier.deckElevation, 0);
     root.add(deckMesh);
+
+    // Low-cost deck texture: non-skid panels, drains and touchdown rubber wear.
+    const deckCanvas=document.createElement('canvas');deckCanvas.width=512;deckCanvas.height=1024;
+    const dg=deckCanvas.getContext('2d');dg.fillStyle='#353a3d';dg.fillRect(0,0,512,1024);
+    for(let y=0;y<1024;y+=32){dg.fillStyle=y%64?'#323638':'#393d3f';dg.fillRect(0,y,512,31);}
+    for(let i=0;i<1600;i++){const x=(i*137)%512,y=(i*239)%1024;dg.fillStyle=i%3?'#404548':'#292e31';dg.fillRect(x,y,2,1);}
+    dg.fillStyle='#272c2f';for(let i=0;i<13;i++)dg.fillRect(140+i*6,510+(i%3)*12,3,170);
+    dg.fillStyle='#d8d8cc';dg.font='bold 80px sans-serif';dg.textAlign='center';dg.fillText('78',256,130);
+    const deckTexture=new THREE.CanvasTexture(deckCanvas);deckTexture.colorSpace=THREE.SRGBColorSpace;deckTexture.anisotropy=4;
+    deckMat.map=deckTexture;deckMat.needsUpdate=true;
+    function shipBox(w,h,d,x,y,z,mat=steelMat){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);root.add(m);return m;}
+    // Catapult tracks, elevators and deck-edge safety catwalks remain outside the landing lane.
+    for(const cat of carrier.catapults){
+      shipBox(.45,.07,cat.stroke,cat.cross,carrier.deckElevation+1.03,cat.along-cat.stroke*.5,cableMat);
+      shipBox(1.4,.09,2,cat.cross,carrier.deckElevation+1.1,cat.along,yellowMat);
+    }
+    for(const z of [-78,24,110]){
+      shipBox(13,.10,18,carrier.width/2-7,carrier.deckElevation+.97,z,towerMat);
+      for(const dz of [-9,9])shipBox(13,.06,.18,carrier.width/2-7,carrier.deckElevation+1.04,z+dz,yellowMat);
+    }
+    for(const side of [-1,1]){
+      shipBox(2,.6,carrier.length-28,side*(carrier.width/2+.5),carrier.deckElevation-1.5,0);
+      for(let z=-140;z<=145;z+=9){
+        shipBox(.08,.8,.08,side*(carrier.width/2+1.3),carrier.deckElevation-.8,z);
+        const lamp=new THREE.Mesh(new THREE.SphereGeometry(.13,6,4),new THREE.MeshBasicMaterial({color:0x6eafff}));
+        lamp.position.set(side*(carrier.width/2-.6),carrier.deckElevation+1.03,z);root.add(lamp);
+      }
+    }
 
     // 4. Angled Deck Strip (Painted lines)
     const stripGeo = new THREE.PlaneGeometry(carrier.angledWidth, carrier.angledLength);
@@ -294,6 +325,11 @@ const carrierOps = (() => {
     stripMesh.position.set(-10, carrier.deckElevation + 0.92, 10);
     root.add(stripMesh);
 
+    for(const side of [-1,1]){
+      const edge=new THREE.Mesh(new THREE.PlaneGeometry(.38,carrier.angledLength),lineMat);
+      edge.rotation.x=-Math.PI/2;edge.rotation.z=-carrier.angledHeading;
+      edge.position.set(-10+side*carrier.angledWidth/2,carrier.deckElevation+.96,10);root.add(edge);
+    }
     // Dashed Centerline for Angled Runway
     for (let z = -80; z <= 80; z += 16) {
       const dashGeo = new THREE.PlaneGeometry(1.2, 8);
@@ -329,11 +365,16 @@ const carrierOps = (() => {
     dome.position.set(0, 27, 0);
     islandGroup.add(dome);
     // Bridge windows
-    const winGeo = new THREE.BoxGeometry(8.5, 2.2, 28.2);
-    const winMat = new THREE.MeshBasicMaterial({ color: 0x5bc0eb });
-    const winMesh = new THREE.Mesh(winGeo, winMat);
-    winMesh.position.set(0, 7.5, 0);
-    islandGroup.add(winMesh);
+    const winMat=new THREE.MeshPhysicalMaterial({color:0x172c38,roughness:.16,metalness:.35,clearcoat:.8});
+    for(let i=0;i<10;i++){
+      const win=new THREE.Mesh(new THREE.BoxGeometry(.08,1.6,2.1),winMat);win.position.set(-5.04,7.5,-12+i*2.6);islandGroup.add(win);
+    }
+    for(let i=0;i<4;i++){
+      const win=new THREE.Mesh(new THREE.BoxGeometry(1.8,1.6,.08),winMat);win.position.set(-3.6+i*2.4,7.5,-14.04);islandGroup.add(win);
+    }
+    for(let i=0;i<3;i++){
+      const aerial=new THREE.Mesh(new THREE.CylinderGeometry(.07,.12,8+i*3,8),steelMat);aerial.position.set(-3+i*3,18+i*1.5,-8);islandGroup.add(aerial);
+    }
     root.add(islandGroup);
 
     // 7. FLOLS Optical Light Assembly (Port catwalk)
@@ -355,19 +396,62 @@ const carrierOps = (() => {
     flolsLight = meatballMesh;
     root.add(flolsGroup);
 
+    // Local open-water patch guarantees a continuous sea around the offshore carrier.
+    const oceanUniforms={time:{value:0},day:{value:1},lightDir:{value:new THREE.Vector3(.3,.8,.4)}};
+    const oceanMat=new THREE.ShaderMaterial({
+      uniforms:oceanUniforms,side:THREE.DoubleSide,
+      vertexShader:`varying vec3 wp;uniform float time;void main(){vec3 p=position;p.y+=sin(p.x*.018+time*.7)*.12+sin(p.z*.025-time*.6)*.10;wp=(modelMatrix*vec4(p,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(wp,1.);}`,
+      fragmentShader:`varying vec3 wp;uniform float time,day;uniform vec3 lightDir;
+      void main(){
+       vec2 p=wp.xz;
+       float swell=sin(dot(p,vec2(.023,.017))+time*.8);
+       float crossWave=sin(dot(p,vec2(-.041,.059))-time*.65+swell*1.4);
+       float ripple=sin(dot(p,vec2(.19,.13))+time*1.7+crossWave*2.);
+       float farFade=1.-smoothstep(500.,6000.,distance(cameraPosition,wp));
+       vec3 n=normalize(vec3(swell*.07+crossWave*.045+ripple*.028*farFade,1.,crossWave*.07-swell*.033+cos(dot(p,vec2(-.17,.23))-time*1.5+ripple)*.025*farFade));
+       vec3 v=normalize(cameraPosition-wp);float fres=pow(1.-max(0.,dot(n,v)),4.);
+       vec3 water=mix(vec3(.012,.05,.10),vec3(.025,.20,.29),day);
+       vec3 sky=mix(vec3(.025,.045,.08),vec3(.38,.60,.76),day);
+       vec3 c=mix(water,sky,fres*.78);
+       float sun=pow(max(0.,dot(reflect(-v,n),normalize(lightDir))),100.);
+       c+=vec3(1.,.82,.54)*sun*day*1.6;
+       float foam=smoothstep(.98,1.,sin(p.x*.037+time+crossWave)*sin(p.y*.042-time*.7+swell));
+       c=mix(c,vec3(.70,.82,.86)*(.12+.88*day),foam*.14);
+       gl_FragColor=vec4(c,1.);
+       #include <tonemapping_fragment>
+       #include <colorspace_fragment>
+      }`
+    });
+    const oceanGeo=new THREE.PlaneGeometry(14000,14000,64,64);oceanGeo.rotateX(-Math.PI/2);
+    const oceanMesh=new THREE.Mesh(oceanGeo,oceanMat);oceanMesh.position.y=-.18;oceanMesh.name='Carrier open ocean';
+    oceanMesh.onBeforeRender=()=>{
+      oceanUniforms.time.value=performance.now()*.001;
+      const sun=scene.children.find(o=>o.isDirectionalLight);
+      if(sun){oceanUniforms.day.value=Math.min(1,Math.max(.02,(sun.intensity-.05)/2.8));oceanUniforms.lightDir.value.copy(sun.position).sub(sun.target.position).normalize();}
+    };
+    root.add(oceanMesh);
+
     // 8. Ocean Wake Foam Trails
     const wakeGeo = new THREE.PlaneGeometry(carrier.width * 1.5, 320);
-    const wakeMat = new THREE.MeshBasicMaterial({
-      color: 0xecf8ff,
-      transparent: true,
-      opacity: 0.42,
-      depthWrite: false
+    const wakeMat = new THREE.ShaderMaterial({
+      transparent:true,depthWrite:false,side:THREE.DoubleSide,
+      uniforms:{clock:{value:0}},
+      vertexShader:'varying vec2 tex;void main(){tex=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+      fragmentShader:`varying vec2 tex;uniform float clock;void main(){
+        float aft=1.-tex.y;float width=.14+aft*.82;float edge=abs(tex.x-.5)*2.;
+        float ribbon=(1.-smoothstep(width-.13,width,edge))*smoothstep(0.,.06,aft)*(1.-smoothstep(.65,1.,aft));
+        float pattern=.5+.5*sin(tex.x*92.+sin(tex.y*37.-clock*1.3)*3.);
+        float churn=.5+.5*sin(tex.y*110.-clock*3.+sin(tex.x*60.));
+        gl_FragColor=vec4(.78,.90,.94,ribbon*(.08+pattern*churn*.30));
+      }`
     });
     const wakeMesh = new THREE.Mesh(wakeGeo, wakeMat);
     wakeMesh.rotation.x = -Math.PI / 2;
     wakeMesh.position.set(0, 0.2, carrier.length / 2 + 150);
+    wakeMesh.onBeforeRender=()=>{wakeMat.uniforms.clock.value=performance.now()*.001;};
     root.add(wakeMesh);
 
+    root.traverse(o=>{if(o.isMesh&&o!==wakeMesh&&o!==oceanMesh){o.castShadow=true;o.receiveShadow=true;}});
     scene.add(root);
     carrierMesh = root;
     return root;

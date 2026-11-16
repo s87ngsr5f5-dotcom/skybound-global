@@ -16,7 +16,7 @@ assert.strictEqual(sky.uniforms.raytrace.value, 1, 'Ray-traced mode should defau
 const dome = scene.children.find(c => c.material && c.material.fragmentShader && c.material.fragmentShader.includes('godRays'));
 assert.ok(dome, 'SkyDome fragment shader must contain volumetric crepuscular godRays logic');
 assert.ok(dome.material.fragmentShader.includes('vec3(.48,.78,.98)'), 'Daytime horizon should use brighter clear azure tint');
-assert.ok(dome.material.fragmentShader.includes('vec3(.07,.36,.88)'), 'Daytime zenith should use brighter luminous blue tint');
+assert.ok(dome.material.fragmentShader.includes('vec3(.045,.29,.80)'), 'Daytime zenith should use richer blue tint');
 
 // 2. Verify dynamic weather & raytrace toggle updates uniforms cleanly
 sky.setWeather(13, 1, '0', new THREE.Vector3(-400, 750, -250), true);

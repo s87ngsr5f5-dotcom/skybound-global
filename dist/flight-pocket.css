@@ -61,3 +61,5 @@ body.mobile-mode.flight-ui #storyRadioBar .radio-text{font-size:11px;line-height
 
 body.mobile-mode.flight-ui #hudCombatPill{top:calc(env(safe-area-inset-top,0px) + 8px)!important;bottom:auto;left:50%;transform:translateX(-50%);max-width:28vw;font-size:11px;white-space:nowrap;overflow:hidden}
 @media(orientation:portrait){body.mobile-mode.flight-ui #hudCombatPill{top:calc(env(safe-area-inset-top,0px) + 116px)!important;left:auto;right:0;transform:none;max-width:55vw}}
+
+canvas.world{filter:saturate(1.13)}

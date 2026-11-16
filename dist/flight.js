@@ -275,14 +275,14 @@ function initialize(){
           float wave1=sin(waveCoord.x*2.4+waveCoord.y*1.7+seaSkyTime*0.48)*cos(waveCoord.y*2.1-waveCoord.x*1.3-seaSkyTime*0.35);
           float wave2=sin(waveCoord.x*6.8-waveCoord.y*5.1+seaSkyTime*0.95)*0.5+0.5;
           float wave3=sin(waveCoord.x*15.5+waveCoord.y*12.2-seaSkyTime*1.45)*0.5+0.5;
-          vec3 abyssSea=vec3(0.03,0.18,0.42);
-          vec3 deepSea=vec3(0.06,0.28,0.56);
-          vec3 shallowSea=vec3(0.14,0.58,0.79);
+          vec3 abyssSea=vec3(0.018,0.10,0.24);
+          vec3 deepSea=vec3(0.025,0.25,0.43);
+          vec3 shallowSea=vec3(0.08,0.52,0.64);
           float coastalShelf=clamp(1.0-length(fract(terrainXZ*0.00018)-0.5)*1.4,0.0,1.0);
           vec3 waterBase=mix(abyssSea,deepSea,clamp(wave1*0.32+0.55,0.0,1.0));
           diffuseColor.rgb=mix(waterBase,shallowSea,clamp(wave1*0.18+wave2*0.16+coastalShelf*0.24,0.0,1.0));
           float whitecap=smoothstep(0.74,0.93,wave1*0.45+wave2*0.35+wave3*0.28);
-          diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.90,0.96,1.0)*max(0.25,seaDayRatio),whitecap*0.42);
+          diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.90,0.96,1.0)*max(0.25,seaDayRatio),whitecap*0.28);
           if(seaRtEnabled>0.5){
             vec3 viewVec=normalize(cameraPosition-terrainWorldPos);
             vec3 waveN=normalize(vec3(

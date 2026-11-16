@@ -58,13 +58,13 @@ function createAtmosphericSky(scene){
         float antiGlare=max(0.,dot(-sun,d));
         float mie=pow(glare,4.2)*.34+pow(glare,18.)*.54+pow(glare,96.)*1.32;
         vec3 horizon=mix(vec3(.024,.042,.086),vec3(.48,.78,.98),daylight);
-        vec3 midSky=mix(vec3(.012,.028,.066),vec3(.18,.54,.95),daylight);
-        vec3 zenith=mix(vec3(.005,.014,.042),vec3(.07,.36,.88),daylight);
+        vec3 midSky=mix(vec3(.012,.028,.066),vec3(.14,.48,.94),daylight);
+        vec3 zenith=mix(vec3(.005,.014,.042),vec3(.045,.29,.80),daylight);
         vec3 sky=mix(horizon,midSky,smoothstep(0.,.38,up));
         sky=mix(sky,zenith,smoothstep(.28,.96,up));
         // Rayleigh horizon scatter & Belt of Venus anti-solar twilight band
         sky+=vec3(.08,.22,.38)*daylight*exp(-up*3.8)*.38;
-        sky+=vec3(.99,.46,.14)*twilight*pow(glare,3.2)*exp(-up*2.4)*1.15;
+        sky+=vec3(1.02,.40,.10)*twilight*pow(glare,3.2)*exp(-up*2.4)*1.15;
         sky+=vec3(.62,.22,.38)*twilight*exp(-up*4.5)*(0.75+0.45*antiGlare);
         sky+=vec3(1.,.92,.70)*daylight*(pow(glare,12.)*.28+smoothstep(.99980,.99997,glare)*9.2)+vec3(.58,.79,1.)*mie*daylight*.82;
         // High-altitude Cirrus / Ice-Crystal Wisps at ~7,800m
