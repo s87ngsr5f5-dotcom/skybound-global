@@ -1,8 +1,12 @@
 'use strict';
 const assert=require('node:assert/strict');
 const {upgradeControls,manualAxes,gamepadAxis,smoothControls}=require('./dist/controls.js');
-const standard=upgradeControls({sensitivity:1,invert:false,bindings:{KeyC:'KeyV'}});
-assert.equal(standard.sensitivity,.55);
+const standard=upgradeControls({version:4,sensitivity:1,invert:false,bindings:{KeyC:'KeyV'}});
+assert.equal(standard.sensitivity,1);
+const migrated=upgradeControls({version:3,invert:false,sensitivity:.42,deadzone:.17});
+assert.equal(migrated.invert,true);assert.equal(migrated.sensitivity,.42);assert.equal(migrated.deadzone,.17);
+assert.equal(upgradeControls({}).invert,true);
+assert.equal(upgradeControls({...migrated,invert:false}).invert,false);
 assert.equal(standard.bindings.KeyC,'KeyV');
 const inverse=upgradeControls({...standard,invert:true,invertRoll:true,invertRudder:true});
 for(const invert of [standard,inverse]){

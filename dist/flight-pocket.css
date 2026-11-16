@@ -89,3 +89,9 @@ body.mobile-mode.flight-ui #glassReadouts,body.mobile-mode.flight-ui.cockpit-act
 /* Empty scene receives look gestures; controls above retain their own pointers. */
 #flightLookSurface{position:absolute;inset:0;pointer-events:auto;touch-action:none;background:transparent}
 body:not(.flight-ui) #flightLookSurface{display:none}
+
+.control-guide{max-width:820px;margin:auto}.control-guide-tabs{display:flex;gap:8px;margin:16px 0}
+.control-guide-tabs button{min-width:84px;min-height:44px}.control-guide-tabs button[aria-pressed="true"]{background:#d9b471;color:#101a20}
+.control-guide dl{margin:8px 0 24px}.control-guide dl>div{display:grid;grid-template-columns:minmax(100px,27%) 1fr;gap:16px;padding:13px 0;border-bottom:1px solid #354951}
+.control-guide dt{font-weight:700;color:#f1ce8c}.control-guide dd{margin:0;line-height:1.65;color:#dce5e9}.control-guide ol{padding-left:24px;line-height:1.9}.control-guide p{color:#b4c7d0;line-height:1.6}
+@media(max-width:500px){.control-guide dl>div{grid-template-columns:1fr;gap:5px;padding:11px 0}.control-guide h2{font-size:23px}}

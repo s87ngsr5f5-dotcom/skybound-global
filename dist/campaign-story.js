@@ -1206,7 +1206,7 @@
           {
             label: '階段 1/3 · 起飛爬升進入特技高度 (> 800 ft)',
             check: f => !f.ended && !f.ground && f.y >= 245,
-            radio: { speaker: '地面觀禮台 · AIRSHOW PA', text: '「戰機已進入公演高度！現在請長按 ↑ 拉出 360° 垂直觔斗，或長按 ←/→ 完成 360° 桶滾！」' }
+            radio: { speaker: '地面觀禮台 · AIRSHOW PA', text: '「戰機已進入公演高度！現在請持續抬頭拉出 360° 垂直觔斗，或長按 ←/→ 完成 360° 桶滾！」' }
           },
           {
             label: '階段 2/3 · 完成 360° 桶滾／垂直觔斗或高機動通過光門',
@@ -1399,6 +1399,7 @@
             <li><button type="button" class="hub-menu-btn" data-hub-tab="freeflight"><div class="hub-menu-btn-main"><span>自由飛行與機庫</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="scenery"><div class="hub-menu-btn-main"><span>地景與勳章</span></div></button></li>
             <li id="supportDevelopment" hidden><a class="hub-menu-btn" target="_blank" rel="noopener noreferrer">支持開發</a></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="help"><div class="hub-menu-btn-main"><span>操控說明</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="settings"><div class="hub-menu-btn-main"><span>設定</span></div></button></li>
           </ul>
         </div>
@@ -1426,6 +1427,8 @@
     document.body.appendChild(debrief);
 
     hub.addEventListener('click', e => {
+      const helpMode=e.target.closest('[data-help-mode]');
+      if(helpMode){ensureDOM._helpMode=helpMode.dataset.helpMode;renderStage('help');return;}
       const tabBtn = e.target.closest('[data-hub-tab]');
       if (tabBtn) {
         renderStage(tabBtn.dataset.hubTab);
@@ -1895,8 +1898,39 @@
             <button type="button" id="hubQuickFreeBtn" class="campaign-launch-btn">開始飛行</button>
             <button type="button" id="hubQuickStartBtn" class="hub-back-btn" data-quick-ch="${nextCh.id}">執飛 ${nextCh.code} · ${nextCh.title.split('：').pop()}</button>
             <button type="button" id="hubOpenHangarBtn" class="hub-back-btn">進入機庫</button>
+            <button type="button" class="hub-back-btn" data-jump-tab="help">操控說明</button>
           </section>
         </div>`;
+      return;
+    }
+
+    if(tab==='help'){
+      const mode=ensureDOM._helpMode||(document.getElementById('deviceMode')?.value==='mobile'?'mobile':'desktop');
+      const inverted=document.getElementById('invert')?.checked!==false;
+      const pitch=inverted?'往下拉抬頭、往上推低頭':'往上推抬頭、往下拉低頭';
+      const rows=mode==='mobile'?[
+        ['左側搖桿',pitch+'；向左左轉、向右右轉。'],
+        ['右側油門','往上加油、往下減油。'],
+        ['右側方向舵','左右拖曳，微調機頭方向。'],
+        ['環視','拖曳空白畫面，360° 查看；點兩下空白畫面回正。環視不反向。'],
+        ['同時操作','一指控制搖桿，另一指拖曳環視。'],
+        ['地圖','點小地圖放大，再點頂部「地圖」收回。'],
+        ['常用按鈕','起落架、襟翼、煞車、視角都在右側。更多操作在「選單」。']
+      ]:[
+        ['↑ / ↓',inverted?'↑ 低頭、↓ 抬頭。':'↑ 抬頭、↓ 低頭。'],
+        ['← / →','向左／向右滾轉轉向。'],
+        ['W / S（預設）','增加／減少油門。'],
+        ['Q / E','左／右方向舵。'],
+        ['滑鼠右鍵拖曳','在空白畫面環視；Home 回正。環視不反向。'],
+        ['C / G / F','切換視角／起落架／襟翼。'],
+        ['空白鍵 / B / P','煞車或空中減速／停機煞車／暫停。']
+      ];
+      stage.innerHTML=`<section class="control-guide hub-section-panel"><h2>操控說明</h2>
+        <div class="control-guide-tabs" role="group" aria-label="操作裝置"><button type="button" data-help-mode="mobile" aria-pressed="${mode==='mobile'}">手機</button><button type="button" data-help-mode="desktop" aria-pressed="${mode==='desktop'}">電腦</button></div>
+        <dl>${rows.map(([key,desc])=>`<div><dt>${key}</dt><dd>${desc}</dd></div>`).join('')}</dl>
+        <h3>第一次起飛</h3><ol><li>冷艙先開電瓶、啟動引擎；跑道開始可直接準備。</li><li>解除停機煞車，推高油門。</li><li>達到畫面提示的起飛速度後，${mode==='mobile'?(inverted?'輕拉搖桿向下':'輕推搖桿向上'):(inverted?'輕按 ↓':'輕按 ↑')}抬頭。</li></ol>
+        <p>可在設定調整反向、靈敏度與按鍵；說明依目前俯仰反向設定顯示。</p>
+        <button type="button" class="hub-back-btn" data-jump-tab="settings">操控設定</button></section>`;
       return;
     }
 
@@ -2726,9 +2760,12 @@
       if (f.ground && activeMission.stageIdx === 0 && ch.startType !== 'carrier') {
         const rotateKt=f.aircraft?.rotation||55;
         const speedKmh=Math.round(iasKt*1.852),rotateKmh=Math.round(rotateKt*1.852);
+        const pitchInverted=document.getElementById('invert')?.checked!==false;
+        const pitchUpKey=pitchInverted?'↓':'↑';
+        const pitchUpTouch=pitchInverted?'向下拉':'向上推';
         const takeoffTip = iasKt < rotateKt
           ? (isTouchMode ? `請向上拖曳右側「油門滑桿」加速 (${speedKmh}/${rotateKmh} km/h)` : `按住 [W] 推滿油門加速 (${speedKmh}/${rotateKmh} km/h)`)
-          : (isTouchMode ? `已達 ${speedKmh} km/h！輕推左側「飛行搖桿」抬頭離地` : `已達 ${speedKmh} km/h！按 [↑] 或輕拉滑鼠抬頭離地`);
+          : (isTouchMode ? `已達 ${speedKmh} km/h！${pitchUpTouch}左側「飛行搖桿」抬頭離地` : `已達 ${speedKmh} km/h！按 [${pitchUpKey}] 抬頭離地`);
         objHud.textContent = `${ch.code} · 🛫 ${takeoffTip} · (${altFt} ft / ${altM}m)`;
       } else {
         objHud.textContent = `${ch.code} · ${stagePrefix} · ${st.gatesPassed}/${requiredGates(ch)} 航點${gateHint}${st.gatesPassed>=3&&!ch.finishLanding ? " · 穩定 "+Math.floor(st.stableS)+"/"+ch.skillDuration+" 秒" : ""}`;

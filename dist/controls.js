@@ -1,10 +1,12 @@
 'use strict';
 const defaultControls=Object.freeze({
-  version:3,deadzone:.12,sensitivity:.55,invert:false,
+  version:4,deadzone:.12,sensitivity:.55,invert:true,
   mouse:false,keepBank:false,throttleKeys:'KeyW,KeyS'
 });
 function upgradeControls(saved){
-  const controls={...defaultControls,...saved,version:3};
+  const controls={...defaultControls,...saved,version:4};
+  // Apply the requested new pitch default once; later player choices stay saved.
+  if(!saved?.version||saved.version<4) controls.invert=true;
   const gain=Number(controls.sensitivity);
   controls.sensitivity=Number.isFinite(gain)?Math.max(.2,Math.min(1,gain)):.55;
   if(!saved?.version||saved.version<3) controls.sensitivity=Math.min(.55,controls.sensitivity);

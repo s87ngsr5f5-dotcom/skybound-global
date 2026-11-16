@@ -5038,7 +5038,7 @@ function initialize(){
     if(f.cruiseTrial) return (f.fastCruise?'高速試飛 · 目標 IAS '+aircraftFastKmh(f.aircraft)+' km/h':'寫實巡航')+' · '+Math.floor(f.elapsed/60)+' 分 '+Math.floor(f.elapsed%60)+' 秒';
     if(!f.regional){
       if(f.landed) return '已接地 · 收油並煞車'+retry;
-      if(f.ground) return knots>=51?(mobile?'向上拖搖桿拉升':'按 ↑ 拉升'):(mobile?'調高油門':'按住 W')+' 加速至約 94 km/h';
+      if(f.ground) return knots>=51?(mobile?(settings.invert?'向下拉搖桿抬頭':'向上推搖桿抬頭'):(settings.invert?'按 ↓ 抬頭':'按 ↑ 抬頭')):(mobile?'調高油門':'按住 W')+' 加速至約 94 km/h';
       return f.stall?'失速 · 放低機鼻':'松山起落航線 · 依地圖飛行';
     }
     if(f.service){
@@ -5059,7 +5059,7 @@ function initialize(){
       if(f.parkingBrake) return '停機煞車已拉上 · '+(mobile?'點「停機煞車」鬆開':'B 鬆開');
       return target.name+' · '+(mobile?'停妥後點「停機煞車」':'停妥按 B');
     }
-    if(f.ground) return knots>=f.aircraft.rotation?(mobile?'向上拖動搖桿抬頭':'按 ↑ 拉升'):
+    if(f.ground) return knots>=f.aircraft.rotation?(mobile?(settings.invert?'向下拉搖桿抬頭':'向上推搖桿抬頭'):(settings.invert?'按 ↓ 抬頭':'按 ↑ 抬頭')):
       '對正跑道 · '+(mobile?'調高油門，加速至 ':'加速至 ')+knotsToKmh(f.aircraft.rotation)+' km/h';
     if(f.stall) return '失速 · 放低機鼻';
     return f.phase==='approach'?'最後進場 · 目標 '+knotsToKmh(f.aircraft.approach)+' km/h':target.name+' · 依導航轉向';

@@ -205,7 +205,7 @@ for (const file of jsFiles) {
   assert.ok(campaignCode.includes('function getBonusObjective(') && campaignCode.includes('function buildMissionSkyGates('), 'Campaign includes bonus objective & Sky Gate builders');
   assert.ok(campaignCode.includes('function drawCampaignRoutePreview(') && campaignCode.includes('worldQuickHubs'), 'Campaign hub includes 2D route preview & 9-region quick hubs');
   assert.ok(campaignCode.includes('hubExportSaveBtn') && campaignCode.includes('hubImportSaveInput') && campaignCode.includes('skybound-save-v1'), 'Settings includes JSON save backup export/import');
-  assert.ok(campaignCode.includes('f.aircraft?.rotation||55') && campaignCode.includes('${rotateKmh} km/h') && campaignCode.includes('按 [↑] 或輕拉滑鼠抬頭離地'), 'Story HUD shows beginner step-by-step takeoff guidance');
+  assert.ok(campaignCode.includes('f.aircraft?.rotation||55') && campaignCode.includes('${rotateKmh} km/h') && campaignCode.includes('按 [${pitchUpKey}] 抬頭離地'), 'Story HUD shows beginner step-by-step takeoff guidance');
 }
 
 // 4. Inspect international scenery, 3D overview, HUD Sky Gates, radar & HTML wiring
