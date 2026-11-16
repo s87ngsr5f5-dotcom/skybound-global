@@ -2703,6 +2703,8 @@
 
   if (typeof globalScope.addEventListener === 'function') {
     globalScope.addEventListener('resize', syncHubTop);
+    globalScope.visualViewport?.addEventListener('resize', syncHubTop);
+    if(typeof ResizeObserver!=='undefined'&&document.querySelector('header'))new ResizeObserver(syncHubTop).observe(document.querySelector('header'));
     globalScope.addEventListener('orientationchange', () => setTimeout(syncHubTop, 120));
   }
 
