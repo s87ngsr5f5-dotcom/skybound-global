@@ -170,7 +170,7 @@ for (const file of jsFiles) {
   assert.ok(camp, 'SkyboundCampaign global is exposed');
   assert.strictEqual(camp.chapters.length, 7, 'Story chapters length === 7 (Taiwan mainline)');
   assert.strictEqual(camp.worldChapters.length, 8, 'World expedition chapters length === 8 (WP.08..WP.15)');
-  assert.strictEqual(camp.allChapters.length, 15, 'allChapters combines to 15 total missions');
+  assert.strictEqual(camp.allChapters.length, 19, 'allChapters combines to 15 total missions');
   assert.strictEqual(typeof camp.isOnlineFlight, 'function', 'SkyboundCampaign exposes isOnlineFlight()');
   assert.strictEqual(typeof camp.refreshCareerUI, 'function', 'SkyboundCampaign exposes refreshCareerUI()');
   assert.strictEqual(camp.isOnlineFlight(), false, 'isOnlineFlight() defaults to false for solo play');
@@ -179,15 +179,16 @@ for (const file of jsFiles) {
   assert.ok(JSON.parse(storage.get('skybound.career.v1')).money >= 18000, 'Starter grant seeds $18,000 into skybound.career.v1');
 
   const ep1 = camp.chapters.find(c => c.id === 1);
-  assert.ok(ep1.targetText.includes('600+ ft'), 'EP.01 targetText advertises 600+ ft');
-  assert.strictEqual(ep1.stages[1].check({ ended: false, ground: false, y: 152 }, { flownM: 3000 }), false, 'EP.01 stage 2 requires >= 183m (600 ft)');
-  assert.strictEqual(ep1.stages[1].check({ ended: false, ground: false, y: 183 }, { flownM: 3000 }), true, 'EP.01 stage 2 passes at 183m (600 ft)');
-  assert.strictEqual(ep1.winCondition({ ended: false, ground: false, y: 183 }, { flownM: 6800 }), true, 'EP.01 winCondition passes without f.airborne');
-  assert.strictEqual(ep1.winCondition({ ended: false, ground: true, y: 183 }, { flownM: 6800 }), false, 'EP.01 winCondition requires !ground');
-  assert.ok(!campaignCode.includes('f.airborne'), 'campaign-story.js removes dead f.airborne checks');
-
-  assert.strictEqual(ep1.stages[1].check({ended:false,ground:false,y:183},{flownM:2999}),false,'Stage 2 requires full 3 km');
-  assert.strictEqual(ep1.winCondition({ended:false,ground:false,y:183},{flownM:6799}),false,'Completion requires full 6.8 km');
+  assert.strictEqual(ep1.destination,ep1.departure,'Short mission stays in its departure region');
+  assert.strictEqual(ep1.stages[1].check({ended:false},{gatesPassed:1}),false,'Second stage needs second gate');
+  assert.strictEqual(ep1.stages[1].check({ended:false},{gatesPassed:2}),true,'Second gate advances stage');
+  assert.strictEqual(ep1.winCondition({ended:false,ground:false},{gatesPassed:3,stableS:59.9}),false,'No early completion');
+  assert.strictEqual(ep1.winCondition({ended:false,ground:false},{gatesPassed:3,stableS:60}),true,'Stable segment completes mission');
+  assert.strictEqual(ep1.winCondition({ended:false,ground:false},{gatesPassed:2,stableS:90}),false,'Cannot bypass navigation');
+  const landing=camp.allChapters.find(c=>c.id===16);
+  assert.strictEqual(landing.winCondition({ended:false,ground:true,vx:0,vz:0},{gatesPassed:3,wasAirborne:true,nearAirport:false}),false,'Off-airport stop is not a landing success');
+  assert.strictEqual(landing.winCondition({ended:false,ground:true,vx:0,vz:0},{gatesPassed:3,wasAirborne:true,nearAirport:true}),true,'Returned and stopped');
+  assert.ok(camp.allChapters.every(c=>c.destination===c.departure&&c.durationLabel==='約 5–10 分鐘'),'No cross-country campaign legs');
   camp.startChapter(1);
   assert.strictEqual(camp.isOnlineFlight(), false, 'Starting story chapter keeps isOnlineFlight() false');
 
@@ -196,7 +197,7 @@ for (const file of jsFiles) {
   const wp15 = camp.allChapters.find(c => c.id === 15);
   assert.ok(wp14 && wp14.code === 'WP.14' && wp14.departure === 'RJBB', 'allChapters includes WP.14 Osaka Kansai (RJBB)');
   assert.ok(wp15 && wp15.code === 'WP.15' && wp15.departure === 'VTBS', 'allChapters includes WP.15 Bangkok Suvarnabhumi (VTBS)');
-  assert.strictEqual(ids.length, 15, 'allChapters has 15 unique chapters');
+  assert.strictEqual(ids.length, 19, 'allChapters has 15 unique chapters');
   assert.ok(camp.medals.some(m => m.id === 'world_conqueror'), 'MEDALS includes world_conqueror');
   assert.ok(camp.medals.some(m => m.id === 'aerobatic_ace'), 'MEDALS includes aerobatic_ace');
 

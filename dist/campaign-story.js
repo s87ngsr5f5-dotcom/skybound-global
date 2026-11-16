@@ -660,21 +660,57 @@
     }
   ];
 
-  const ALL_CHAPTERS = [...CHAPTERS, ...WORLD_CHAPTERS];
+  // Keep chapter IDs stable so previously earned aircraft remain unlocked.
+  const SHORT_CHAPTERS = [
+    {...CHAPTERS[0], id:16,code:'LOCAL.16',title:'松山定點進場',aircraft:'c172s',departure:'RCSS',finishLanding:true,weather:'0'},
+    {...CHAPTERS[0], id:17,code:'LOCAL.17',title:'澎湖側風航線',aircraft:'c172s',departure:'RCQC',finishLanding:true,weather:'5.144'},
+    {...CHAPTERS[1], id:18,code:'LOCAL.18',title:'桃園平穩飛行',aircraft:'a223',departure:'RCTP',smoothLimit:1.5,weather:'0'},
+    {...CHAPTERS[5], id:19,code:'LOCAL.19',title:'花蓮轉彎訓練',aircraft:'sf16',departure:'RCYU',weather:'0'}
+  ];
+  const ALL_CHAPTERS = [...CHAPTERS, ...WORLD_CHAPTERS, ...SHORT_CHAPTERS];
+  const missionPrizes = {1:'Gulfstream G700',2:'Dassault Rafale C',3:'Airbus A400M',4:'F-14B Tomcat',6:'F-22A Raptor',8:'Airbus A350-1000'};
+  for (const ch of ALL_CHAPTERS) {
+    const trainer = ch.aircraft === 'c172s';
+    const fighter = ['sf16','m2000'].includes(ch.aircraft);
+    ch.localCircuit = true;
+    ch.lesson='free';ch.startType='runway';delete ch.quickPreset;
+    const names=['松山河岸巡航','桃園轉彎航線','風雨離場','海岸導航','低速穩定飛行','花蓮機動航線','山海巡航','東京離場','香港海岸巡航','沖繩島嶼導航','仁川離場','樟宜離場','馬尼拉巡航','關西海岸導航','曼谷離場'];
+    if(ch.id<=15)ch.title=names[ch.id-1];
+    ch.destination = ch.departure;
+    ch.objectiveDistM = trainer ? 18000 : fighter ? 42000 : 30000;
+    ch.parTimeS = 600;
+    ch.durationLabel = '約 5–10 分鐘';
+    ch.title = ch.title.replace(/^.*?：/, '').replace(/！/g,'');
+    ch.subtitle = ch.finishLanding ? '導航與落地' : fighter ? '轉彎與航線' : '離場與穩定飛行';
+    ch.story = ch.finishLanding ? '通過三個航點，返回出發機場落地，在跑道停住。' : '依序通過三個航點，再完成操控練習。全程在出發機場周邊。';
+    ch.skill = ch.id===5?'speed':ch.id===19?'turn':ch.id===18?'smooth':'level';
+    ch.skillLabel=ch.skill==='speed'?'保持 300–450 km/h，累計 45 秒':ch.skill==='turn'?'保持 20–45° 坡度轉彎，累計 20 秒':ch.skill==='smooth'?'平穩飛行 60 秒，過載不超過 1.5G':'保持坡度小於 12°、俯仰小於 8°，累計 60 秒';
+    ch.skillDuration=ch.skill==='turn'?20:ch.skill==='speed'?45:60;
+    ch.targetText = ch.finishLanding ? '三航點 → 返場停住' : '三航點 → '+ch.skillLabel;
+    ch.radio = [{delay:3,speaker:'任務中心',text:ch.story}];
+    ch.stages = [
+      {label:'起飛，前往航點 1',check:(f,st)=>!f.ground && !f.ended && st.gatesPassed>=1},
+      {label:'轉向航點 2',check:(f,st)=>!f.ended && st.gatesPassed>=2},
+      {label:'通過航點 3',check:(f,st)=>!f.ended && st.gatesPassed>=3},
+      {label:ch.finishLanding?'返場落地，在跑道停住':ch.skillLabel,check:(f,st)=>ch.finishLanding ? !f.ended && f.ground && st.wasAirborne && Math.hypot(f.vx||0,f.vz||0)<3 && st.nearAirport : st.stableS>=ch.skillDuration}
+    ];
+    ch.winCondition = (f,st)=>!f.ended && st.gatesPassed>=3 && (ch.finishLanding ? f.ground && st.wasAirborne && st.nearAirport && Math.hypot(f.vx||0,f.vz||0)<3 : !f.ground && st.stableS>=ch.skillDuration);
+  }
+
 
   function getBonusObjective(ch) {
     if (ch.bonusObj) return ch.bonusObj;
     const isFighter = ['sf16', 'm2000'].includes(ch.aircraft);
     if (isFighter) {
       return {
-        label: '🎖 支線挑戰：完成 1 次桶滾／觔斗特技或通過 2 座 3D 導航光門 (+$5,000)',
+        label: '額外獎金 $5,000：完成機動或兩航點',
         rewardMoney: 5000,
         rewardXp: 120,
         check: st => (st.aerobaticDone || (st.gatesPassed || 0) >= 2)
       };
     }
     return {
-      label: '🎖 支線挑戰：通過至少 2 座 3D 導航光門且最大過載 ≤ 2.4G (+$5,000)',
+      label: '額外獎金 $5,000：兩航點、過載不超過 2.4G',
       rewardMoney: 5000,
       rewardXp: 120,
       check: st => ((st.gatesPassed || 0) >= 2 && (st.maxG || 1) <= 2.4)
@@ -682,6 +718,7 @@
   }
 
   function requiredGates(ch) {
+    if (ch.localCircuit) return 3;
     if (!Number.isInteger(ch.id) || ch.id < 1 || ch.id > 15) return 0;
     return ch.id <= 5 ? 2 : 3;
   }
@@ -699,6 +736,17 @@
     const dirX = toDstX / toDstLen, dirZ = toDstZ / toDstLen;
     const elev = dep.elevation || 0;
     const distTotal = ch.objectiveDistM || 5200;
+    if (ch.localCircuit) {
+      const turnSign=ch.id%2===0?-1:1;
+      const rightX=Math.cos(hdg)*turnSign,rightZ=Math.sin(hdg)*turnSign;
+      const alt=ch.aircraft==='c172s'?280:ch.aircraft==='sf16'||ch.aircraft==='m2000'?650:450;
+      return [[.22,0,alt*.75],[.36,.16,alt],[0,.16,alt*.8]].map(([forward,right,height],i)=>{
+        const x=dep.x+(fwdX*forward+rightX*right)*distTotal,z=dep.z+(fwdZ*forward+rightZ*right)*distTotal;
+        const ground=typeof terrainHeight==='function'?terrainHeight(x,z):elev;
+        return {id:i+1,name:'航點 '+(i+1),x,z,y:Math.max(elev+height,ground+180),radius:ch.aircraft==='c172s'?450:850,passed:false};
+      });
+    }
+
     return [
       {
         id: 1,
@@ -976,9 +1024,9 @@
     return {
       stars,
       criteria: [
-        { ok: won, label: '完成全部 3 階段飛行目標' },
+        { ok: won, label: '完成全部任務階段' },
         { ok: smooth, label: `平穩操縱（最大過載 ${(st.maxG || 1).toFixed(1)}G ≤ ${maxG}G · 警示 ${st.warnings || 0} 次）` },
-        { ok: fast, label: `黃金時限內達成（${Math.round(st.elapsedS)}s / 目標 ${ch.parTimeS || 120}s）` }
+        { ok: fast, label: `目標時間內達成（${Math.round(st.elapsedS)}s / 目標 ${ch.parTimeS || 120}s）` }
       ]
     };
   }
@@ -1343,7 +1391,7 @@
           <div id="hubCareerCard" class="hub-career-card"></div>
           <ul class="hub-menu-list" role="tablist">
             <li><button type="button" class="hub-menu-btn" data-hub-tab="welcome"><div class="hub-menu-btn-main"><span>飛行首頁</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>故事任務</span></div><span class="hub-menu-badge">15 章</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>飛行任務</span></div><span class="hub-menu-badge">19 關</span></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>改裝工坊</span></div><span class="hub-menu-badge">工坊</span></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="multiplayer"><div class="hub-menu-btn-main"><span>線上飛行</span></div><span class="hub-menu-badge" id="hubMpSideBadge">大廳</span></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="challenges"><div class="hub-menu-btn-main"><span>每日挑戰</span></div><span class="hub-menu-badge">6 模式</span></button></li>
@@ -1839,15 +1887,6 @@
         <div class="dispatch-home hangar-home">
           <div class="arrival-cinema" aria-hidden="true">
             <div class="arrival-horizon"></div><div class="arrival-cloud arrival-cloud-a"></div><div class="arrival-cloud arrival-cloud-b"></div>
-            <svg class="arrival-aircraft" viewBox="0 0 600 220" fill="none">
-              <defs><linearGradient id="arrivalMetal" x1="210" y1="70" x2="310" y2="155" gradientUnits="userSpaceOnUse"><stop stop-color="#f4f1e6"/><stop offset=".5" stop-color="#b9cbd2"/><stop offset="1" stop-color="#476575"/></linearGradient></defs>
-              <path d="M42 132 245 121 397 34 426 37 332 121 500 121 539 89 552 91 539 130 567 137 562 143 515 143 349 141 421 186 396 187 273 144 76 145Q38 144 42 132Z" fill="url(#arrivalMetal)"/>
-              <path d="m72 132 21-5 20 1-5 5Z" fill="#142a39"/><path d="m505 121 34-32 13 2-13 39Z" fill="#d5ab60"/>
-              <path d="M125 132H240" stroke="#263e4a" stroke-width="3" stroke-dasharray="3 6"/>
-              <path d="m309 101 30-1 15 8-2 13-39-1Z" fill="#58717c"/><ellipse cx="312" cy="111" rx="5" ry="10" fill="#162c38"/>
-              <path d="m305 144 31 1 15 8-3 12-38-4Z" fill="#879da6"/><ellipse cx="310" cy="153" rx="5" ry="9" fill="#162c38"/>
-              <path d="M45 141h-110" stroke="#d6dfe2" stroke-opacity=".3" stroke-width="1"/>
-            </svg>
             <span class="arrival-caption">SKYBOUND GLOBAL<span>準備下一趟飛行</span></span>
           </div>
           <img class="dispatch-photo" src="assets/campaign/hangar-777.jpg" alt="機庫內的 Boeing 777-300ER" fetchpriority="high">
@@ -1874,7 +1913,7 @@
             <img class="campaign-ch-thumb" loading="lazy" decoding="async" src="${item.image}" alt="${item.title}">
             <div>
               <strong>${item.code} · ${item.title}</strong>
-              <small>${['','入門','進階','挑戰'][requiredGates(item)]} · 依序通過 ${requiredGates(item)} 座導航門</small>
+              <small>${item.durationLabel} · ${missionPrizes[item.id] ? "獎品："+missionPrizes[item.id] : "報酬：$"+item.rewardMoney.toLocaleString()}</small>
             </div>
             <span class="campaign-stars">${starsStr}</span>
           </button>`;
@@ -1884,19 +1923,19 @@
       const cardsHtml = `
         <div class="mp-room-chips" style="margin-bottom:6px;">
           <button type="button" class="mp-chip${curFilter === 'all' ? ' active' : ''}" data-campaign-filter="all">全部 (${ALL_CHAPTERS.length}章)</button>
-          <button type="button" class="mp-chip${curFilter === 'tw' ? ' active' : ''}" data-campaign-filter="tw">🇹🇼 台灣主線 (7章)</button>
-          <button type="button" class="mp-chip${curFilter === 'world' ? ' active' : ''}" data-campaign-filter="world">🌍 跨國遠征 (8章)</button>
+          <button type="button" class="mp-chip${curFilter === 'tw' ? ' active' : ''}" data-campaign-filter="tw">🇹🇼 台灣短程 (11關)</button>
+          <button type="button" class="mp-chip${curFilter === 'world' ? ' active' : ''}" data-campaign-filter="world">🌍 海外短程 (8關)</button>
         </div>
-        ${showTw ? `<div class="campaign-group-label" style="font-size:11.5px;color:#ffd976;font-weight:700;padding:2px 6px;">🇹🇼 臺灣本島主線戰役（EP.01 – EP.07）</div>${CHAPTERS.map(renderChBtn).join('')}` : ''}
-        ${showWorld ? `<div class="campaign-group-label" style="font-size:11.5px;color:#72e5ff;font-weight:700;padding:8px 6px 2px;">🌍 跨國都會遠征戰役（WP.08 – WP.15 · 東京 / 大阪 / 香港 / 沖繩 / 首爾 / 新加坡 / 馬尼拉 / 曼谷）</div>${WORLD_CHAPTERS.map(renderChBtn).join('')}` : ''}
+        ${showTw ? `<div class="campaign-group-label" style="font-size:11.5px;color:#ffd976;font-weight:700;padding:2px 6px;">🇹🇼 台灣 · 起降與航線</div>${[...CHAPTERS,...SHORT_CHAPTERS].map(renderChBtn).join('')}` : ''}
+        ${showWorld ? `<div class="campaign-group-label" style="font-size:11.5px;color:#72e5ff;font-weight:700;padding:8px 6px 2px;">🌍 海外 · 當地短程飛行</div>${WORLD_CHAPTERS.map(renderChBtn).join('')}` : ''}
       `;
 
       stage.innerHTML = `
         <div class="hub-section-panel">
           <div class="hub-section-head">
             <div>
-              <h2>故事模式 · 台灣主線 & 8 國都會遠征（${completedCount}/${ALL_CHAPTERS.length} 章 · ★ ${totalStars}/${ALL_CHAPTERS.length * 3}）</h2>
-              <p>每章搭載 3D 黃金光門導航走廊（每門額外 +$2,000）、支線特技目標與無線電劇情</p>
+              <h2>任務（${completedCount}/${ALL_CHAPTERS.length} 章 · ★ ${totalStars}/${ALL_CHAPTERS.length * 3}）</h2>
+              <p>一般訓練速度約 5–10 分鐘；高速與快轉會縮短時間。任務可直接選擇。</p>
             </div>
           </div>
           <div class="campaign-layout">
@@ -1913,16 +1952,16 @@
                 <p class="campaign-story-copy">${ch.story}</p>
                 <div class="campaign-meta-chips">
                   <span class="campaign-chip">機型：${ch.aircraft.toUpperCase()}</span>
-                  <span class="campaign-chip">航點：${ch.departure} → ${ch.destination}</span>
-                  <span class="campaign-chip">黃金時間：${ch.parTimeS}s</span>
-                  <span class="campaign-chip">主線報酬：+$${ch.rewardMoney.toLocaleString()} · +${ch.rewardXp} XP</span>
+                  <span class="campaign-chip">區域：${ch.departure} 周邊</span>
+                  <span class="campaign-chip">${ch.durationLabel}</span>
+                  <span class="campaign-chip mission-prize">${missionPrizes[ch.id] ? "首通解鎖："+missionPrizes[ch.id] : "獎品：遊戲金幣"}</span><span class="campaign-chip">報酬：+$${ch.rewardMoney.toLocaleString()} · +${ch.rewardXp} XP</span>
                   <span class="campaign-chip">${ch.targetText}</span>
                   <span class="campaign-chip" style="border-color:rgba(255,209,102,0.55);color:#ffe8a3;">${bonusObj.label}</span>
                 </div>
                 <small class="route-caption">航線示意</small><canvas id="campaignRouteCanvas" style="width:100%;height:110px;border-radius:10px;border:1px solid rgba(110,215,242,0.28);margin:6px 0;" aria-label="任務航路與 3D 光門預覽圖"></canvas>
                 <div class="campaign-feature-actions">
-                  <button type="button" id="hubLaunchChapterBtn" class="campaign-launch-btn">立即出發執飛 ${ch.code} →</button>
-                  <button type="button" class="hub-back-btn" data-jump-tab="upgrades">前往性能改裝工坊</button>
+                  <button type="button" id="hubLaunchChapterBtn" class="campaign-launch-btn">開始任務</button>
+                  <button type="button" class="hub-back-btn" data-jump-tab="upgrades">改裝工坊</button>
                 </div>
               </div>
             </article>
@@ -2457,7 +2496,7 @@
     const upgBtn = document.createElement('button');
     upgBtn.type = 'button';
     upgBtn.className = 'hub-back-btn';
-    upgBtn.textContent = '前往性能改裝工坊';
+    upgBtn.textContent = '改裝工坊';
     upgBtn.onclick = () => {
       modal.hidden = true;
       document.getElementById('menu')?.click();
@@ -2493,6 +2532,7 @@
     if (panel) { panel.scrollTop = 0; panel.focus({preventScroll:true}); }
   }
 
+  let pendingLocalMission=null;
   function launchMission(ch) {
     onlineFlightRequested = false;
     closeHub();
@@ -2529,6 +2569,9 @@
       aerobaticDone: false,
       startedAt: performance.now(),
       flownM: 0,
+      stableS: 0,
+      wasAirborne: false,
+      lastFlightElapsed: null,
       lastX: null,
       lastZ: null,
       maxG: 1,
@@ -2539,6 +2582,7 @@
       settled: false
     };
 
+    pendingLocalMission=ch.localCircuit?{departure:ch.departure,gates}:null;
     if (ch.quickPreset) {
       const qBtn = document.querySelector(`#quickFlights [data-quick="${ch.quickPreset}"]`);
       if (qBtn) qBtn.click();
@@ -2547,6 +2591,7 @@
       document.getElementById('fly')?.click();
     }
 
+    pendingLocalMission=null;
     const objHud = document.getElementById('storyObjectiveHud');
     if (objHud) {
       const firstLabel = ch.stages?.[0]?.label || ch.targetText;
@@ -2603,6 +2648,16 @@
     }
 
     const ch = activeMission.ch;
+    const simTime=Number(f.elapsed)||0;
+    const missionDt=activeMission.lastFlightElapsed==null?0:Math.max(0,Math.min(1,simTime-activeMission.lastFlightElapsed));
+    activeMission.lastFlightElapsed=simTime;
+    if(!f.ground) activeMission.wasAirborne=true;
+    const bankAbs=Math.abs(f.bank||0),speedKmh=(f.speed||0)*3.6;
+    const skillOk=ch.skill==='turn' ? bankAbs>=.349 && bankAbs<=.785 && Math.abs(f.pitch||0)<.20 :
+      bankAbs<.21 && Math.abs(f.pitch||0)<.14 && Math.abs(f.gForce||1)<(ch.smoothLimit||1.8) && (ch.skill!=='speed'||speedKmh>=300&&speedKmh<=450);
+    if(!f.ground && !f.ended && activeMission.gatesPassed>=3 && skillOk) activeMission.stableS+=missionDt;
+    const nearAirport=typeof allAirports!=='undefined' && allAirports.some(a=>a.code===ch.departure && Math.abs((f.x-a.x)*Math.cos(a.heading)+(f.z-a.z)*Math.sin(a.heading))<(a.width||45)*.7 && Math.abs((f.x-a.x)*Math.sin(a.heading)-(f.z-a.z)*Math.cos(a.heading))<a.length*.6);
+
     // Check 3D Sky Gate passes
     if (Array.isArray(activeMission.gates) && !f.ground) {
       for (const gate of activeMission.gates) {
@@ -2633,6 +2688,9 @@
     }
 
     const st = {
+      stableS:activeMission.stableS,
+      wasAirborne:activeMission.wasAirborne,
+      nearAirport,
       flownM: activeMission.flownM,
       elapsedS,
       maxG: activeMission.maxG,
@@ -2671,7 +2729,7 @@
           : (isTouchMode ? `已達 ${iasKt} kt！輕推左側「飛行搖桿」抬頭離地` : `已達 ${iasKt} kt！按 [↑] 或輕拉滑鼠抬頭離地`);
         objHud.textContent = `${ch.code} · 🛫 ${takeoffTip} · (${altFt} ft / ${altM}m)`;
       } else {
-        objHud.textContent = `${ch.code} · ${stagePrefix} (${pct}% · ${distKm}/${targetKm} km · 導航門 ${st.gatesPassed}/${requiredGates(ch)}${gateHint})`;
+        objHud.textContent = `${ch.code} · ${stagePrefix} · ${st.gatesPassed}/${requiredGates(ch)} 航點${gateHint}${st.gatesPassed>=3&&!ch.finishLanding ? " · 穩定 "+Math.floor(st.stableS)+"/"+ch.skillDuration+" 秒" : ""}`;
       }
     }
 
@@ -2719,6 +2777,9 @@
   globalScope.SkyboundCampaign = {
     chapters: CHAPTERS,
     worldChapters: WORLD_CHAPTERS,
+    shortChapters: SHORT_CHAPTERS,
+    getPendingLocalMission:()=>pendingLocalMission,
+    buildMissionSkyGates,
     allChapters: ALL_CHAPTERS,
     medals: MEDALS,
     upgrades: UPGRADE_TRACKS,

@@ -4363,7 +4363,7 @@ const expansionFleet=[
 fleet.push(...expansionFleet);
 
 const fleetCategories={all:'所有機型',trainer:'教練／通用',prop:'渦槳／通勤',business:'商務噴射',airliner:'民航客機',cargo:'貨運／運輸',fighter:'戰鬥／訓練',helicopter:'直升機',special:'任務解鎖'};
-const specialAircraft={f14b:{chapter:4,label:'EP.04 海上航艦'},f22a:{chapter:6,label:'EP.06 領空捍衛'},rafalec:{chapter:2,label:'EP.02 城市挑戰'},a35k:{chapter:8,label:'WP.08 跨國遠征'},g700:{chapter:1,label:'EP.01 晨曦首航'},a400m:{chapter:3,label:'EP.03 颱風任務'}};
+const specialAircraft={f14b:{chapter:4,label:'EP.04 海岸導航'},f22a:{chapter:6,label:'EP.06 花蓮機動航線'},rafalec:{chapter:2,label:'EP.02 桃園轉彎航線'},a35k:{chapter:8,label:'WP.08 東京離場'},g700:{chapter:1,label:'EP.01 松山河岸巡航'},a400m:{chapter:3,label:'EP.03 風雨離場'}};
 for(const plane of fleet){
  plane.category ||= plane.helicopter?'helicopter':plane.role==='passenger'?'airliner':plane.role||'trainer';
  plane.modelStatus ||= '既有近似模型 · 共用幾何';
@@ -4450,3 +4450,13 @@ for(const plane of fleet){
  Object.assign(plane,airframeRefinements[plane.id]||{});
  if(airframeRefinements[plane.id])plane.visualRevision='subtype-pass-1';
 }
+
+// Reward-aircraft visual pass: subtype-specific surfaces, no performance changes.
+const rewardVisuals={
+ g700:{tTail:true,wingletHeight:1.7,wingTipRatio:.25,visualRevision:'reward-074'},
+ a35k:{mainAxles:3,wingletHeight:2.7,wingFlex:.48,visualRevision:'reward-074'},
+ a400m:{propBlades:8,tTail:true,visualRevision:'reward-074'},
+ rafalec:{canard:true,delta:true,sideIntakes:true,wingTipRatio:.08,visualRevision:'reward-074'},
+ f22a:{rectangularNozzle:true,finCant:.36,twinTail:true,sideIntakes:true,visualRevision:'reward-074'}
+};
+for(const plane of fleet)Object.assign(plane,rewardVisuals[plane.id]||{});

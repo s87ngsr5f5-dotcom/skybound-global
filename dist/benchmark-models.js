@@ -613,6 +613,18 @@ function buildBenchmarkAirframe(profile,scene){
       block(group,dark,.78,.40,.03,x,-.08,z+.19);
     }
   }
+  if(profile.id==='f22a'){
+    for(const side of [-1,1]){
+      const chine=foil(group,[[side*radius*.38,-half*.72],[side*radius*1.02,-half*.30],[side*radius*.92,half*.20],[side*radius*.42,half*.28]],surface,.045);
+      chine.position.y=radius*.08;chine.name='F22 forebody chine';
+      const lip=block(group,metal,radius*.66,.045,.13,side*radius*.73,-radius*.14,-half*.32);
+      lip.rotation.z=side*.18;lip.name='F22 intake lip';
+    }
+  }
+  if(profile.id==='rafalec'){
+    const sensor=mesh(group,new THREE.SphereGeometry(radius*.11,12,8),dark,0,radius*.62,-half*.56);
+    sensor.name='Rafale forward optical sensor';
+  }
   const wheels=[];
   const bodyAxles=upperDeck?2:3;
   const bogies=antonov?[[0,-half*.65,2],...[-1,1].flatMap(side=>

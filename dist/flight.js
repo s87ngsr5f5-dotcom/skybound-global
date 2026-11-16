@@ -2714,6 +2714,7 @@ function initialize(){
     try{
       if(!aircraftUnlocked(selectedAircraft()))throw new Error(aircraftLockText(selectedAircraft()));
       const lesson=byId('lesson').value;
+      const shortMission=window.SkyboundCampaign?.getPendingLocalMission?.()||(restart?flight?.shortMission:null);
       const selection=regionalContracts[lesson]?regionalContractPlan(lesson):
         parsePlan(['free','cold','taxi','benchmark'].includes(lesson));
       const weather=byId('weather').value;
@@ -2786,12 +2787,13 @@ function initialize(){
         if(['passenger','cargo'].includes(chosen.role)&&!chosen.regionalGates&&[departure,destination].some(r=>r.width<55||r.length<3000)){
           throw new Error('此廣體機請選桃園、臺中或高雄的寬體起降場。');
         }
-        if(departure===destination&&!mission&&!circuit&&!chosen.helicopter&&lesson!=='multiplayer') throw new Error('請選不同的起降機場，或使用松山起落航線訓練。');
+        if(departure===destination&&!shortMission&&!mission&&!circuit&&!chosen.helicopter&&lesson!=='multiplayer') throw new Error('請選不同的起降機場，或使用松山起落航線訓練。');
         const mode=circuit?'runway':mission||['cold','taxi'].includes(lesson)?'cold':byId('startType').value;
-        const route=circuit?trainingRoute(departure):mission?(chosen.role==='fighter'||!byId('waypoints').value.trim()?
+        const route=shortMission?[...shortMission.gates.map(g=>({...g,name:g.name})),{x:departure.x,z:departure.z,y:departure.elevation+80,name:'返場'}]:circuit?trainingRoute(departure):mission?(chosen.role==='fighter'||!byId('waypoints').value.trim()?
           benchmarkRoute(chosen.role,departure,destination):[...selection.route.slice(0,-2),...regionalRoute(departure,destination).slice(-2)]):
           lesson==='route'?regionalRoute(departure,destination):selection.route;
         flight=makeRegionalFlight(departure,destination,chosen,mode,wind,route);
+        flight.shortMission=shortMission;
         flight.approach=approach||lesson==='crosswind';flight.lesson=lesson;flight.mission=mission?chosen.role:null;
         if(['cargo','fighter'].includes(flight.mission)){
           attachContract(flight,flight.mission,flight.mission==='cargo'?9500:6500);
@@ -4358,6 +4360,8 @@ function initialize(){
     const rawPitch=kbPitch*kbBoost-padAxis(pad?.axes[1])+(pointer.active?padAxis(pointer.y):0)+gamepadAxis(controlAxes.pitch,.06)*touchGain;
     const manual=manualAxes({pitch:rawPitch,roll:rawRoll,
       rudder:kbRudder*kbBoost+padAxis(pad?.axes[2])+gamepadAxis(touch.rudder,.06)*touchGain},settings);
+    const precisionAxis=v=>v*(.58+.42*Math.abs(v));
+    manual.roll=precisionAxis(manual.roll);manual.pitch=precisionAxis(manual.pitch);manual.rudder=precisionAxis(manual.rudder);
     let {roll,pitch}=manual;
     let assistedRudder;
     const auxThrottleUp=keys.has('ShiftLeft')||keys.has('ShiftRight')||keys.has('PageUp')||keys.has('NumpadAdd');
@@ -5950,7 +5954,7 @@ function initialize(){
         const seat=airliner?(cockpitView.preset===1?.56:-.56):0;
         const height=profile.role?(airliner?radius*.17+.80:.68):radius*.90;
         const setback=airliner?(profile.id==='b773'?.72:.52):0;
-        const gTarget=paused?0:clamp(((f.gForce||1)-1)*-0.022,-0.07,0.045);
+        const gTarget=paused?0:clamp(((f.gForce||1)-1)*-0.008,-0.022,0.016);
         chaseGHead+=(gTarget-chaseGHead)*(1-Math.exp(-dt*8));
         cockpitEye.set(panel&&airliner?-.28:seat,height+chaseGHead-(panel?.08:0),
           -half*(profile.role?.56:.22)+setback+(panel?.26:0));
