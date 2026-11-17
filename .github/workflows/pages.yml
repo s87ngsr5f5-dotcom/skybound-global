@@ -18,6 +18,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
+      - run: node verify-mission-map.cjs
       - run: node verify-flight-licensing.cjs
       - run: node verify-fleet-commerce.cjs
       - run: node verify-city-pilots.cjs

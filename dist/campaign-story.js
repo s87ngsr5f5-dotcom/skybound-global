@@ -1396,7 +1396,7 @@
           <ul class="hub-menu-list" role="tablist">
             <li><button type="button" class="hub-menu-btn" data-hub-tab="welcome"><div class="hub-menu-btn-main"><span>飛行首頁</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="licenses"><div class="hub-menu-btn-main"><span>飛行駕照</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>飛行任務</span></div><span class="hub-menu-badge">19 關</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>飛行任務</span></div><span class="hub-menu-badge">${ALL_CHAPTERS.length} 關</span></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="shop"><div class="hub-menu-btn-main"><span>機庫商店與塗裝</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>性能改裝</span></div><span class="hub-menu-badge">工坊</span></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="multiplayer"><div class="hub-menu-btn-main"><span>線上飛行</span></div><span class="hub-menu-badge" id="hubMpSideBadge">大廳</span></button></li>
@@ -1788,75 +1788,10 @@
   }
 
   function drawCampaignRoutePreview(ch) {
-    const canvas = document.getElementById('campaignRouteCanvas');
-    if (!canvas || typeof canvas.getContext !== 'function') return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const w = canvas.width = 480;
-    const h = canvas.height = 148;
-    ctx.fillStyle = '#0c2336';
-    ctx.fillRect(0, 0, w, h);
-    // Subtle radar grid
-    ctx.strokeStyle = 'rgba(110, 215, 242, 0.14)';
-    ctx.lineWidth = 1;
-    for (let x = 40; x < w; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
-    for (let y = 30; y < h; y += 36) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
-
-    const dep = (typeof allAirports !== 'undefined' && Array.isArray(allAirports)) ? allAirports.find(a => a.code === ch.departure) : null;
-    const dst = (typeof allAirports !== 'undefined' && Array.isArray(allAirports)) ? allAirports.find(a => a.code === ch.destination) : null;
-    const gates = buildMissionSkyGates(ch);
-    const pts = [dep, ...gates, dst].filter(p => p && Number.isFinite(p.x) && Number.isFinite(p.z));
-    if (pts.length >= 2) {
-      const xs = pts.map(p => p.x), zs = pts.map(p => p.z);
-      const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
-      const spanX = Math.max(8000, maxX - minX), spanZ = Math.max(5000, maxZ - minZ);
-      const scale = Math.min((w - 110) / spanX, (h - 54) / spanZ);
-      const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
-      const proj = p => [w / 2 + (p.x - cx) * scale, h / 2 + (p.z - cz) * scale];
-
-      // Draw corridor line
-      ctx.save();
-      ctx.strokeStyle = 'rgba(110, 231, 255, 0.78)';
-      ctx.lineWidth = 2.2;
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      pts.forEach((p, idx) => { const [px, py] = proj(p); idx ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
-      ctx.stroke();
-      ctx.restore();
-
-      // Draw Sky Gates
-      gates.forEach((g, idx) => {
-        const [gx, gy] = proj(g);
-        ctx.strokeStyle = '#ffd166';
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(gx, gy, 6, 0, Math.PI * 2); ctx.stroke();
-        ctx.fillStyle = '#ffe8a3';
-        ctx.font = 'bold 10px system-ui';
-        ctx.fillText(`◎ G${idx + 1}`, gx - 12, gy - 10);
-      });
-
-      if (dep) {
-        const [dx, dy] = proj(dep);
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillRect(dx - 4, dy - 4, 8, 8);
-        ctx.fillStyle = '#e0f2fe';
-        ctx.font = 'bold 11px system-ui';
-        ctx.fillText(`🛫 ${dep.code}`, Math.max(8, Math.min(w - 75, dx - 18)), Math.min(h - 10, dy + 17));
-      }
-      if (dst) {
-        const [tx, ty] = proj(dst);
-        ctx.fillStyle = '#fbbf24';
-        ctx.fillRect(tx - 4, ty - 4, 8, 8);
-        ctx.fillStyle = '#fef3c7';
-        ctx.font = 'bold 11px system-ui';
-        ctx.fillText(`🛬 ${dst.code}`, Math.max(8, Math.min(w - 75, tx - 18)), Math.max(16, ty - 10));
-      }
-    }
-    ctx.fillStyle = 'rgba(9, 23, 36, 0.86)';
-    ctx.fillRect(8, 6, 210, 20);
-    ctx.fillStyle = '#78effe';
-    ctx.font = 'bold 11px system-ui';
-    ctx.fillText(`🧭 3D 黃金光門走廊預覽 · ${ch.departure} → ${ch.destination}`, 14, 19);
+    const canvas=document.getElementById('campaignRouteCanvas');
+    const dep=typeof allAirports!=='undefined'?allAirports.find(a=>a.code===ch.departure):null;
+    const dst=typeof allAirports!=='undefined'?allAirports.find(a=>a.code===ch.destination):null;
+    if(typeof MissionRouteMap!=='undefined')MissionRouteMap.draw(canvas,ch,dep,dst,buildMissionSkyGates(ch));
   }
 
   function renderStage(tab = activeTab) {
@@ -1898,7 +1833,7 @@
             <div class="arrival-horizon"></div><div class="arrival-cloud arrival-cloud-a"></div><div class="arrival-cloud arrival-cloud-b"></div>
             <span class="arrival-caption">SKYBOUND GLOBAL<span>準備下一趟飛行</span></span>
           </div>
-          <img class="dispatch-photo" src="assets/campaign/hangar-777.jpg" alt="機庫內的 Boeing 777-300ER" fetchpriority="high">
+          <img class="dispatch-photo" src="assets/brand/hero-v077.jpg" alt="帶有光影的飛機飛越夜間城市" fetchpriority="high">
           <section class="dispatch-brief">
             <h2>飛行準備</h2>
             <a class="developer-follow" href="https://www.threads.com/@aiweb.creator" target="_blank" rel="noopener noreferrer" aria-label="在新分頁開啟開發者 Threads：aiweb.creator"><span>追蹤開發者 Threads <span aria-hidden="true">↗</span></span><small>@aiweb.creator</small></a>
@@ -2005,7 +1940,7 @@
                   <span class="campaign-chip">${ch.targetText}</span>
                   <span class="campaign-chip" style="border-color:rgba(255,209,102,0.55);color:#ffe8a3;">${bonusObj.label}</span>
                 </div>
-                <small class="route-caption">航線示意</small><canvas id="campaignRouteCanvas" style="width:100%;height:110px;border-radius:10px;border:1px solid rgba(110,215,242,0.28);margin:6px 0;" aria-label="任務航路與 3D 光門預覽圖"></canvas>
+                <small class="route-caption">航線示意 · 真實地圖</small><div class="mission-map-wrap"><canvas id="campaignRouteCanvas" style="width:100%;height:220px;border-radius:6px;border:1px solid #436071;margin:6px 0;display:block" aria-label="真實地圖上的機場、航點與飛行路線"></canvas><a class="mission-map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a></div><div class="mission-map-credit"><span id="missionMapState" role="status">地圖載入中</span></div>
                 <div class="campaign-feature-actions">
                   <button type="button" id="hubLaunchChapterBtn" class="campaign-launch-btn" ${FlightLicensing.access(ch)?"":"disabled"}>${FlightLicensing.access(ch)?(ch.isExam?"開始考試":"開始任務"):"需先取得對應駕照"}</button><button type="button" class="hub-back-btn" data-jump-tab="licenses">飛行駕照</button>
                   <button type="button" class="hub-back-btn" data-jump-tab="upgrades">改裝工坊</button>

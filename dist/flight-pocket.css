@@ -105,3 +105,10 @@ body:not(.flight-ui) #flightLookSurface{display:none}
 .hangar-home .developer-follow{display:flex;align-items:center;justify-content:space-between;gap:10px;grid-column:1/-1;min-height:48px;padding:10px 12px;margin:0 0 10px;border:1px solid #d8b26d;border-left:3px solid #d8b26d;background:#152530;color:#ffe3a8;text-decoration:none;font-size:14px;font-weight:700;text-align:left;border-radius:2px}.hangar-home .developer-follow small{font-size:12px;font-weight:400;color:#dce5e9;white-space:nowrap}.hangar-home .developer-follow:hover{background:#243743}.hangar-home .developer-follow:focus-visible{outline:3px solid #fff;outline-offset:3px}
 @media(max-height:600px){.hangar-home .developer-follow{margin:0;min-height:44px;padding:7px 10px;font-size:13px}}
 @media(max-width:380px){.hangar-home .developer-follow{flex-wrap:wrap;gap:3px}.hangar-home .developer-follow small{font-size:11px}}
+
+.mission-map-credit{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;font-size:11px;line-height:1.5;margin:0 0 12px;color:#a8c3ce}.mission-map-credit a{color:#c5dfe8;text-decoration:underline}.mission-map-credit a:focus-visible{outline:2px solid #f4cc80}
+
+/* Route previews stay available on phones; old compact UI hid this canvas. */
+#titleHub #campaignRouteCanvas{display:block!important;width:100%!important;max-width:100%!important;height:220px!important}
+
+.mission-map-wrap{position:relative;min-width:0}.mission-map-attribution{position:absolute;right:4px;bottom:4px;background:rgba(10,25,34,.9);color:#f4f8fb;font-size:10px;line-height:16px;padding:2px 4px;text-decoration:underline;z-index:1}.mission-map-attribution:focus-visible{outline:2px solid #f4cc80}

@@ -10,13 +10,13 @@
   "theme_color": "#0d2436",
   "icons": [
     {
-      "src": "assets/brand/aircraft-192.png",
+      "src": "assets/brand/aircraft-v077-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "assets/brand/aircraft-512.png",
+      "src": "assets/brand/aircraft-v077-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
