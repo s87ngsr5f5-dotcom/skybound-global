@@ -7,7 +7,8 @@ function airport(code,name,lat,lon,degrees,length,width,elevation,designator,rec
   return {code,name,lat,lon,...geoPoint(lat,lon),heading:degrees*Math.PI/180,length,width,elevation,designator,reciprocal,apron};
 }
 const taiwanAirports=[
-  airport('RCSS','松山',regionalOrigin.lat,regionalOrigin.lon,92.22,2605,60,4.11,'10','28'),
+  {...airport('RCSS','松山',regionalOrigin.lat,regionalOrigin.lon,92.22,4000,90,4.11,'10','28'),
+    referenceLength:2605,referenceWidth:60,gameExpanded:true},
   airport('RCYU','花蓮',24+(1+25.335/60)/60,121+(37+.955/60)/60,206.29,2751,45,14.48,'21','03',-170),
   airport('RCTP','桃園',25+5.02175/60,121+13.78283/60,49.08,3660,60,20.88,'05L','23R'),
   airport('RCMQ','臺中',24+15.90367/60,120+37.24308/60,176.69,3659,61,200.56,'18','36'),

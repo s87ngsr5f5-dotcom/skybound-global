@@ -1698,8 +1698,9 @@ function initialize(){
     const from=['RCQC','RCBS'].includes(to)?'RCSS':'RCTP';
     return [from,to].map(code=>airports.find(a=>a.code===code));
   };
-  const compatibleAirline=(plane,from,to)=>plane.role==='passenger'&&
-    (plane.regionalGates||[from,to].every(airport=>airport.length>=3000&&airport.width>=55));
+  const compatibleAirline=plane=>plane.role==='passenger';
+  const shortRunwayNote=(plane,from,to)=>!plane.regionalGates&&[from,to].some(r=>r.length<3000||r.width<55)?
+    ' · 提示：此機場跑道偏短或偏窄，仍可自行選擇':'';
   let lastBriefPlane;
   let hangarLiveries={};
   function updateHangar(){
@@ -1779,8 +1780,8 @@ function initialize(){
     const aircraft=selectedAircraft();
     const field=byId('airlineFuel');
     const [from,to]=airlineRoute();
-    if(!compatibleAirline(aircraft,from,to)){
-      byId('passengerBrief').textContent='請選擇適合此跑道和機位的客機。離島航線建議 A220-300。';
+    if(!compatibleAirline(aircraft)){
+      byId('passengerBrief').textContent='載客任務請選擇客機。離島航線建議 A220-300。';
       byId('fuelPreview').textContent='';
       field.disabled=true;
       return;
@@ -1802,7 +1803,7 @@ function initialize(){
     const weight=aircraft.mass+fuel-brief.capacity;
     byId('passengerBrief').textContent=from.name+' → '+to.name+' · '+(brief.distance*1.852).toFixed(0)+' km · 班表 '+brief.schedule+
       ' 分鐘 · '+byId('weather').selectedOptions[0].text+' · '+brief.passengers+' 人／'+brief.passengers+' 座 · 行李 '+
-      (brief.passengers*15).toLocaleString()+' kg · 基本報酬 '+brief.base.toLocaleString()+' 金幣';
+      (brief.passengers*15).toLocaleString()+' kg · 基本報酬 '+brief.base.toLocaleString()+' 金幣'+shortRunwayNote(aircraft,from,to);
     byId('fuelPreview').textContent='預估航程耗油 '+brief.estimated+' kg · 備降及備用 '+brief.reserve+
       ' kg · 估計起飛重量 '+weight.toLocaleString()+' kg · 估計可用 '+Math.round(60*fuel/brief.hourlyFuel)+
       ' 分鐘 · 估計用油費 '+Math.round(brief.estimated*.8).toLocaleString()+' 金幣';
@@ -2756,7 +2757,7 @@ function initialize(){
         if(approach) throw new Error('載客任務請從機位開始。');
         const profile=selectedAircraft();
         const [from,to]=airlineRoute();
-        if(!compatibleAirline(profile,from,to)) throw new Error('此機型不適用所選機位或跑道。');
+        if(!compatibleAirline(profile)) throw new Error('載客任務請選擇客機。');
         flight=makePassengerFlight(from,to,profile,wind,Number(byId('airlineFuel').value),weather,byId('time').value);
         savePassenger(flight);
       }else if(lesson==='climbLesson'){
@@ -2793,9 +2794,6 @@ function initialize(){
           mission?airports.find(a=>a.code===mission.from):lesson==='route'?airports[0]:selection.departure;
         const destination=circuit?departure:
           mission?airports.find(a=>a.code===mission.to):lesson==='route'?airports[1]:selection.destination;
-        if(['passenger','cargo'].includes(chosen.role)&&!chosen.regionalGates&&[departure,destination].some(r=>r.width<55||r.length<3000)){
-          throw new Error('此廣體機請選桃園、臺中或高雄的寬體起降場。');
-        }
         if(departure===destination&&!shortMission&&!mission&&!circuit&&!chosen.helicopter&&lesson!=='multiplayer') throw new Error('請選不同的起降機場，或使用松山起落航線訓練。');
         const mode=circuit?'runway':mission||['cold','taxi'].includes(lesson)?'cold':byId('startType').value;
         const route=shortMission?[...shortMission.gates.map(g=>({...g,name:g.name})),{x:departure.x,z:departure.z,y:departure.elevation+80,name:'返場'}]:circuit?trainingRoute(departure):mission?(chosen.role==='fighter'||!byId('waypoints').value.trim()?

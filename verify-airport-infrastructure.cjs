@@ -174,7 +174,7 @@ console.log('Testing airportInfrastructure.init & scene graph population...');
 const scene = new MockGroup();
 const testAirports = [
   { code: 'RCTP', x: 1000, y: 30, z: -2000, elevation: 30, length: 3660, heading: 0.4, width: 60, runway: '05L', opposite: '23R' },
-  { code: 'RCSS', x: 2000, y: 10, z: -1000, elevation: 10, length: 2605, heading: 1.7, width: 60, runway: '10', opposite: '28' }
+  { code: 'RCSS', x: 2000, y: 10, z: -1000, elevation: 10, length: 4000, heading: 1.7, width: 90, runway: '10', opposite: '28' }
 ];
 const testVORs = [
   { id: 'TPE', name: 'TAIPEI', lat: 25.07, lon: 121.23, freq: '114.3', elev: 35 },

@@ -6,7 +6,8 @@ const trainer = Object.freeze({
 });
 const runway10 = Object.freeze({
   lat: 25+(4+10.535/60)/60, lon: 121+(33+9.085/60)/60,
-  heading: 92.22*Math.PI/180, length:2605, width:60, elevation:4.11
+  heading: 92.22*Math.PI/180, length:4000, width:90, elevation:4.11,
+  referenceLength:2605, referenceWidth:60
 });
 const simTick = 1/120;
 const knotsPerMps = 3600/1852;
@@ -158,7 +159,7 @@ function groundHeight(x,z){
   return runway10.elevation*(1-blend)+raw*blend;
 }
 function createTrainer(approach,wind){
-  const point=worldRunway(approach?-3340:-1210,0);
+  const point=worldRunway(approach?-runway10.length/2-2037.5:-runway10.length/2+92.5,0);
   const speed=approach?33:0;
   return {
     ...point,y:approach?116:runway10.elevation+trainer.gearHeight,
