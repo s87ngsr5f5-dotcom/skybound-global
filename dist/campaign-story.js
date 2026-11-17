@@ -2184,6 +2184,7 @@
             </div>
           </div>
         </div>`;
+      globalScope.skyLauncher?.enhance?.(stage);
       return;
     }
 
