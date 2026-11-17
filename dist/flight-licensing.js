@@ -14,11 +14,11 @@ const FlightLicensing=(()=>{
  function skillOk(ch,f){
   const speed=(typeof flightSpeeds==='function'?flightSpeeds(f).ias:(f.speed||0))*3.6;
   const agl=f.y-(typeof terrainHeight==='function'?terrainHeight(f.x,f.z):0);
-  const turn=ch.skill==='turn',bank=Math.abs(f.bank||0),g=Math.abs(f.g??f.gForce??1);
-  return !f.ground&&!f.ended&&speed>=ch.speedBand[0]&&speed<=ch.speedBand[1]&&agl>=ch.aglBand[0]&&agl<=ch.aglBand[1]&&g<=ch.maxSafeG&&Math.abs(f.pitch||0)<.18&&(turn?bank>=.349&&bank<=.785:bank<.18);
+  const turn=ch.skill==='turn',bank=Math.abs(f.bank||0);
+  return !f.ground&&!f.ended&&speed>=ch.speedBand[0]-2&&speed<=ch.speedBand[1]+2&&agl>=ch.aglBand[0]&&agl<=ch.aglBand[1]&&Math.abs(f.pitch||0)<.28&&(turn?bank>=.349&&bank<=.785:bank<.35);
  }
  function landingOk(ch,f,st){
-  return !f.ended&&f.ground&&st.wasAirborne&&st.nearAirport&&Math.hypot(f.vx||0,f.vz||0)<3&&!!f.touchdown&&Number.isFinite(f.touchdown.verticalSpeed)&&Math.abs(f.touchdown.verticalSpeed)<=ch.maxSink;
+  return !f.ended&&f.ground&&st.wasAirborne&&st.nearAirport&&Math.hypot(f.vx||0,f.vz||0)<3&&!!f.touchdown&&Number.isFinite(f.touchdown.verticalSpeed)&&Math.abs(f.touchdown.verticalSpeed)<=ch.maxSink+.15;
  }
  function build(base){
   const data=[
@@ -40,14 +40,15 @@ const FlightLicensing=(()=>{
    [35,'TAC.03','雄貓夜航甄選','f14b','RCYU','tactical',null,60000,'0','20:00',44000,'turn',50,true,'f14b']
   ];
   return data.map(([id,code,title,aircraft,departure,requiredLicense,grantLicense,rewardMoney,weather,time,objectiveDistM,skill,skillDuration,finishLanding,rewardAircraft])=>{
+   skillDuration=grantLicense==='private'?20:grantLicense==='commercial'?35:grantLicense==='instrument'?45:grantLicense==='tactical'?20:Math.max(20,Math.round(skillDuration*.5));
    const tactical=requiredLicense==='tactical'||grantLicense==='tactical',basic=grantLicense==='private'||requiredLicense==='private'&&grantLicense!=='commercial'&&grantLicense!=='tactical';
-   const ch={...base,id,code,title,aircraft,departure,destination:departure,requiredLicense,grantLicense,rewardMoney,rewardAircraft,weather,time,objectiveDistM,skill,skillDuration,finishLanding,localCircuit:true,licensedMission:true,isExam:!!grantLicense,lesson:'free',startType:'runway',rewardXp:grantLicense?450:320,parTimeS:600,durationLabel:'約 5–10 分鐘',maxSafeG:tactical?5:basic?2.5:2,maxSink:basic?3:2.5,speedBand:tactical?[450,1100]:basic?[95,250]:[220,650],aglBand:tactical?[250,3000]:basic?[120,1400]:[200,2400]};
+   const ch={...base,id,code,title,aircraft,departure,destination:departure,requiredLicense,grantLicense,rewardMoney,rewardAircraft,weather,time,objectiveDistM,skill,skillDuration,finishLanding,localCircuit:true,licensedMission:true,isExam:!!grantLicense,lesson:'free',startType:'runway',rewardXp:grantLicense?450:320,parTimeS:600,durationLabel:'約 5–10 分鐘',maxSafeG:tactical?5:basic?2.5:2,maxSink:6,speedBand:tactical?[450,1100]:basic?[80,800]:[160,1400],aglBand:tactical?[250,3000]:basic?[120,1400]:[200,2400]};
    ch.image=tactical?'assets/campaign/ch6.jpg':basic?'assets/campaign/ch1.jpg':'assets/campaign/ch2.jpg';
    ch.subtitle=grantLicense?'飛行資格考試':name(requiredLicense)+'專屬任務';
    ch.skillLabel=`${skill==='turn'?'20–45° 轉彎':'平穩飛行'}累計 ${skillDuration} 秒 · IAS ${ch.speedBand.join('–')} km/h · 離地 ${ch.aglBand.join('–')} m`;
-   ch.story=`依序通過三個航點，再完成${ch.skillLabel}。${finishLanding?'返場落地，下降率不超過 '+ch.maxSink+' m/s，對正跑道並停住。':'保持飛行至訓練完成。'}全程過載不超過 ${ch.maxSafeG}G。`;
+   ch.story=`依序通過三個航點，再完成${ch.skillLabel}。${finishLanding?'返場落地，下降率不超過 '+ch.maxSink+' m/s，對正跑道並停住。':'保持飛行至訓練完成。'}`;
    ch.targetText='三航點 → 操控檢定'+(finishLanding?' → 返場停住':'');ch.radio=[{delay:2,speaker:grantLicense?'考試教官':'任務中心',text:ch.story}];
-   const passed=(f,st)=>!f.ended&&st.gatesPassed>=3&&st.stableS>=skillDuration&&st.maxG<=ch.maxSafeG;
+   const passed=(f,st)=>!f.ended&&st.gatesPassed>=3&&st.stableS>=skillDuration;
    ch.stages=[1,2,3].map(i=>({label:'通過航點 '+i,check:(f,st)=>!f.ended&&st.gatesPassed>=i}));
    ch.stages.push({label:ch.skillLabel,check:(f,st)=>passed(f,st)});
    if(finishLanding)ch.stages.push({label:'返場落地，下降率 ≤ '+ch.maxSink+' m/s 並停住',check:(f,st)=>landingOk(ch,f,st)});
@@ -56,8 +57,7 @@ const FlightLicensing=(()=>{
   });
  }
  function failure(ch,f,st){
-  if(st.maxG>ch.maxSafeG)return '操縱過載 '+st.maxG.toFixed(1)+'G，超過本關 '+ch.maxSafeG+'G。請重試。';
-  if(ch.finishLanding&&f.landed&&st.wasAirborne&&f.touchdown&&Math.abs(f.touchdown.verticalSpeed)>ch.maxSink)return '落地下降率超過 '+ch.maxSink+' m/s。請減小下降率後重試。';
+  if(ch.finishLanding&&f.landed&&st.wasAirborne&&f.touchdown&&Math.abs(f.touchdown.verticalSpeed)>ch.maxSink+.15)return '落地下降率超過 '+ch.maxSink+' m/s。請減小下降率後重試。';
   return null;
  }
  function award(ch,st,money,f){

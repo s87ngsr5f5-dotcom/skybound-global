@@ -184,8 +184,8 @@ for (const file of jsFiles) {
   assert.strictEqual(ep1.destination,ep1.departure,'Short mission stays in its departure region');
   assert.strictEqual(ep1.stages[1].check({ended:false},{gatesPassed:1}),false,'Second stage needs second gate');
   assert.strictEqual(ep1.stages[1].check({ended:false},{gatesPassed:2}),true,'Second gate advances stage');
-  assert.strictEqual(ep1.winCondition({ended:false,ground:false},{gatesPassed:3,stableS:59.9}),false,'No early completion');
-  assert.strictEqual(ep1.winCondition({ended:false,ground:false},{gatesPassed:3,stableS:60}),true,'Stable segment completes mission');
+  assert.strictEqual(ep1.winCondition({ended:false,ground:false},{gatesPassed:3,stableS:34.9}),false,'No early completion');
+  assert.strictEqual(ep1.winCondition({ended:false,ground:false},{gatesPassed:3,stableS:35}),true,'Stable segment completes mission');
   assert.strictEqual(ep1.winCondition({ended:false,ground:false},{gatesPassed:2,stableS:90}),false,'Cannot bypass navigation');
   const landing=camp.allChapters.find(c=>c.id===16);
   assert.strictEqual(landing.winCondition({ended:false,ground:true,vx:0,vz:0},{gatesPassed:3,wasAirborne:true,nearAirport:false}),false,'Off-airport stop is not a landing success');

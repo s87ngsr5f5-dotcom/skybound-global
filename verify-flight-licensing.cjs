@@ -8,7 +8,7 @@ for(const m of missions){assert(fleet.some(p=>p.id===m.aircraft),m.aircraft);ass
 assert(FlightLicensing.access(get(20)));assert(!FlightLicensing.access(get(21)));assert(!FlightLicensing.access(get(27)));assert(FlightLicensing.access({id:1}));
 const st={gatesPassed:3,stableS:200,maxG:1.5,wasAirborne:true,nearAirport:true,runId:'exam-private'};
 const landed={ground:true,ended:false,vx:0,vz:0,touchdown:{verticalSpeed:-1.5}};
-assert(!get(20).winCondition(landed,{...st,gatesPassed:2}));assert(!get(20).winCondition(landed,{...st,stableS:44}));assert(!get(20).winCondition({...landed,touchdown:{verticalSpeed:-4}},st));assert(!get(20).winCondition(landed,{...st,nearAirport:false}));assert(!get(20).winCondition(landed,{...st,maxG:4}));assert(get(20).winCondition(landed,st));
+assert(!get(20).winCondition(landed,{...st,gatesPassed:2}));assert(!get(20).winCondition(landed,{...st,stableS:19}));assert(get(20).winCondition({...landed,touchdown:{verticalSpeed:-4}},st));assert(!get(20).winCondition(landed,{...st,nearAirport:false}));assert(get(20).winCondition(landed,{...st,maxG:12}));assert(get(20).winCondition(landed,st));
 assert(!FlightLicensing.award(get(20),{...st,stableS:0},12000,landed).ok);assert(!FlightLicensing.has('private'));
 assert(FlightLicensing.award(get(20),st,12000,landed).ok);assert(FlightLicensing.has('private'));assert.equal(readMoney(),12000);assert(FlightLicensing.award(get(20),st,12000,landed).already);assert.equal(readMoney(),12000);
 assert(FlightLicensing.access(get(21)));assert(FlightLicensing.access(get(23)));assert(!FlightLicensing.access(get(22)));
@@ -18,6 +18,6 @@ const before=readMoney();assert(FlightLicensing.award(get(27),{...st,runId:'rewa
 failStore=true;assert(!FlightLicensing.award(get(22),{...st,runId:'storage-failure'},30000,landed).ok);failStore=false;assert(!FlightLicensing.has('instrument'));assert.equal(readMoney(),before);
 const saved=JSON.parse(storage.get(careerKey));assert(saved.licenses.private&&saved.licenses.commercial&&saved.owned.b744);assert.equal(Object.keys(saved.licenseReceipts).length,3);
 const ap=allAirports.find(a=>a.code==='RCSS'),air=makeRegionalFlight(ap,ap,fleet.find(p=>p.id==='c172s'),'air',0,regionalRoute(ap,ap));Object.assign(air,{ground:false,x:ap.x,z:ap.z,y:ap.elevation+500,vx:40,vy:0,vz:0,bank:0,pitch:0,g:1});
-assert(FlightLicensing.skillOk(get(20),air));assert(!FlightLicensing.skillOk(get(20),{...air,vx:160}));assert(!FlightLicensing.skillOk(get(20),{...air,bank:1}));
-assert(FlightLicensing.failure(get(20),landed,{maxG:4}));assert(FlightLicensing.failure(get(20),{...landed,landed:true,touchdown:{verticalSpeed:-5}},st));
+assert(FlightLicensing.skillOk(get(20),air));assert(!FlightLicensing.skillOk(get(20),{...air,vx:300}));assert(!FlightLicensing.skillOk(get(20),{...air,bank:1}));
+assert.equal(FlightLicensing.failure(get(20),landed,{maxG:12}),null);assert(FlightLicensing.failure(get(20),{...landed,landed:true,touchdown:{verticalSpeed:-7}},st));
 console.log('PASS licensing: 4 exams, 12 missions, prerequisite graph, no premature passing, landing limits, speed bands, persistent licenses/aircraft rewards, unique-run money, storage failure and original mission access.');

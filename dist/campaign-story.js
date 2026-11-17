@@ -684,8 +684,8 @@
     ch.subtitle = ch.finishLanding ? '導航與落地' : fighter ? '轉彎與航線' : '離場與穩定飛行';
     ch.story = ch.finishLanding ? '通過三個航點，返回出發機場落地，在跑道停住。' : '依序通過三個航點，再完成操控練習。全程在出發機場周邊。';
     ch.skill = ch.id===5?'speed':ch.id===19?'turn':ch.id===18?'smooth':'level';
-    ch.skillLabel=ch.skill==='speed'?'保持 300–450 km/h，累計 45 秒':ch.skill==='turn'?'保持 20–45° 坡度轉彎，累計 20 秒':ch.skill==='smooth'?'平穩飛行 60 秒，過載不超過 1.5G':'保持坡度小於 12°、俯仰小於 8°，累計 60 秒';
-    ch.skillDuration=ch.skill==='turn'?20:ch.skill==='speed'?45:60;
+    ch.skillLabel=ch.skill==='speed'?'保持 200–800 km/h，累計 25 秒':ch.skill==='turn'?'保持 15–50° 坡度轉彎，累計 15 秒':ch.skill==='smooth'?'保持平穩姿態，累計 35 秒':'保持坡度小於 20°、俯仰小於 16°，累計 35 秒';
+    ch.skillDuration=ch.skill==='turn'?15:ch.skill==='speed'?25:35;
     ch.targetText = ch.finishLanding ? '三航點 → 返場停住' : '三航點 → '+ch.skillLabel;
     ch.radio = [{delay:3,speaker:'任務中心',text:ch.story}];
     ch.stages = [
@@ -714,10 +714,10 @@
       };
     }
     return {
-      label: '額外獎金 $5,000：兩航點、過載不超過 2.4G',
+      label: '額外獎金 $5,000：通過兩個航點',
       rewardMoney: 5000,
       rewardXp: 120,
-      check: st => ((st.gatesPassed || 0) >= 2 && (st.maxG || 1) <= 2.4)
+      check: st => ((st.gatesPassed || 0) >= 2)
     };
   }
 
@@ -747,7 +747,7 @@
       return [[.22,0,alt*.75],[.36,.16,alt],[0,.16,alt*.8]].map(([forward,right,height],i)=>{
         const x=dep.x+(fwdX*forward+rightX*right)*distTotal,z=dep.z+(fwdZ*forward+rightZ*right)*distTotal;
         const ground=typeof terrainHeight==='function'?terrainHeight(x,z):elev;
-        return {id:i+1,name:'航點 '+(i+1),x,z,y:Math.max(elev+height,ground+180),radius:ch.aircraft==='c172s'?450:850,passed:false};
+        return {id:i+1,name:'航點 '+(i+1),x,z,y:Math.max(elev+height,ground+180),radius:ch.aircraft==='c172s'?900:1400,passed:false};
       });
     }
 
@@ -1021,15 +1021,14 @@
 
   function evaluateMissionStars(ch, st) {
     const won = true;
-    const maxG = ch.maxSafeG || 4.0;
-    const smooth = (st.maxG || 1) <= maxG && (st.warnings || 0) <= 1;
+    const smooth = (st.warnings || 0) <= 1;
     const fast = st.elapsedS <= (ch.parTimeS || 120);
     const stars = 1 + (smooth ? 1 : 0) + (fast ? 1 : 0);
     return {
       stars,
       criteria: [
         { ok: won, label: '完成全部任務階段' },
-        { ok: smooth, label: `平穩操縱（最大過載 ${(st.maxG || 1).toFixed(1)}G ≤ ${maxG}G · 警示 ${st.warnings || 0} 次）` },
+        { ok: smooth, label: `程序警示 ${st.warnings || 0} 次（目標 ≤ 1 次）` },
         { ok: fast, label: `目標時間內達成（${Math.round(st.elapsedS)}s / 目標 ${ch.parTimeS || 120}s）` }
       ]
     };
@@ -2574,7 +2573,7 @@
 
     if(ch.contractOnly){activeMission=null;const route=document.getElementById('airlineRoute');if(route)route.value='RCKH';}
     pendingLoanerAircraft=ch.aircraft;
-    pendingLocalMission=ch.localCircuit?{departure:ch.departure,gates}:null;
+    pendingLocalMission=ch.localCircuit?{departure:ch.departure,gates,assistedLanding:true}:null;
     if (ch.quickPreset) {
       const qBtn = document.querySelector(`#quickFlights [data-quick="${ch.quickPreset}"]`);
       if (qBtn) qBtn.click();
@@ -2653,8 +2652,8 @@
     activeMission.lastFlightElapsed=simTime;
     if(!f.ground) activeMission.wasAirborne=true;
     const bankAbs=Math.abs(f.bank||0),speedKmh=(f.speed||0)*3.6;
-    const skillOk=ch.licensedMission?FlightLicensing.skillOk(ch,f):ch.skill==='turn' ? bankAbs>=.349 && bankAbs<=.785 && Math.abs(f.pitch||0)<.20 :
-      bankAbs<.21 && Math.abs(f.pitch||0)<.14 && Math.abs(f.gForce||1)<(ch.smoothLimit||1.8) && (ch.skill!=='speed'||speedKmh>=300&&speedKmh<=450);
+    const skillOk=ch.licensedMission?FlightLicensing.skillOk(ch,f):ch.skill==='turn' ? bankAbs>=.262 && bankAbs<=.873 && Math.abs(f.pitch||0)<.28 :
+      bankAbs<.35 && Math.abs(f.pitch||0)<.28 && (ch.skill!=='speed'||speedKmh>=200&&speedKmh<=800);
     if(!f.ground && !f.ended && activeMission.gatesPassed>=3 && skillOk) activeMission.stableS+=missionDt;
     const nearAirport=typeof allAirports!=='undefined' && allAirports.some(a=>a.code===ch.departure && Math.abs((f.x-a.x)*Math.cos(a.heading)+(f.z-a.z)*Math.sin(a.heading))<(a.width||45)*.7 && Math.abs((f.x-a.x)*Math.sin(a.heading)-(f.z-a.z)*Math.cos(a.heading))<a.length*.6);
 
@@ -2663,7 +2662,7 @@
       for (const gate of activeMission.gates) {
         if (gate.passed) continue;
         const dHoriz = Math.hypot(f.x - gate.x, f.z - gate.z);
-        if (dHoriz <= (gate.radius || 950) && Math.abs(f.y-gate.y) <= 340-60*requiredGates(ch)) {
+        if (dHoriz <= (gate.radius || 950) && Math.abs(f.y-gate.y) <= 300) {
           gate.passed = true;
           activeMission.gatesPassed = (activeMission.gatesPassed || 0) + 1;
           awardSimMoney(2000);

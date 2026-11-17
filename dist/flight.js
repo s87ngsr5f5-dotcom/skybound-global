@@ -1545,7 +1545,7 @@ function initialize(){
   const cockpitAngles=new THREE.Euler(0,0,0,'YXZ');
   const visualPosition=new THREE.Vector3(),visualForward=new THREE.Vector3();
   const previousPose={};
-  let poseFlight=null,chaseHeading=null,chaseGHead=0,wasGround=true;
+  let poseFlight=null,chaseHeading=null,chaseHeight=0,chaseGHead=0,wasGround=true;
   function rememberPose(f){
     previousPose.x=f.x;previousPose.y=f.y;previousPose.z=f.z;
     previousPose.heading=f.heading;previousPose.pitch=f.pitch;previousPose.bank=f.bank;
@@ -5864,13 +5864,8 @@ function initialize(){
           }
         }
         wasGround=Boolean(f.ground);
-        if(!f.ground&&(Math.abs(f.gForce||1)>1.72||Math.abs(f.pitchRate)>.16)&&f.speed>42&&Math.random()<.55){
-          const tipSpan=profile.geometry[2]*0.96;
-          for(const s of [-1,1]){
-            const tip=new THREE.Vector3(s*tipSpan,profile.geometry[3]||0,profile.geometry[0]*0.12).applyQuaternion(model.quaternion).add(pos);
-            aeroFX.spawn(tip.x,tip.y,tip.z,0,0,0,0.28,0.65);
-          }
-        }
+        // Airborne puff spheres removed: retain compact tire smoke only.
+
       }
       model.userData.navLights.forEach(lamp=>lamp.visible=Boolean(f.battery&&f.lights));
       if(model.userData.strobes){
@@ -5981,8 +5976,9 @@ function initialize(){
           camera.position.set(cx,Math.max(pos.y+8.5,groundAtCam+4.8),cz);
           camera.lookAt(pos.x,pos.y+1.5,pos.z);
         }else{
-          if(chaseHeading===null||!continuous) chaseHeading=heading;
-          else chaseHeading+=wrapAngle(heading-chaseHeading)*(1-Math.exp(-dt*2.8));
+          if(chaseHeading===null||!continuous){chaseHeading=heading;chaseHeight=pos.y;}
+          else {chaseHeading+=wrapAngle(heading-chaseHeading)*(1-Math.exp(-dt*2.8));chaseHeight+=(pos.y-chaseHeight)*(1-Math.exp(-dt*5));}
+          if(f.ground)chaseHeight=pos.y;
           const orbitHeading=chaseHeading+cockpitView.yaw;
           const fwdX=Math.sin(orbitHeading),fwdZ=-Math.cos(orbitHeading);
           const speedBoost=clamp(((f.speed||0)-25)/220,0,1);
@@ -5990,12 +5986,12 @@ function initialize(){
           const elevOffset=profile.helicopter?profile.gearHeight*2.55:profile.gearHeight*3.9;
           camera.position.set(
             pos.x-fwdX*distance*Math.cos(cockpitView.pitch),
-            pos.y+elevOffset+Math.sin(cockpitView.pitch)*distance,
+            chaseHeight+elevOffset+Math.sin(cockpitView.pitch)*distance,
             pos.z-fwdZ*distance*Math.cos(cockpitView.pitch)
           );
           const lookAhead=profile.helicopter?11:14;
           const lookBaseY=profile.helicopter?1.1:.55;
-          camera.lookAt(pos.x+Math.sin(chaseHeading)*lookAhead,pos.y+lookBaseY,pos.z-Math.cos(chaseHeading)*lookAhead);
+          camera.lookAt(pos.x+Math.sin(chaseHeading)*lookAhead,chaseHeight+lookBaseY,pos.z-Math.cos(chaseHeading)*lookAhead);
         }
       }else{
         const airliner=twoSeats(profile);
@@ -6004,7 +6000,7 @@ function initialize(){
         const seat=airliner?(cockpitView.preset===1?.56:-.56):0;
         const height=profile.role?(airliner?radius*.17+.80:.68):radius*.90;
         const setback=airliner?(profile.id==='b773'?.72:.52):0;
-        const gTarget=paused?0:clamp(((f.gForce||1)-1)*-0.008,-0.022,0.016);
+        const gTarget=0;
         chaseGHead+=(gTarget-chaseGHead)*(1-Math.exp(-dt*8));
         cockpitEye.set(panel&&airliner?-.28:seat,height+chaseGHead-(panel?.08:0),
           -half*(profile.role?.56:.22)+setback+(panel?.26:0));
@@ -6014,7 +6010,7 @@ function initialize(){
           cockpitEye.set(eye.x,eye.y+chaseGHead,eye.z);
         }
         camera.position.copy(cockpitEye.applyQuaternion(model.quaternion).add(pos));
-        const turnAntic=paused||f.ground?0:clamp(bank*0.055,-0.06,0.06);
+        const turnAntic=0;
         cockpitAngles.set(cockpitView.pitch-(panel?(airliner?.24:.31):0),cockpitView.yaw+turnAntic,0);
         lookRotation.setFromEuler(cockpitAngles);
         cockpitOrientation.copy(model.quaternion).multiply(lookRotation);

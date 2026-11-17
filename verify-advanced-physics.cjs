@@ -154,8 +154,9 @@ console.log('Testing Aerodynamic Stall Buffet Vibration...');
   fStall.y = 600;
   fStall.pitch = 0.32; // Near / at stall angle (trainer stallAngle = 0.28)
   stepTrainer(fStall, { throttle: 0, trim: 0, pitch: 0, roll: 0, rudder: 0 }, 0.05);
-  assert.ok(fStall.buffet > 0.4, `Expected buffet vibration > 0.4, got ${fStall.buffet}`);
-  console.log(`PASS: Aerodynamic stall buffet triggered at high alpha: ${fStall.buffet.toFixed(2)}`);
+  assert.strictEqual(fStall.buffet,0,'Artificial attitude vibration stays off at high alpha');
+  assert.strictEqual(fStall.stall,true,'Aerodynamic stall warning remains active');
+  console.log(`PASS: Stall warning retained without attitude vibration: ${fStall.buffet.toFixed(2)}`);
 }
 
 // 5. Dynamic G-Meter & Normal Load Factor

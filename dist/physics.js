@@ -18,6 +18,7 @@ function aircraftCruiseKmh(aircraft=trainer){
   return Math.round((aircraft.rotation||55)*1.852*(aircraft.retract?2.65:2.15));
 }
 function aircraftFastKmh(aircraft=trainer){
+  if(aircraft.id==='c172s')return 800;
   if(aircraft.fastMaxKmh)return aircraft.fastMaxKmh;
   if(['sf16','f16v','fck1','m2000'].includes(aircraft.id))return 2000;
   if(aircraft.role==='fighter')return Math.round(Math.max(1600,(aircraft.maxMach||1.8)*1062)/10)*10;
@@ -50,6 +51,18 @@ function flightSpeeds(f){
   const ias=mach<=1?340.294*Math.sqrt(5*(Math.pow(1+impact/101325,2/7)-1)):
     tas*Math.sqrt(air.density/1.225);
   return {tas,ias,mach,gs:Math.hypot(f.vx,f.vz)};
+}
+// Game-only C172 IAS envelope. Rescale air-relative motion, preserving wind and direction.
+function applyTrainerSpeedEnvelope(f){
+  if(!f.fastCruise||f.ground||f.aircraft?.id!=='c172s')return null;
+  const air=atmosphere(f.y,f.temperatureOffset),ias=800/3.6;
+  const impact=101325*(Math.pow(1+.2*(ias/340.294)**2,3.5)-1);
+  const mach=Math.sqrt(5*(Math.pow(1+impact/air.pressure,2/7)-1));
+  const maxTas=mach<=1?mach*air.sound:ias/Math.sqrt(air.density/1.225);
+  const wind=flightWind(f),x=f.vx-wind.x,y=f.vy-(wind.y||0),z=f.vz-wind.z,tas=Math.hypot(x,y,z);
+  f.speedLimited=tas>maxTas;
+  if(f.speedLimited){const r=maxTas/tas;f.vx=wind.x+x*r;f.vy=(wind.y||0)+y*r;f.vz=wind.z+z*r;return maxTas;}
+  return null;
 }
 function cruiseMachTarget(f){
   if(f.fastCruise){
@@ -308,24 +321,24 @@ function stepTrainer(f, input, dt=simTick){
   if(f.ground) f.rotationPull=input.pitch>.18;
   else if(input.pitch<=.18) f.rotationPull=false;
   const rotating=f.ground||f.rotationPull;
-  const pitchTarget=limit(centerPitch+input.pitch*manualGain*bankPitchFactor*(fighterManual?.50*highSpeedAuthority:.24*maneuver*(f.hold?1:highSpeedAuthority)),
+  const pitchTarget=limit(centerPitch+input.pitch*manualGain*bankPitchFactor*(fighterManual?.50*highSpeedAuthority:(aircraft.id==='c172s'&&!attitudeAssist?.16:.24)*maneuver*(f.hold?1:highSpeedAuthority)),
     fighterManual?-.48:-.36,rotating?.21:(fighterManual?.54:.38));
   const bankTarget=input.roll*(fighterManual?1.25*highSpeedAuthority:.57*maneuver);
   f.commandPitch=pitchTarget;
   f.commandBank=bankTarget;
   const response=pitchResponse(q);
-  const pitchDamping=(fighterManual?9200:7800)+(input.yokeDamping?2100:0);
+  const pitchDamping=((fighterManual?9200:7800)+(input.yokeDamping?2100:0))*(aircraft.id==='c172s'&&!attitudeAssist?1.35:1);
   const cgMoment=lift*(aircraft.cgOffset+(payload?.shift||0)*.18)*(gameAirborne?fastTrimAuthority(q):1);
   const pitchMoment=(pitchTarget-f.pitch)*14500*response*(fighterManual?1.4:1)*aircraft.inertia[0]/1650-f.pitchRate*pitchDamping*aircraft.inertia[0]/1650+cgMoment;
   const bankMoment=wrapAngle(bankTarget-f.bank)*14000*response*(fighterManual?2.2:1)*aircraft.inertia[1]/2450-f.bankRate*(fighterManual?9500:5300)*aircraft.inertia[1]/2450;
   // Manual ailerons command a roll rate, not a limited bank-angle target.
   // Assisted navigation retains its bank-angle controller for stable approaches.
   if(!f.ground&&!attitudeAssist){
-    const maxRollRate=aircraft.rollRate??(aircraft.role==='fighter'?3.05:aircraft.mass>20000?.72:1.72);
+    const maxRollRate=aircraft.rollRate??(aircraft.role==='fighter'?3.05:aircraft.id==='c172s'?.75:aircraft.mass>20000?.72:1.72);
     const authority=limit(q/600,.08,1)*highSpeedAuthority;
     let rate=input.roll*manualGain*maxRollRate*authority;
     if(input.autoLevel&&Math.abs(input.roll)<.035)rate=limit(-wrapAngle(f.bank)*1.7,-maxRollRate*.60,maxRollRate*.60);
-    const responseTime=aircraft.role==='fighter'?.13:aircraft.mass>20000?.48:.22;
+    const responseTime=aircraft.role==='fighter'?.13:aircraft.mass>20000?.48:aircraft.id==='c172s'?.32:.22;
     const settling=Math.abs(rate)<Math.abs(f.bankRate)&&rate*f.bankRate>=0;
     f.bankRate+=(rate-f.bankRate)*(1-Math.exp(-dt/(responseTime*(settling?.42:1))));
   }else f.bankRate+=bankMoment/aircraft.inertia[1]*dt;
@@ -356,6 +369,10 @@ function stepTrainer(f, input, dt=simTick){
     }
     const pitchTau=aircraft.role==='fighter'?.12:aircraft.mass>20000?.28:.17;
     f.pitchRate+=(desiredPitchRate-f.pitchRate)*(1-Math.exp(-dt/pitchTau));
+  }else if(aircraft.id==='c172s'&&gameAirborne&&q>9000){
+    // Gentle game-mode attitude stabilization for the lightweight trainer at high IAS.
+    const targetRate=limit((pitchTarget-f.pitch)*2.8,-.65,.65);
+    f.pitchRate+=(targetRate-f.pitchRate)*(1-Math.exp(-dt/.24));
   }else{
     f.pitchRate+=pitchMoment/aircraft.inertia[0]*dt;
   }
@@ -385,17 +402,8 @@ function stepTrainer(f, input, dt=simTick){
   }
   f.bank=wrapAngle(f.bank+f.bankRate*dt);
 
-  // Aerodynamic stall & G-buffet vibration
-  const stallBuffet=(!f.ground && alpha>stallAngle*0.84 && !f.cobraActive) ? limit((alpha-stallAngle*0.84)/(stallAngle*0.16),0,1) : 0;
-  const gLimit=aircraft.role==='fighter'?7.5:2.5;
-  const currentG=f.gForce||1.0;
-  const gBuffet=(!f.ground && Math.abs(currentG-1.0)>gLimit) ? limit((Math.abs(currentG-1.0)-gLimit)/2.0,0,1) : 0;
-  const buffet=Math.max(stallBuffet,gBuffet);
-  f.buffet=buffet;
-  if(buffet>0 && !f.ground){
-    const buffetShake=Math.sin(f.elapsed*55.0)*0.002*buffet;
-    f.pitch=aerobaticManual?limit(f.pitch+buffetShake,-Math.PI*.5,Math.PI*.5):limit(f.pitch+buffetShake,pitchMin,pitchMax);
-  }
+  // Lift/drag still model stall; remove artificial attitude jitter for a steady view.
+  f.buffet=0;
 
   f.heading=wrapAngle(f.heading+f.yawRate*dt*(f.ground?limit(Math.hypot(f.vx,f.vz)/3.5,0,1):1));
   if(f.ground){
@@ -457,6 +465,7 @@ function stepTrainer(f, input, dt=simTick){
       }
     }
   }
+  const limitedTrainerSpeed=applyTrainerSpeedEnvelope(f);
   f.x+=f.vx*dt;f.y+=f.vy*dt;f.z+=f.vz*dt;
   const floor=terrain(f.x,f.z)+aircraft.gearHeight;
   if(f.ground || f.y<=floor){
@@ -464,13 +473,14 @@ function stepTrainer(f, input, dt=simTick){
       const runway=f.destination||runway10;
       const {along,cross}=f.regional?runwayCoordinates(f.x,f.z,runway):localRunway(f.x,f.z);
       f.touchdown={along,cross,verticalSpeed:f.vy,speed,pitch:f.pitch,bank:f.bank,time:f.elapsed};
+      const training=Boolean(f.shortMission?.assistedLanding);
       f.landed=Math.abs(along)<=runway.length/2 && Math.abs(cross)<=runway.width/2 && f.gear!==false &&
-        f.vy>-5 && Math.abs(f.bank)<.32 && Math.abs(wrapAngle(f.heading-runway.heading))<.40;
+        f.vy>(training?-8:-5) && Math.abs(f.bank)<(training?.50:.32) && Math.abs(wrapAngle(f.heading-runway.heading))<(training?.65:.40);
       f.ended=!f.landed;
     }
     f.ground=true;f.y=floor;f.vy=0;
   }
-  f.speed=speed;
+  f.speed=limitedTrainerSpeed??speed;
   f.vs=f.vy;
 }
 const physicsModule = {

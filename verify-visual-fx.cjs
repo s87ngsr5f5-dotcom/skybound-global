@@ -120,6 +120,8 @@ console.log('Testing 3D Scene Updates & Shockwave Transformations...');
   const speeds = { mach: 1.01 };
 
   vfx.update(mockFlight, 0.016, speeds);
+  assert.strictEqual(vfx.vfxGroup.children[0].visible,false,'Condensation cone stays hidden at Mach 1');
+  assert.strictEqual(vfx.vfxGroup.children[1].visible,false,'Expansion ring stays hidden at Mach 1');
 
   // The VFX group must contain vapor cone, shock ring, and 5 diamonds (7 elements)
   assert.strictEqual(vfx.vfxGroup.children.length, 7, 'Must have 7 VFX elements in scene group');

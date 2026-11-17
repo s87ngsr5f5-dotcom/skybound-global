@@ -79,7 +79,7 @@
       }
 
       const mach = speeds.mach || 0;
-      const tIntensity = calculateTransonicIntensity(mach);
+      const tIntensity = 0; // Condensation cone and expansion ring intentionally disabled for visibility.
       const isFighter = f.aircraft?.role === 'fighter';
       const wingSpan = f.aircraft?.geometry ? f.aircraft.geometry[2] * 2 : 14;
       const fuseLen = f.aircraft?.geometry ? f.aircraft.geometry[0] * 2 : 15;
