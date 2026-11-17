@@ -66,13 +66,22 @@ function makeGlassReadouts(canvas){
       const ias=displayKmh(speeds.ias),span=Math.min(92,height*.22);
       scaleRail(ias,ias>1100?100:50,center-offset,y,-1,'IAS km/h',cyan,span);
       scaleRail(f.y,f.y>5000?100:50,center+offset,y,1,'ALT m',gold,span);
-      // Small, see-through heading readout parked at the very top so it never covers the view.
-      const degrees=String(Math.round((f.heading*180/Math.PI+360)%360)%360).padStart(3,'0')+'°';
-      ink.fillStyle='rgba(8,20,28,.22)';
+      // Heading tape: scale ticks only, no background, parked at the very top so the view stays clear.
+      const deg=((f.heading*180/Math.PI)%360+360)%360;
+      const gap=Math.min(34,Math.max(22,width*.075)),topY=11*unit,start=Math.floor(deg/10)*10-40;
       ink.beginPath();
-      ink.roundRect?ink.roundRect(center-26,4,52,18,5):ink.rect(center-26,4,52,18);
-      ink.fill();
-      label(degrees,center,13,11,'center','rgba(255,255,255,.88)');
+      for(let tick=start;tick<=start+80;tick+=5){
+        const x=center+(tick-deg)/10*gap;
+        if(Math.abs(x-center)>gap*3.6) continue;
+        const major=tick%10===0,fade=1-Math.pow(Math.abs(x-center)/(gap*3.6),2)*.7;
+        ink.moveTo(x,topY+9*unit);ink.lineTo(x,topY+(major?17:13)*unit);
+        const hd=(tick+360)%360;
+        if(major) label(cardinal[hd]||String(hd/10).padStart(2,'0'),x,topY,9,'center',cardinal[hd]?'rgba(240,196,100,'+fade+')':'rgba(225,242,255,'+(.9*fade)+')');
+      }
+      ink.strokeStyle='rgba(190,230,255,.75)';ink.lineWidth=1.1*unit;ink.stroke();
+      ink.beginPath();ink.moveTo(center,topY+19*unit);ink.lineTo(center-3.5*unit,topY+24.5*unit);ink.lineTo(center+3.5*unit,topY+24.5*unit);ink.closePath();
+      ink.fillStyle=gold;ink.fill();
+      label(String(Math.round(deg)%360).padStart(3,'0')+'°',center,topY+33*unit,10,'center',gold);
       return;
     }
     const center=width/2,y=height*.58;
