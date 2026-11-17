@@ -336,7 +336,26 @@
             v.z = p.z;
           }
           if (v.x !== undefined && v.z !== undefined) {
-            const vor3D = buildVORStation(THREE, v, elevation);
+            // Real VOR/DME coordinates can fall inside an (enlarged) runway strip. Keep navigation data
+            // untouched, but draw the station beside the runway on the side away from the apron.
+            let drawX = v.x, drawZ = v.z, drawElevation = elevation;
+            if (Array.isArray(airports)) {
+              for (const a of airports) {
+                if (!a.length || !a.heading || a.carrier) continue;
+                const sn = Math.sin(a.heading), cs = Math.cos(a.heading);
+                const dx = v.x - a.x, dz = v.z - a.z;
+                const along = dx * sn - dz * cs, cross = dx * cs + dz * sn;
+                if (Math.abs(along) < a.length / 2 + 80 && Math.abs(cross) < (a.width || 60) / 2 + 60) {
+                  const side = -(Math.sign(a.apron) || 1);
+                  const nc = side * ((a.width || 60) / 2 + 70);
+                  drawX = a.x + along * sn + nc * cs;
+                  drawZ = a.z - along * cs + nc * sn;
+                  drawElevation = a.elevation;
+                  break;
+                }
+              }
+            }
+            const vor3D = buildVORStation(THREE, { ...v, x: drawX, z: drawZ }, drawElevation);
             infraGroup.add(vor3D);
           }
         });

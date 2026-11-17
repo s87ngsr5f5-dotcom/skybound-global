@@ -573,10 +573,10 @@ function initialize(){
     const half=airport.length/2, width=airport.width, apron=airport.apron, sideOfApron=Math.sign(apron);
     const local=airport.shortField, apronZ=local?-airport.parkingAlong:-65;
     const large=['RCTP','RJAA','RCKH','RJTT','VHHH','ROAH','RKSI','WSSS','RPLL'].includes(airport.code);
-    const gates=local?1:large?7:['RCSS','RCMQ'].includes(airport.code)?5:3;
+    const gates=local?1:large?8:['RCSS','RCMQ'].includes(airport.code)?6:4;
     const gatePitch=local?27:large?73:51, apronLength=gates*gatePitch+(local?55:80);
-    const terminalX=apron+sideOfApron*(local?22:large?112:88);
-    const terminalWidth=local?15:large?59:40;
+    const terminalWidth=local?18:large?88:60;
+    const terminalX=apron+sideOfApron*((local?14.5:large?82.5:68)+terminalWidth/2);
     const gateWall=terminalX-sideOfApron*terminalWidth/2;
     jetwayWalls.set(airport.code,gateWall);
     const group = new THREE.Group();
@@ -647,7 +647,7 @@ function initialize(){
       for(let x=-width/2;x<=width/2;x+=4) box(group,edge,.29,.15,.35,x,.105,direction*(half-10));
     }
     const buildingLength=gates*gatePitch+(local?13:25);
-    const height=local?5:large?15:10;
+    const height=local?6:large?20:14;
     box(group,roof,terminalWidth,height,buildingLength,terminalX,height/2,apronZ);
     box(group,glass,terminalWidth+.12,height*.44,buildingLength-3,terminalX,height*.55,apronZ);
     box(group,roof,terminalWidth+5,.86,buildingLength+4,terminalX,height+.35,apronZ);
