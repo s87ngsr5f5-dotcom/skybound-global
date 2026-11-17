@@ -66,11 +66,13 @@ function makeGlassReadouts(canvas){
       const ias=displayKmh(speeds.ias),span=Math.min(92,height*.22);
       scaleRail(ias,ias>1100?100:50,center-offset,y,-1,'IAS km/h',cyan,span);
       scaleRail(f.y,f.y>5000?100:50,center+offset,y,1,'ALT m',gold,span);
-      // Retain the compact heading at its existing top position.
+      // Small, see-through heading readout parked at the very top so it never covers the view.
       const degrees=String(Math.round((f.heading*180/Math.PI+360)%360)%360).padStart(3,'0')+'°';
-      ink.fillStyle='rgba(8,20,28,.87)';ink.fillRect(center-40,58,80,52);
-      label('航向',center,70,10,'center','#b6cad4');
-      label(degrees,center,92,18,'center','#ffffff');
+      ink.fillStyle='rgba(8,20,28,.22)';
+      ink.beginPath();
+      ink.roundRect?ink.roundRect(center-26,4,52,18,5):ink.rect(center-26,4,52,18);
+      ink.fill();
+      label(degrees,center,13,11,'center','rgba(255,255,255,.88)');
       return;
     }
     const center=width/2,y=height*.58;
