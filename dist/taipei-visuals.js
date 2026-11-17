@@ -64,20 +64,36 @@ function* buildTaipeiVisuals(scene,terrain){
       geometry.computeVertexNormals();batch(geometry,mat);
     }
   }
+  const inRunwayZone=p=>{const f=localRunway(p.x,p.z);return Math.abs(f.along)<runway10.length/2+40&&Math.abs(f.cross)<runway10.width/2+30;};
+  function outsideRunway(points){
+    const runs=[];let run=[];
+    const flush=()=>{if(run.length>1)runs.push(run);run=[];};
+    for(let i=0;i<points.length;i++){
+      const p=points[i];
+      if(inRunwayZone(p)){flush();continue;}
+      if(run.length){
+        const q=run[run.length-1];
+        let crosses=false;
+        for(let k=1;k<8&&!crosses;k++)crosses=inRunwayZone({x:q.x+(p.x-q.x)*k/8,z:q.z+(p.z-q.z)*k/8});
+        if(crosses)flush();
+      }
+      run.push(p);
+    }
+    flush();return runs;
+  }
   const waterPaths=[];
   for(const river of taipeiData.rivers){
     yield;
     const points=river.p.map(([lat,lon])=>geoPoint(lat,lon));
     waterPaths.push(points);
     const width=river.name.includes('基隆')?120:river.name.includes('淡水')?180:river.name.includes('新店')?130:river.name.includes('大漢')?160:18;
-    ribbon(points,width+12,bankMat,.65);
-    ribbon(points,width,waterMat,.85);
+    for(const run of outsideRunway(points)){ribbon(run,width+12,bankMat,.65);ribbon(run,width,waterMat,.85);}
   }
   const routes=[];
   for(const road of taipeiData.roads){
     yield;
     if(road.tunnel) continue;
-    const points=road.p.map(([lat,lon])=>geoPoint(lat,lon));
+    for(const points of outsideRunway(road.p.map(([lat,lon])=>geoPoint(lat,lon)))){
     const width=road.kind==='motorway'?20:road.kind==='trunk'?16:road.kind==='primary'?13:9;
     ribbon(points,width+1.6,bankMat,.72,road.bridge);
     ribbon(points,width,roadMat,.82,road.bridge);
@@ -99,6 +115,7 @@ function* buildTaipeiVisuals(scene,terrain){
     const distances=[0];
     for(let i=1;i<points.length;i++){length+=Math.hypot(points[i].x-points[i-1].x,points[i].z-points[i-1].z);distances.push(length);}
     if(length>350) routes.push({points,distances,length,bridge:road.bridge,speed:road.kind==='motorway'?22:12});
+    }
   }
   const facade=document.createElement('canvas');facade.width=128;facade.height=128;
   const ink=facade.getContext('2d');
@@ -117,7 +134,8 @@ function* buildTaipeiVisuals(scene,terrain){
     const building=taipeiData.buildings[index],points=building.p.map(([lat,lon])=>geoPoint(lat,lon));
     const center=points.reduce((a,p)=>({x:a.x+p.x/points.length,z:a.z+p.z/points.length}),{x:0,z:0});
     const frame=localRunway(center.x,center.z);
-    if(Math.abs(frame.along)<1450&&Math.abs(frame.cross)<290)continue;
+    if(Math.abs(frame.along)<runway10.length/2+160&&Math.abs(frame.cross)<290)continue;
+    if(Math.abs(frame.along)<runway10.length/2+460&&Math.abs(frame.cross)<70)continue;
     const base=ground(center.x,center.z);
     if(base<1)continue;
     const xs=points.map(p=>p.x),zs=points.map(p=>p.z);

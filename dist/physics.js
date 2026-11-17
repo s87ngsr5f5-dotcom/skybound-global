@@ -155,7 +155,7 @@ function groundHeight(x,z){
   const i=iz*301+ix;
   const raw=(elevationGrid[i]*(1-a)+elevationGrid[i+1]*a)*(1-b)
     +(elevationGrid[i+301]*(1-a)+elevationGrid[i+302]*a)*b;
-  const blend=limit(Math.max((Math.abs(along)-1380)/240,(Math.abs(cross)-300)/170),0,1);
+  const blend=limit(Math.max((Math.abs(along)-(runway10.length/2+78))/240,(Math.abs(cross)-300)/170),0,1);
   return runway10.elevation*(1-blend)+raw*blend;
 }
 function createTrainer(approach,wind){
