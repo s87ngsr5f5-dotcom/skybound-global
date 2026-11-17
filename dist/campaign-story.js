@@ -1901,6 +1901,7 @@
           <img class="dispatch-photo" src="assets/campaign/hangar-777.jpg" alt="機庫內的 Boeing 777-300ER" fetchpriority="high">
           <section class="dispatch-brief">
             <h2>飛行準備</h2>
+            <a class="developer-follow" href="https://www.threads.com/@aiweb.creator" target="_blank" rel="noopener noreferrer" aria-label="在新分頁開啟開發者 Threads：aiweb.creator"><span>追蹤開發者 Threads <span aria-hidden="true">↗</span></span><small>@aiweb.creator</small></a>
             <button type="button" id="hubQuickFreeBtn" class="campaign-launch-btn">開始飛行</button>
             <button type="button" id="hubQuickStartBtn" class="hub-back-btn" data-quick-ch="${nextCh.id}">執飛 ${nextCh.code} · ${nextCh.title.split('：').pop()}</button>
             <button type="button" id="hubOpenHangarBtn" class="hub-back-btn">進入機庫</button>

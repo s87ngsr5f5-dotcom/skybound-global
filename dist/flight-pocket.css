@@ -100,3 +100,8 @@ body:not(.flight-ui) #flightLookSurface{display:none}
 #hangarCommerce{max-height:160px;overflow:auto;font-size:13px}#hangarCommerce button{min-height:40px;margin:3px}#hangarCommerce p{margin:5px 0}
 
 @media(max-height:600px){.hangar-home .dispatch-brief{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-width:480px}.hangar-home .dispatch-brief h2{grid-column:1/-1}.hangar-home .dispatch-brief button{margin:0!important;font-size:13px;min-height:42px;padding:7px}}
+
+/* Developer profile is a normal link: no SDK, overlay or login dependency. */
+.hangar-home .developer-follow{display:flex;align-items:center;justify-content:space-between;gap:10px;grid-column:1/-1;min-height:48px;padding:10px 12px;margin:0 0 10px;border:1px solid #d8b26d;border-left:3px solid #d8b26d;background:#152530;color:#ffe3a8;text-decoration:none;font-size:14px;font-weight:700;text-align:left;border-radius:2px}.hangar-home .developer-follow small{font-size:12px;font-weight:400;color:#dce5e9;white-space:nowrap}.hangar-home .developer-follow:hover{background:#243743}.hangar-home .developer-follow:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@media(max-height:600px){.hangar-home .developer-follow{margin:0;min-height:44px;padding:7px 10px;font-size:13px}}
+@media(max-width:380px){.hangar-home .developer-follow{flex-wrap:wrap;gap:3px}.hangar-home .developer-follow small{font-size:11px}}
