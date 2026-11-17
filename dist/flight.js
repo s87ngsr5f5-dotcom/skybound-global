@@ -605,9 +605,10 @@ function initialize(){
       box(group,white,1.05,.035,airport.length-38,side*(width/2-2),.08,0);
       for(const end of [-1,1]){
         if(!local) box(group,white,Math.min(8,width*.13),.035,48,side*width*.22,.086,end*(half-315));
-        for(const distance of local?[145]:[200,430,520]){
-          box(group,white,1.9,.035,21,side*width*.25,.086,end*(half-distance));
-          if(distance===200) box(group,white,1.9,.035,21,side*width*.33,.086,end*(half-distance));
+        const tdz=local?[[145,1]]:airport.length>=2400?[[150,3],[450,2],[600,2],[750,1],[900,1]]:
+          airport.length>=1500?[[150,3],[450,2],[600,1]]:[[145,1]];
+        for(const [distance,stripes] of tdz){
+          for(let s=0;s<stripes;s++) box(group,white,1.9,.035,21,side*width*(.25+s*.08),.086,end*(half-distance));
         }
       }
       for(let i=0;i<(width<50?6:8);i++){
@@ -617,6 +618,12 @@ function initialize(){
     }
     for(let z=-half+160;z<half-155;z+=65) box(group,white,1.18,.035,34,0,.08,z);
     for(let z=-half+50;z<half-50;z+=30) box(group,lampMaterial,.28,.04,.28,0,.088,z);
+    if(!local&&!airport.carrier){
+      for(const end of [-1,1]){
+        for(let i=1;i<=14;i++) box(group,lampMaterial,.34,.16,.34,0,.1,end*(half+10+i*30));
+        for(let k=-6;k<=6;k++) if(k) box(group,lampMaterial,.34,.16,.34,k*1.5,.1,end*(half+10+10*30));
+      }
+    }
     const papiDark=material('#262a2e');
     const papiWhite=new THREE.MeshBasicMaterial({color:0xffffff});
     const papiRed=new THREE.MeshBasicMaterial({color:0xff2222});

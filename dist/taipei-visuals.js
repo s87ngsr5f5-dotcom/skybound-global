@@ -154,7 +154,7 @@ function* buildTaipeiVisuals(scene,terrain){
   block(bankMat,219,1.5,77,tsa.x,terrain(tsa.x,tsa.z)+13.7,tsa.z);
   for(let i=-3;i<4;i++)block(roofMat,7,1.3,9,tsa.x+i*25,terrain(tsa.x,tsa.z)+15,tsa.z);
   const apron=makeMat('#8c9393',{roughness:.82,metalness:.08});
-  for(let x=-1450;x<1400;x+=65){
+  for(let x=-runway10.length/2-150;x<runway10.length/2+100;x+=65){
     const p=worldRunway(x,175);
     block(lineMat,.12,.02,220,p.x,4.20,p.z,-runway10.heading);
   }
