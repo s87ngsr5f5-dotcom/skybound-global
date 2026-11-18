@@ -35,7 +35,7 @@
   }
 
   function buildWingLoft(stations, options = {}) {
-    const slices = options.slices ?? 32;
+    const slices = options.slices ?? 38;
     const capTip = options.capTip !== false;
     const mirror = Boolean(options.mirror);
     const positions = [];
@@ -115,7 +115,7 @@
 
   // Vertical or slanted airfoil fin loft (span runs along +y, lateral tilt along +/-x, chord along +z)
   function buildVerticalFoilLoft(stations, options = {}) {
-    const slices = options.slices ?? 26;
+    const slices = options.slices ?? 30;
     const capTip = options.capTip !== false;
     const positions = [];
     const uvs = [];
@@ -163,7 +163,7 @@
   }
 
   // Multi-station contoured non-axisymmetric fuselage loft (super-ellipse top/bottom profiles)
-  function buildFuselageLoft(sections, radial = 28) {
+  function buildFuselageLoft(sections, radial = 36) {
     const positions = [];
     const uvs = [];
     const indices = [];
@@ -307,7 +307,7 @@
       [L * 0.35, size * 0.90],  // aft fan cowl taper
       [L * 0.62, size * 0.80]
     ].map(([z, r]) => new THREE.Vector2(r, z));
-    const cowlGeo = new THREE.LatheGeometry(cowlPts, 36);
+    const cowlGeo = new THREE.LatheGeometry(cowlPts, 44);
     cowlGeo.rotateX(Math.PI / 2);
     mesh(cowlGeo, surface);
 
@@ -319,7 +319,7 @@
       [-L * 1.44, size * 1.005],
       [-L * 1.28, size * 1.032]
     ].map(([z, r]) => new THREE.Vector2(r, z));
-    const lipGeo = new THREE.LatheGeometry(lipPts, 36);
+    const lipGeo = new THREE.LatheGeometry(lipPts, 44);
     lipGeo.rotateX(Math.PI / 2);
     mesh(lipGeo, metal);
 
@@ -330,9 +330,13 @@
       [L * 0.94, size * 0.54],
       [L * 1.06, size * 0.45]
     ].map(([z, r]) => new THREE.Vector2(r, z));
-    const coreGeo = new THREE.LatheGeometry(corePts, 28);
+    const coreGeo = new THREE.LatheGeometry(corePts, 36);
     coreGeo.rotateX(Math.PI / 2);
     mesh(coreGeo, metal);
+
+    // Thrust-reverser translating cowl seam band
+    const revSeam = mesh(new THREE.TorusGeometry(size * 0.995, Math.max(0.008, size * 0.012), 8, 36), dark, 0, 0, -L * 0.35);
+    revSeam.scale.z = 0.5;
 
     // Serrated acoustic chevron teeth around fan & core exit if modern turbofan
     if (options.chevron !== false) {
@@ -378,16 +382,21 @@
       { x: size * 0.50, leadZ: -size * 0.11, chord: size * 0.21, y: 0, thick: 0.07, camber: 0.03, twist: 0.42 },
       { x: size * 0.80, leadZ: -size * 0.08, chord: size * 0.19, y: 0, thick: 0.04, camber: 0.02, twist: 0.24 }
     ];
-    const bladeGeo = buildWingLoft(bladeStations, { slices: 12, capTip: false });
-    const fanBlades = new THREE.InstancedMesh(bladeGeo, metal, 22);
+    const bladeGeo = buildWingLoft(bladeStations, { slices: 14, capTip: false });
+    const bladeCount = 24;
+    const fanBlades = new THREE.InstancedMesh(bladeGeo, metal, bladeCount);
     const bd = new THREE.Object3D();
-    for (let i = 0; i < 22; i++) {
+    for (let i = 0; i < bladeCount; i++) {
       bd.position.set(0, 0, 0);
-      bd.rotation.set(0, 0, (i / 22) * Math.PI * 2);
+      bd.rotation.set(0, 0, (i / bladeCount) * Math.PI * 2);
       bd.updateMatrix();
       fanBlades.setMatrixAt(i, bd.matrix);
     }
     fanGroup.add(fanBlades);
+    const spiralTip = new THREE.Mesh(new THREE.ConeGeometry(size * 0.065, size * 0.16, 12), surface);
+    spiralTip.rotation.x = -Math.PI / 2;
+    spiralTip.position.set(0, 0, -size * 0.36);
+    fanGroup.add(spiralTip);
     group.add(fanGroup);
 
     // Swept NACA aerodynamic pylon connecting nacelle cleanly into wing interior (never poking through upper skin)
@@ -460,29 +469,105 @@
   function getPanelBumpTexture(THREE) {
     if (_panelBump || !THREE || typeof document === 'undefined') return _panelBump;
     const c = document.createElement('canvas');
-    c.width = 256; c.height = 256;
+    c.width = 512; c.height = 512;
     const g = c.getContext('2d');
     g.fillStyle = '#808080';
-    g.fillRect(0, 0, 256, 256);
-    // Subtle aerospace aluminum panel seams
-    g.strokeStyle = '#5a5a5a';
-    g.lineWidth = 1.25;
-    for (let p = 0; p < 256; p += 64) {
-      g.beginPath(); g.moveTo(0, p + 0.5); g.lineTo(256, p + 0.5); g.stroke();
-      g.beginPath(); g.moveTo(p + 0.5, 0); g.lineTo(p + 0.5, 256); g.stroke();
+    g.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 1800; i++) {
+      g.fillStyle = (i & 1) ? '#848484' : '#7c7c7c';
+      g.fillRect((i * 173) % 512, (i * 97) % 512, 2, 2);
     }
-    // Micro rivet rows along seams
-    g.fillStyle = '#a4a4a4';
-    for (let x = 6; x < 256; x += 12) {
-      for (let y = 0; y < 256; y += 64) {
-        g.fillRect(x, y + 3, 1.5, 1.5);
-        g.fillRect(y + 3, x, 1.5, 1.5);
+    // Crisp aerospace aluminum skin lap seams
+    g.strokeStyle = '#525252';
+    g.lineWidth = 1.4;
+    for (let p = 0; p < 512; p += 64) {
+      g.beginPath(); g.moveTo(0, p + 0.5); g.lineTo(512, p + 0.5); g.stroke();
+      g.beginPath(); g.moveTo(p + 0.5, 0); g.lineTo(p + 0.5, 512); g.stroke();
+    }
+    g.strokeStyle = '#686868';
+    g.lineWidth = 0.9;
+    for (let p = 32; p < 512; p += 64) {
+      g.beginPath(); g.moveTo(0, p + 0.5); g.lineTo(512, p + 0.5); g.stroke();
+    }
+    // Double micro-rivet rows along seams
+    g.fillStyle = '#a8a8a8';
+    for (let x = 5; x < 512; x += 10) {
+      for (let y = 0; y < 512; y += 64) {
+        g.fillRect(x, y + 3, 1.6, 1.6);
+        g.fillRect(x, (y + 60) % 512, 1.6, 1.6);
+        g.fillRect(y + 3, x, 1.6, 1.6);
       }
     }
     _panelBump = new THREE.CanvasTexture(c);
     _panelBump.wrapS = _panelBump.wrapT = THREE.RepeatWrapping;
     _panelBump.repeat.set(6, 4);
     return _panelBump;
+  }
+
+  // Add realistic aerospace hardware details (pitot tubes, AOA vanes, APU exhaust, static wicks, SATCOM)
+  function addAirframeExternalDetails(THREE, group, profile, mats) {
+    if (!THREE || !group || !profile || !profile.geometry) return;
+    const [half, radius, span, wingY, , sweep] = profile.geometry;
+    const { surface, metal, dark } = mats;
+    const details = new THREE.Group();
+    details.name = (profile.id || 'aircraft') + ' aero external details';
+    const minSafeY = -(profile.gearHeight || 1.2) + 0.22;
+
+    // 1. Tailcone titanium APU exhaust shroud & orifice (for jets & airliners/cargo)
+    const isJetOrLarge = profile.jet || profile.role === 'passenger' || profile.role === 'cargo';
+    if (isJetOrLarge && !profile.rearEngines && profile.role !== 'fighter') {
+      const apuR = Math.max(0.035, Math.min(0.18, radius * 0.085));
+      const apuLen = Math.max(0.14, Math.min(0.65, half * 0.03));
+      const apuY = profile.role ? 0 : radius * 0.16;
+      const apuZ = half * 0.985;
+      const shroud = new THREE.Mesh(new THREE.CylinderGeometry(apuR * 0.82, apuR, apuLen, 18), metal);
+      shroud.rotation.x = Math.PI / 2;
+      shroud.position.set(0, Math.max(minSafeY, apuY), apuZ);
+      details.add(shroud);
+      const hole = new THREE.Mesh(new THREE.CircleGeometry(apuR * 0.72, 16), dark);
+      hole.position.set(0, Math.max(minSafeY, apuY), apuZ + apuLen * 0.51);
+      details.add(hole);
+    }
+
+    // 2. Forward nose pitot-static L-probes & AOA sensor vanes
+    const pitotScale = Math.max(0.35, Math.min(1.15, radius / 1.4));
+    const noseZ = -half * 0.78;
+    const noseY = Math.max(minSafeY, -radius * 0.08);
+    for (const side of [-1, 1]) {
+      const px = side * radius * 0.74;
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.035 * pitotScale, 0.018 * pitotScale, 0.09 * pitotScale), metal);
+      base.position.set(px, noseY, noseZ);
+      details.add(base);
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.006 * pitotScale, 0.009 * pitotScale, 0.18 * pitotScale, 8), metal);
+      tube.rotation.x = Math.PI / 2;
+      tube.position.set(px + side * 0.018 * pitotScale, noseY, noseZ - 0.07 * pitotScale);
+      details.add(tube);
+    }
+
+    // 3. Wingtip trailing-edge static discharge wicks
+    const tipZ = -half * 0.30 + (sweep || 0) + Math.max(0.4, half * 0.18);
+    const tipY = Math.max(minSafeY, (wingY || 0) + (profile.dihedral ?? 0.25) * 0.75);
+    const wickLen = Math.max(0.12, Math.min(0.36, span * 0.016));
+    const wickGeo = new THREE.CylinderGeometry(0.003, 0.005, wickLen, 6);
+    wickGeo.rotateX(Math.PI / 2);
+    for (const side of [-1, 1]) {
+      for (let w = 0; w < 3; w++) {
+        const frac = 0.86 + w * 0.055;
+        const wick = new THREE.Mesh(wickGeo, dark);
+        wick.position.set(side * span * frac, tipY, tipZ * frac + wickLen * 0.5);
+        details.add(wick);
+      }
+    }
+
+    // 4. Secondary Ku-band Wi-Fi dorsal dome for airliners & business jets
+    if ((profile.role === 'passenger' || profile.jet) && surface) {
+      const dome = new THREE.Mesh(buildCanoeGeometry(Math.min(1.6, half * 0.10), Math.min(0.32, radius * 0.15), Math.min(0.11, radius * 0.055)), surface);
+      dome.position.set(0, radius * (profile.role ? 1.15 : 0.91), -half * 0.22);
+      details.add(dome);
+    }
+
+    group.add(details);
+    return details;
   }
 
   let _propBlurTex = null;
@@ -535,6 +620,7 @@
     buildTwistedBlade,
     buildAeroMissile,
     getPanelBumpTexture,
-    getPropBlurTexture
+    getPropBlurTexture,
+    addAirframeExternalDetails
   };
 })(typeof window !== 'undefined' ? window : globalThis);

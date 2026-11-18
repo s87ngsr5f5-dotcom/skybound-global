@@ -39,13 +39,13 @@ function buildBenchmarkAirframe(profile,scene){
     // Smooth radius transitions without changing the station dimensions.
     for(let i=0;i<stations.length-1;i++){
       const a=stations[i],b=stations[i+1];
-      for(let j=0;j<8;j++){
-        const t=j/8,e=t*t*(3-2*t);
+      for(let j=0;j<12;j++){
+        const t=j/12,e=t*t*(3-2*t);
         profile.push(new THREE.Vector2(a[1]+(b[1]-a[1])*e,a[0]+(b[0]-a[0])*t));
       }
     }
     profile.push(new THREE.Vector2(stations.at(-1)[1],stations.at(-1)[0]));
-    const geo=new THREE.LatheGeometry(profile,80);
+    const geo=new THREE.LatheGeometry(profile,96);
     geo.rotateX(Math.PI/2);geo.scale(1,vertical,1);
     return mesh(parent,geo,material);
   }
@@ -407,10 +407,14 @@ function buildBenchmarkAirframe(profile,scene){
       const wingMat=surface.clone();wingMat.side=THREE.DoubleSide;
       const mainWing=mesh(group,wingGeo,wingMat);
       mainWing.name=(f16?'F16':profile.id)+(side<0?' port main wing':' starboard main wing');
-      // Karman blended wing-body root fairing
+      // Karman blended wing-body root fairing & embedded high-intensity wing-root landing light
       if(!fighter){
         const kGeo=AeroCraft.buildCanoeGeometry(chord*1.42,radius*.44,radius*.30);
         mesh(group,kGeo,surface,side*radius*.78,wingY+.05,root+chord*.45);
+        const rootLamp=mesh(group,new THREE.SphereGeometry(Math.min(.16,radius*.075),12,8),light,
+          side*(radius+.28),wingDihedralY(.04),wingLeadAt(.04)+.04);
+        rootLamp.scale.set(1.3,.65,.55);
+        lamps.push(rootLamp);
       }
       // Sculpted underwing flap-track canoe fairings tucked strictly inside trailing edge
       if(!fighter&&engineCount>=2){
@@ -588,6 +592,9 @@ function buildBenchmarkAirframe(profile,scene){
     mesh(group,AeroCraft.buildCanoeGeometry(half*.12,radius*.16,radius*.11),surface,0,radius*1.01,half*.02);
     mesh(group,AeroCraft.buildAeroPylonGeometry(.24*antS,.30*antS,.14*antS,.12,.14*antS),metal,0,radius*.96,half*.12);
     mesh(group,AeroCraft.buildAeroPylonGeometry(.18*antS,.22*antS,.10*antS,.12,.09*antS),metal,0,-radius*.96,half*.16).rotation.x=Math.PI;
+    if(typeof AeroCraft.addAirframeExternalDetails==='function'){
+      AeroCraft.addAirframeExternalDetails(THREE,group,profile,{surface,metal,dark});
+    }
     void vertical;
   }else{
     const fin=new THREE.Shape();fin.moveTo(0,0);fin.lineTo(half*.34,0);fin.lineTo(half*.34,tailHeight);fin.lineTo(half*.22,tailHeight*(fighter?1.10:1));fin.closePath();
@@ -655,6 +662,16 @@ function buildBenchmarkAirframe(profile,scene){
     mesh(gear,new THREE.CylinderGeometry(strut*.75,strut*.75,beamLen,10),metal,x,-height+size,z).rotation.x=Math.PI/2;
     const brace=mesh(gear,new THREE.CylinderGeometry(strut*.32,strut*.36,height*.52,8),metal,x+strut*1.6,-height*.36,z+.16);
     brace.rotation.z=-.29;
+    // Torque scissor links & taxi light on nose strut
+    const sc1=mesh(gear,new THREE.BoxGeometry(strut*.42,height*.16,strut*.25),metal,x,-height*.52,z+strut*.95);
+    sc1.rotation.x=.42;
+    const sc2=mesh(gear,new THREE.BoxGeometry(strut*.42,height*.16,strut*.25),metal,x,-height*.64,z+strut*.95);
+    sc2.rotation.x=-.42;
+    if(x===0){
+      const noseLamp=mesh(gear,new THREE.CylinderGeometry(strut*.38,strut*.38,.06,12),light,0,-height*.46,z-strut*1.12);
+      noseLamp.rotation.x=Math.PI/2;
+      lamps.push(noseLamp);
+    }
     const doorGeo=new THREE.CylinderGeometry(size*.9,.9*size,.06,10,1,false,0,Math.PI);
     const door=mesh(gear,doorGeo,surface,x+(x<0?-1:1)*size*.69,-height*.28,z);
     door.rotation.z=x<0?-.13:.13;

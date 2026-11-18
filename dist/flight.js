@@ -160,10 +160,14 @@ function initialize(){
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure=1.18;
-  const sky=document.createElement('canvas');sky.width=512;sky.height=256;
-  const skyInk=sky.getContext('2d'),skyFade=skyInk.createLinearGradient(0,0,0,256);
-  skyFade.addColorStop(0,'#63b0eb');skyFade.addColorStop(.48,'#e3f2fa');skyFade.addColorStop(.55,'#7f9888');skyFade.addColorStop(1,'#476258');
-  skyInk.fillStyle=skyFade;skyInk.fillRect(0,0,512,256);
+  const sky=document.createElement('canvas');sky.width=1024;sky.height=512;
+  const skyInk=sky.getContext('2d'),skyFade=skyInk.createLinearGradient(0,0,0,512);
+  skyFade.addColorStop(0,'#2e78c2');skyFade.addColorStop(.28,'#68b2ec');skyFade.addColorStop(.47,'#e8f4fc');
+  skyFade.addColorStop(.50,'#fff6e8');skyFade.addColorStop(.54,'#7a9484');skyFade.addColorStop(1,'#3d564d');
+  skyInk.fillStyle=skyFade;skyInk.fillRect(0,0,1024,512);
+  const sunGlow=skyInk.createRadialGradient(280,185,6,280,185,150);
+  sunGlow.addColorStop(0,'rgba(255,252,235,0.92)');sunGlow.addColorStop(.35,'rgba(255,236,195,0.38)');sunGlow.addColorStop(1,'rgba(255,236,195,0)');
+  skyInk.fillStyle=sunGlow;skyInk.fillRect(0,0,1024,512);
   const environment=new THREE.CanvasTexture(sky);
   environment.mapping=THREE.EquirectangularReflectionMapping;
   environment.colorSpace=THREE.SRGBColorSpace;
@@ -254,7 +258,7 @@ function initialize(){
           vec3 photo=texture2D(taipeiImage,vec2(imageUV.x,1.0-imageUV.y)).rgb;
           diffuseColor.rgb=mix(diffuseColor.rgb,photo*1.12,smoothstep(0.0,0.035,imageEdge));
         }
-        float closeFade=1.0-smoothstep(2200.0,18500.0,length(vViewPosition));
+        float closeFade=1.0-smoothstep(2800.0,28500.0,length(vViewPosition));
         if(closeFade>0.005){
           vec2 parcel=abs(fract(terrainXZ*0.0075)-0.5)*2.0;
           vec2 blockGrid=abs(fract(terrainXZ*0.022)-0.5)*2.0;
@@ -264,12 +268,15 @@ function initialize(){
             +sin((terrainXZ.x*0.43-terrainXZ.y*0.37))*0.30
             +cos((terrainXZ.x+terrainXZ.y)*0.85)*0.15;
           float coarsePatch=sin(terrainXZ.x*0.029+cos(terrainXZ.y*0.021)*2.0)*cos(terrainXZ.y*0.031);
-          float detailGain=1.0+closeFade*(fine*0.13+coarsePatch*0.09-parcelEdge*0.065-blockEdge*0.05);
+          float fieldQuilt=terrainWorldPos.y<180.0?smoothstep(0.15,0.85,sin(terrainXZ.x*0.0042)*cos(terrainXZ.y*0.0038)*0.5+0.5)*0.07:0.0;
+          float ridgeStrata=terrainWorldPos.y>160.0?sin(terrainWorldPos.y*0.095+sin(terrainXZ.x*0.012)*2.4)*0.065:0.0;
+          float detailGain=1.0+closeFade*(fine*0.14+coarsePatch*0.10+fieldQuilt+ridgeStrata-parcelEdge*0.068-blockEdge*0.052);
           diffuseColor.rgb=clamp(diffuseColor.rgb*detailGain,0.0,1.0);
         }
-        if(terrainWorldPos.y>0.1&&terrainWorldPos.y<3.6&&diffuseColor.b<=diffuseColor.r*1.38){
-          float beachMix=1.0-smoothstep(0.4,3.4,terrainWorldPos.y);
-          diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.82,0.77,0.64),beachMix*0.52);
+        if(terrainWorldPos.y>0.08&&terrainWorldPos.y<4.2&&diffuseColor.b<=diffuseColor.r*1.38){
+          float beachMix=1.0-smoothstep(0.4,3.8,terrainWorldPos.y);
+          float surfFoam=terrainWorldPos.y<1.35?(0.55+0.45*sin(terrainXZ.x*0.08+terrainXZ.y*0.08+seaSkyTime*2.1)):0.0;
+          diffuseColor.rgb=mix(diffuseColor.rgb,mix(vec3(0.83,0.78,0.65),vec3(0.94,0.97,1.0),surfFoam*0.45),beachMix*0.58);
         }
         if(terrainWorldPos.y>3050.0){
           float snowMix=smoothstep(3050.0,3480.0,terrainWorldPos.y+sin(terrainXZ.x*0.008)*85.0);
@@ -416,7 +423,7 @@ function initialize(){
           const near=Math.max(Math.abs(col-cx),Math.abs(row-cz))<=1;
           const nearAirport=airports.some(airport=>Math.abs(airport.x-(col+.5)*span)<span*.85&&
             Math.abs(airport.z-(row+.5)*span)<span*.85);
-          const step=(mountain||nearAirport)&&near?120:terrainStep(col,row);
+          const step=near?120:terrainStep(col,row);
           const old=terrainChunks.get(key)?.userData;
           if(old?.colorRevision!==terrainColorRevision||old.step!==step){
             terrainQueue.push({col,row,key,step,mountain,distance:(x/span-col-.5)**2+(z/span-row-.5)**2});
@@ -454,16 +461,23 @@ function initialize(){
         const forest=height>=1.5&&height<=3500?(treeCover(worldX,worldZ)||0):0;
         const nearHubUrban=height<190&&airports.some(a=>!a.shortField&&!a.carrier&&Math.abs(worldX-a.x)<20000&&Math.abs(worldZ-a.z)<20000);
         const urban=nearHubUrban||(height<160&&worldX>-9000&&worldX<11000&&worldZ>-4500&&worldZ<9500);
-        const cBiome=height>=0.7&&typeof WorldAtlas!=='undefined'&&typeof WorldAtlas.countryAt==='function'
-          ?(Math.abs(worldX)>180000||Math.abs(worldZ)>300000?WorldAtlas.countryAt(latLon(worldX,worldZ).lon,latLon(worldX,worldZ).lat)?.biome:null)
-          :null;
+        const isGlobalLand=height>=0.7&&(Math.abs(worldX)>120000||Math.abs(worldZ)>220000);
+        const ll=isGlobalLand&&typeof latLon==='function'?latLon(worldX,worldZ):null;
+        const cInfo=ll&&typeof WorldAtlas!=='undefined'&&typeof WorldAtlas.countryAt==='function'?WorldAtlas.countryAt(ll.lon,ll.lat):null;
+        const cBiome=cInfo?.biome||null;
+        const microVar=(Math.sin(worldX*0.00065+worldZ*0.00042)*Math.cos(worldZ*0.00058-worldX*0.00031))*0.055;
+        const highLatSnow=ll&&Math.abs(ll.lat)>46?2150:3150;
         if(height<.7) colors.setXYZ(i,.15,.44,.84);
-        else if(height>3150){
-          const snow=clamp((height-3150)/420,0,1);
+        else if(height>highLatSnow){
+          const snow=clamp((height-highLatSnow)/420,0,1);
           colors.setXYZ(i,.68+.26*snow,.66+.29*snow,.62+.35*snow);
         }else if(cBiome==='arid'){
-          const aridVar=Math.sin(worldX*0.0005)*Math.cos(worldZ*0.0005)*0.06;
-          colors.setXYZ(i,.81+aridVar,.72+aridVar,.54+aridVar*.6);
+          const canyon=clamp((height-180)/650,0,1)*0.12;
+          colors.setXYZ(i,.82+microVar-canyon*.3,.71+microVar-canyon*.5,.52+microVar*.6-canyon*.4);
+        }else if(cBiome==='mediterranean'){
+          colors.setXYZ(i,.72+microVar,.79+microVar*.8,.60+microVar*.5);
+        }else if(cBiome==='tropical'){
+          colors.setXYZ(i,.46+microVar*.6,.76+microVar*.8,.48+microVar*.5);
         }else if(mountain&&height>350){
           const slope=Math.hypot(terrainVertex(worldX+120,worldZ)-height,terrainVertex(worldX,worldZ+120)-height)/120;
           const rock=Math.max(clamp((height-2650)/1100,0,1)*.68,clamp((slope-.68)/1.05,0,.88));
@@ -471,9 +485,12 @@ function initialize(){
           const r=.67-.39*canopy,g=.84-.42*canopy,b=.62-.34*canopy;
           colors.setXYZ(i,r+(.66-r)*rock,g+(.64-g)*rock,b+(.58-b)*rock);
         }else if(forest>.08) colors.setXYZ(i,.74-.43*forest,.89-.44*forest,.73-.46*forest);
-        else if(height>1000) colors.setXYZ(i,.69,.76,.70);
-        else if(urban) colors.setXYZ(i,.68,.72,.72);
-        else if(cBiome==='boreal') colors.setXYZ(i,.54,.68,.58);
+        else if(height>850){
+          const alpine=clamp((height-850)/1400,0,1);
+          colors.setXYZ(i,.64+.06*alpine+microVar*.5,.73-.05*alpine+microVar*.5,.65-.03*alpine+microVar*.5);
+        }else if(urban) colors.setXYZ(i,.68,.72,.72);
+        else if(cBiome==='boreal') colors.setXYZ(i,.52+microVar*.5,.67+microVar*.6,.56+microVar*.4);
+        else if(isGlobalLand) colors.setXYZ(i,.68+microVar,.85+microVar*.9,.66+microVar*.6);
         else colors.setXYZ(i,.76,.91,.75);
       }
       terrainBuild.index=end;
@@ -871,13 +888,14 @@ function initialize(){
       else{glass.position.set(0,radius*.42,-length*.34);glass.rotation.x=-.11;}
     }else{glass.position.set(0,radius*.63,-length*.37);glass.scale.set(radius*.92,radius*.59,length*.23);}
     group.add(glass);
-    const sideWinCount=(!profile.jet&&count>=2&&length>6.5)?4:(!profile.jet?2:0);
+    const sideWinCount=profile.jet?(length>10?6:4):((count>=2&&length>6.5)?4:2);
     for(let i=0;i<sideWinCount;i++){
       for(const side of [-1,1]){
-        const wz=-length*.06+i*length*.11;
+        const wz=profile.jet?(-length*.16+i*(length*.36/Math.max(1,sideWinCount-1))):(-length*.06+i*length*.11);
         const taper=wz>length*.20?Math.max(.55,1-(wz-length*.20)/(length*.80)*.52):1;
-        const win=new THREE.Mesh(new THREE.CapsuleGeometry(radius*.068,length*.04,4,8),windowMat);
-        win.rotation.x=Math.PI/2;win.position.set(side*radius*.92*taper,radius*.22,wz);
+        const win=new THREE.Mesh(new THREE.CapsuleGeometry(radius*.064,length*.036,4,10),windowMat);
+        win.name='Cabin side window';
+        win.rotation.x=Math.PI/2;win.position.set(side*radius*.92*taper,radius*.20,wz);
         group.add(win);
       }
     }
@@ -966,8 +984,21 @@ function initialize(){
         {y:radius*.16,leadZ:length*.28,chord:length*.66,thick:.085},
         {y:radius*.72,leadZ:length*.53,chord:length*.38,thick:.095},
         {y:radius*2.35,leadZ:length*.72,chord:length*.16,thick:.085}
-      ],{slices:20,capTip:true}),accent);
+      ],{slices:24,capTip:true}),accent);
       group.add(vFin);
+      if(!highWing){
+        for(const s of [-1,1]){
+          const fillet=new THREE.Mesh(AeroCraft.buildCanoeGeometry(rootChord*1.12,radius*.24,radius*.16),fuselage);
+          fillet.position.set(s*radius*.72,wingHeight+.02,leadRoot+rootChord*.42);
+          group.add(fillet);
+        }
+      }
+      const finBeacon=new THREE.Mesh(new THREE.SphereGeometry(Math.max(.045,radius*.075),10,8),new THREE.MeshBasicMaterial({color:0xff2824}));
+      finBeacon.position.set(0,radius*2.38,length*.80);
+      group.add(finBeacon);navLights.push(finBeacon);
+      if(typeof AeroCraft.addAirframeExternalDetails==='function'){
+        AeroCraft.addAirframeExternalDetails(THREE,group,profile,{surface:fuselage,metal:chrome,dark:trimDark});
+      }
       const nTopY=-radius*.32,nTopZ=-length*.48,nBotZ=-length*.56,ndy=nPantY-nTopY,ndz=nBotZ-nTopZ;
       const nLeg=new THREE.Mesh(new THREE.CylinderGeometry(radius*.055,radius*.045,Math.hypot(ndy,ndz),10),chrome);
       nLeg.position.set(0,nTopY+ndy*.5,nTopZ+ndz*.5);

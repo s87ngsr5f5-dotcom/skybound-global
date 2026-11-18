@@ -636,7 +636,21 @@ function regionalHeight(x,z){
     const {lat,lon}=latLon(x,z);
     if(lat<21.8||lat>25.4||lon<119.3||lon>122.1){
       const glH=WorldAtlas.globalLandElevation(lon,lat,x,z);
-      if(glH>height) height=glH;
+      if(glH>height){
+        height=glH;
+        // Smooth metropolitan basin around global airports so cities & approach corridors sit on realistic plains
+        for(const r of internationalAirports){
+          if(r.carrier||r.region==='tw') continue;
+          const d=Math.hypot(x-r.x,z-r.z);
+          if(d<22000){
+            const t=Math.max(0,Math.min(1,(d-5200)/16800));
+            const smooth=t*t*(3-2*t);
+            const basinElev=Math.max(1.8,r.elevation);
+            height=basinElev+(height-basinElev)*smooth;
+            break;
+          }
+        }
+      }
     }
   }
   for(const r of allAirports){

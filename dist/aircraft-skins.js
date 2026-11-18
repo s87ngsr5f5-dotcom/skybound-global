@@ -459,7 +459,7 @@ const aircraftSkins = (() => {
     const isF16 = isFighter && (profile.id === 'sf16' || profile.f16Family);
     const isPassenger = profile.role === 'passenger' || profile.role === 'cargo';
     const isHelicopter = Boolean(profile.helicopter);
-    const isTrainer = profile.id === 'c172s';
+    const isTrainer = profile.id === 'c172s' || (!isFighter && !isPassenger && !isHelicopter);
     const half = profile.geometry ? profile.geometry[0] : 10;
     const radius = profile.geometry ? profile.geometry[1] : 1.5;
     const span = profile.geometry ? profile.geometry[2] : 12;
@@ -578,11 +578,14 @@ const aircraftSkins = (() => {
           depthWrite: false
         });
 
-        if ((profile.id === 'b773' || profile.id === 'sf748') && typeof THREE.BufferGeometry === 'function' && typeof THREE.Float32BufferAttribute === 'function') {
+        if (typeof THREE.BufferGeometry === 'function' && typeof THREE.Float32BufferAttribute === 'function') {
           const zStart = -half * 0.04 - bannerLength * 0.5;
           const zEnd = -half * 0.04 + bannerLength * 0.5;
+          const aftTaperStart = half * 0.50;
+          const fwdTaperStart = -half * 0.62;
+          const vScale = profile.antonov ? 1.12 : (profile.role === 'cargo' && !profile.sideCargo && !profile.tailCargo) ? 1.06 : 1.18;
           for (const side of [-1, 1]) {
-            const segZ = 18, segY = 4;
+            const segZ = 22, segY = 5;
             const posArr = [], uvArr = [], idxArr = [];
             for (let iy = 0; iy <= segY; iy++) {
               const v = iy / segY;
@@ -590,9 +593,10 @@ const aircraftSkins = (() => {
               for (let iz = 0; iz <= segZ; iz++) {
                 const t = iz / segZ;
                 const z = zStart + (zEnd - zStart) * t;
-                const taper = z > 16.5 ? Math.max(0.84, 1 - (z - 16.5) * 0.032) : z < -22.5 ? Math.max(0.86, 1 - (-22.5 - z) * 0.028) : 1;
+                const taper = z > aftTaperStart ? Math.max(0.84, 1 - ((z - aftTaperStart) / Math.max(1, half * 0.35)) * 0.16)
+                  : z < fwdTaperStart ? Math.max(0.86, 1 - ((fwdTaperStart - z) / Math.max(1, half * 0.28)) * 0.14) : 1;
                 const rSurf = radius * taper + 0.032;
-                posArr.push(side * rSurf * Math.cos(ang), rSurf * Math.sin(ang), z);
+                posArr.push(side * rSurf * Math.cos(ang), rSurf * vScale * Math.sin(ang), z);
                 uvArr.push(side > 0 ? 1 - t : t, v);
                 if (iy && iz) {
                   const a = iy * (segZ + 1) + iz, b = a - (segZ + 1);
@@ -645,22 +649,52 @@ const aircraftSkins = (() => {
       }
     }
 
-    // C. General Aviation Decals (Flush Cabin Side Swoops staying within untapered mid-fuselage)
+    // C. General Aviation & Bizjet Decals (Contoured Flush Cabin Side Swoops)
     if (isTrainer) {
       const trainerTex = createTrainerLiveryTexture(THREE);
       if (trainerTex) {
-        const tGeo = new THREE.PlaneGeometry(half * 0.72, radius * 0.44);
         const tMat = new THREE.MeshBasicMaterial({
           map: trainerTex,
           transparent: true,
           side: THREE.DoubleSide,
           depthWrite: false
         });
-        for (const side of [-1, 1]) {
-          const tMesh = new THREE.Mesh(tGeo, tMat);
-          tMesh.rotation.y = side * Math.PI / 2;
-          tMesh.position.set(side * (radius * 0.99), radius * 0.08, -half * 0.08);
-          decalGroup.add(tMesh);
+        if (typeof THREE.BufferGeometry === 'function' && typeof THREE.Float32BufferAttribute === 'function') {
+          const zStart = -half * 0.42, zEnd = half * 0.28;
+          for (const side of [-1, 1]) {
+            const segZ = 14, segY = 4;
+            const posArr = [], uvArr = [], idxArr = [];
+            for (let iy = 0; iy <= segY; iy++) {
+              const v = iy / segY;
+              const ang = -0.18 + v * 0.44;
+              for (let iz = 0; iz <= segZ; iz++) {
+                const t = iz / segZ;
+                const z = zStart + (zEnd - zStart) * t;
+                const taper = z > half * 0.16 ? Math.max(0.62, 1 - ((z - half * 0.16) / Math.max(0.5, half * 0.40)) * 0.38) : 1;
+                const rSurf = radius * taper + 0.018;
+                posArr.push(side * rSurf * Math.cos(ang), rSurf * 0.90 * Math.sin(ang) + radius * 0.04, z);
+                uvArr.push(side > 0 ? 1 - t : t, v);
+                if (iy && iz) {
+                  const a = iy * (segZ + 1) + iz, b = a - (segZ + 1);
+                  idxArr.push(a, b, a - 1, b, b - 1, a - 1);
+                }
+              }
+            }
+            const cGeo = new THREE.BufferGeometry();
+            cGeo.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
+            cGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvArr, 2));
+            cGeo.setIndex(idxArr);
+            cGeo.computeVertexNormals();
+            decalGroup.add(new THREE.Mesh(cGeo, tMat));
+          }
+        } else {
+          const tGeo = new THREE.PlaneGeometry(half * 0.72, radius * 0.44);
+          for (const side of [-1, 1]) {
+            const tMesh = new THREE.Mesh(tGeo, tMat);
+            tMesh.rotation.y = side * Math.PI / 2;
+            tMesh.position.set(side * (radius * 0.99), radius * 0.08, -half * 0.08);
+            decalGroup.add(tMesh);
+          }
         }
       }
     }
