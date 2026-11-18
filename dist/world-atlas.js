@@ -376,7 +376,7 @@ const WorldAtlas = (() => {
     };
     img.referrerPolicy = 'no-referrer';
     img.src = `https://mt${(tx + y) & 3}.google.com/vt/lyrs=${lyrs}&hl=zh-TW&x=${tx}&y=${y}&z=${z}`;
-    while (satCache.size > 360) {
+    while (satCache.size > 520) {
       const firstKey = satCache.keys().next().value;
       satCache.delete(firstKey);
     }
@@ -522,7 +522,7 @@ const WorldAtlas = (() => {
       }
     }
 
-    // 3. Google Maps Satellite / Hybrid Web Mercator Tiles (Viewport-Clipped for 60fps at any zoom level!)
+    // 3. Google Maps Satellite / Hybrid / Terrain / Street Web Mercator Tiles (100% edge-to-edge coverage at z=2..16!)
     let satDrawn = 0;
     const notify = onTileLoad || (ctx.canvas && ctx.canvas._onSatelliteTileLoad) || null;
     if (satMode && typeof Image !== 'undefined' && typeof ctx.drawImage === 'function') {
@@ -531,20 +531,33 @@ const WorldAtlas = (() => {
         for (let ty = 0; ty < 2; ty++) for (let tx = 0; tx < 2; tx++) getSatTile(satMode, 1, tx, ty, notify);
         for (let ty = 0; ty < 4; ty++) for (let tx = 0; tx < 4; tx++) getSatTile(satMode, 2, tx, ty, notify);
       }
-      const [pWest] = projectLonLat(minLon, (minLat + maxLat) * 0.5);
-      const [pEast] = projectLonLat(maxLon, (minLat + maxLat) * 0.5);
+      const satMinLon = boundsLonLat ? Math.max(-180, boundsLonLat.minLon) : -180;
+      const satMaxLon = boundsLonLat ? Math.min(180, boundsLonLat.maxLon) : 180;
+      const satMinLat = boundsLonLat ? Math.max(-84, boundsLonLat.minLat) : -75;
+      const satMaxLat = boundsLonLat ? Math.min(84, boundsLonLat.maxLat) : 84;
+      const satLonSpan = Math.max(0.004, satMaxLon - satMinLon);
+      const [pWest] = projectLonLat(satMinLon, (satMinLat + satMaxLat) * 0.5);
+      const [pEast] = projectLonLat(satMaxLon, (satMinLat + satMaxLat) * 0.5);
       const spanPx = Math.max(128, Math.abs(pEast - pWest));
-      const worldSpanPx = spanPx * (360 / lonSpan);
-      const tz = tileZoom || Math.max(2, Math.min(13, Math.round(Math.log2(worldSpanPx / 256))));
-      const n = 1 << tz;
+      const worldSpanPx = spanPx * (360 / satLonSpan);
+      let tz = tileZoom || Math.max(2, Math.min(16, Math.round(Math.log2(worldSpanPx / 256))));
+      let n = 1 << tz;
+      let tx0 = boundsLonLat ? lonToTileX(satMinLon, n) : 0;
+      let tx1 = boundsLonLat ? lonToTileX(satMaxLon, n) : n - 1;
+      let ty0 = boundsLonLat ? latToTileY(satMaxLat, n) : 0;
+      let ty1 = boundsLonLat ? latToTileY(satMinLat, n) : n - 1;
+      // Step zoom down instead of clipping edges so satellite tiles always cover 100% of the canvas
+      while (tz > 2 && ((tx1 - tx0 + 1) > 8 || (ty1 - ty0 + 1) > 8)) {
+        tz--;
+        n = 1 << tz;
+        tx0 = boundsLonLat ? lonToTileX(satMinLon, n) : 0;
+        tx1 = boundsLonLat ? lonToTileX(satMaxLon, n) : n - 1;
+        ty0 = boundsLonLat ? latToTileY(satMaxLat, n) : 0;
+        ty1 = boundsLonLat ? latToTileY(satMinLat, n) : n - 1;
+      }
 
-      let tx0 = boundsLonLat ? lonToTileX(minLon, n) : 0;
-      let tx1 = boundsLonLat ? lonToTileX(maxLon, n) : n - 1;
-      let ty0 = boundsLonLat ? latToTileY(maxLat, n) : 0;
-      let ty1 = boundsLonLat ? latToTileY(minLat, n) : n - 1;
-      if (tx1 - tx0 > 10) { const mid = (tx0 + tx1) >> 1; tx0 = mid - 5; tx1 = mid + 5; }
-      if (ty1 - ty0 > 10) { const mid = (ty0 + ty1) >> 1; ty0 = Math.max(0, mid - 5); ty1 = Math.min(n - 1, mid + 5); }
-
+      ctx.imageSmoothingEnabled = true;
+      try { ctx.imageSmoothingQuality = 'high'; } catch {}
       for (let ty = ty0; ty <= ty1; ty++) {
         if (ty < 0 || ty >= n) continue;
         const latTop = Math.max(-84, Math.min(84, tileLat(ty, n)));
@@ -559,15 +572,23 @@ const WorldAtlas = (() => {
           if (x1 < -2 || x0 > w + 2 || py + ph < -2 || py > h + 2 || pw < 1.5 || ph < 1.5) continue;
           const entry = getSatTile(satMode, tz, tx, ty, notify);
           if (entry && entry.state === 'ready') {
-            ctx.drawImage(entry.img, x0, py, pw + 0.7, ph + 0.7);
+            ctx.drawImage(entry.img, x0, py, pw + 0.75, ph + 0.75);
             satDrawn++;
           } else {
             const anc = findAncestorSatTile(satMode, tz, tx, ty);
             if (anc) {
-              ctx.drawImage(anc.img, anc.sx, anc.sy, anc.sw, anc.sh, x0, py, pw + 0.7, ph + 0.7);
+              ctx.drawImage(anc.img, anc.sx, anc.sy, anc.sw, anc.sh, x0, py, pw + 0.75, ph + 0.75);
               satDrawn++;
             }
           }
+        }
+      }
+      // Subtle 1-tile perimeter prefetch when zoomed in for smoother panning
+      if (tz >= 4 && tz <= 14 && boundsLonLat) {
+        const midX = (tx0 + tx1) >> 1, midY = (ty0 + ty1) >> 1;
+        const ring = [[tx0 - 1, midY], [tx1 + 1, midY], [midX, ty0 - 1], [midX, ty1 + 1]];
+        for (const [px, py] of ring) {
+          if (py >= 0 && py < n) getSatTile(satMode, tz, px, py, null);
         }
       }
     }

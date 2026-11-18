@@ -4628,11 +4628,20 @@ function initialize(){
       if(Math.abs(roll)+Math.abs(pitch)+Math.abs(manual.rudder)+(!f.hold.climb?Math.abs(throttle):0)>.15) stopNavigation(f);
       else {
         if(!f.hold.nav){
-          roll=clamp(wrapAngle(f.hold.heading-f.heading)*2,-.45,.45);
-          const desiredVS=clamp((f.hold.altitude-f.y)*.14,-5,5);
-          pitch=clamp(.36+(desiredVS-f.vy)*.11,-.7,.85);
-          throttle=1;
-          if(f.hold.mach||f.fastCruise) ({pitch,throttle}=f.hold.climb?climbCruiseControls(f):cruiseControls(f));
+          if(typeof autopilotControls==='function'){
+            const apOut=autopilotControls(f);
+            if(apOut){
+              roll=apOut.roll;
+              pitch=apOut.pitch;
+              throttle=apOut.throttle;
+            }
+          }else{
+            roll=clamp(wrapAngle(f.hold.heading-f.heading)*2,-.45,.45);
+            const desiredVS=clamp((f.hold.altitude-f.y)*.14,-5,5);
+            pitch=clamp(.36+(desiredVS-f.vy)*.11,-.7,.85);
+            throttle=1;
+            if(f.hold.mach||f.fastCruise) ({pitch,throttle}=f.hold.climb?climbCruiseControls(f):cruiseControls(f));
+          }
           if(f.hold.climb&&manualThrottle) throttle=manualThrottle;
         }
       }
@@ -4815,7 +4824,7 @@ function initialize(){
     }
     const satBtn=byId('radarSatBtn');
     if(satBtn){
-      const satModes=[['y','🛰 衛星'],['s','🌎 純衛'],['p','⛰ 地形'],['','🧭 航圖']];
+      const satModes=[['y','🛰 衛星'],['s','🌎 純衛'],['p','⛰ 地形'],['m','🗺 街道'],['','🧭 航圖']];
       satBtn.addEventListener('click',()=>{
         const idx=satModes.findIndex(m=>m[0]===radarSatMode);
         const next=satModes[(idx+1)%satModes.length];
@@ -4947,19 +4956,18 @@ function initialize(){
       :Math.min(width,height)*0.44/zoomRange;
     radarLastScale=scale;
     const project=p=>[width/2+(p.x-centerX)*scale,height/2+(p.z-centerZ)*scale];
-    if(f.ground&&radarCustomRange===0&&radarPanX===0&&radarPanZ===0) {
-      radar.fillStyle='#2c443b';
-      radar.fillRect(0,0,width,height);
-      // Airport Surface Map elements
+    drawTaiwanMap(radar,project,{width,height});
+    if(f.ground) {
+      // Airport Surface Map elements overlaid on real satellite imagery
       for(const ap of airports){
-        if(Math.hypot(ap.x-f.x,ap.z-f.z)<8000){
+        if(Math.hypot(ap.x-f.x,ap.z-f.z)<9000){
           const t1=airportPoint(ap,-ap.length/2,ap.apron||65);
           const t2=airportPoint(ap,ap.length/2,ap.apron||65);
-          mapPath(radar,[t1,t2],project,'#38564a',8);
-          mapPath(radar,[airportPoint(ap,-ap.length/2,0),airportPoint(ap,ap.length/2,0)],project,'#d9e2e5',5);
+          mapPath(radar,[t1,t2],project,'rgba(56, 86, 74, 0.85)',7);
+          mapPath(radar,[airportPoint(ap,-ap.length/2,0),airportPoint(ap,ap.length/2,0)],project,'#e8f2f5',5);
         }
       }
-    }else drawTaiwanMap(radar,project,{width,height});
+    }
     const nextLegs=f.ground?[]:f.route?.slice((f.waypoint??0)+1)||[];
     radar.lineWidth=2;
     if(trail.length>1) mapPath(radar,trail,project,'#dcb771');
@@ -4969,15 +4977,27 @@ function initialize(){
     mapPath(radar,[f,target],project,'#80dcff');
     if(parkingGoal){const [gx,gy]=project(parkingGoal);radar.fillStyle='#ffdc56';radar.strokeStyle='#111b25';radar.lineWidth=2;radar.beginPath();radar.arc(gx,gy,7,0,Math.PI*2);radar.fill();radar.stroke();radar.font='bold 13px system-ui';radar.fillText('停機位 A1',gx+10,gy-8);}
     const [ownX,ownY]=project(f);
-    // Extended Runway Centerline / Localizer Guidance
+    // Extended Runway Centerline + ILS Localizer Feather Cone & TOD Marker
     if(destination&&!f.ground){
       const extLen=15000;
+      const thr=airportPoint(destination,-destination.length/2,0);
       const p1=airportPoint(destination,-destination.length/2-extLen,0);
       const p2=airportPoint(destination,destination.length/2+extLen,0);
+      const fLeft=airportPoint(destination,-destination.length/2-extLen,-1150);
+      const fRight=airportPoint(destination,-destination.length/2-extLen,1150);
+      const [tx,ty]=project(thr);
+      const [flx,fly]=project(fLeft);
+      const [frx,fry]=project(fRight);
       const [x1,y1]=project(p1);
       const [x2,y2]=project(p2);
       radar.save();
-      radar.strokeStyle='rgba(255, 207, 94, 0.4)';
+      // ILS Localizer Feather Cone
+      radar.fillStyle=f.hold?.stage==='final'?'rgba(52, 211, 153, 0.24)':'rgba(101, 220, 255, 0.14)';
+      radar.strokeStyle=f.hold?.stage==='final'?'rgba(52, 211, 153, 0.72)':'rgba(101, 220, 255, 0.42)';
+      radar.lineWidth=1;
+      radar.beginPath();radar.moveTo(tx,ty);radar.lineTo(flx,fly);radar.lineTo(frx,fry);radar.closePath();
+      radar.fill();radar.stroke();
+      radar.strokeStyle='rgba(255, 207, 94, 0.45)';
       radar.lineWidth=1.5;
       radar.setLineDash([4,4]);
       radar.beginPath();radar.moveTo(x1,y1);radar.lineTo(x2,y2);radar.stroke();
@@ -4987,6 +5007,32 @@ function initialize(){
       const [rx2,ry2]=project(r2);
       radar.strokeStyle='#ffd700';radar.lineWidth=3.5;radar.setLineDash([]);
       radar.beginPath();radar.moveTo(rx1,ry1);radar.lineTo(rx2,ry2);radar.stroke();
+      // Top-of-Descent (TOD) ring along approach axis
+      const todDist=clamp((f.y-destination.elevation)/.0524,8000,75000);
+      if(f.y-destination.elevation>450&&destinationDistance>todDist*0.75){
+        const todPt=airportPoint(destination,-destination.length/2-todDist,0);
+        const [tdx,tdy]=project(todPt);
+        if(tdx>10&&tdx<width-10&&tdy>10&&tdy<height-14){
+          radar.strokeStyle='#38bdf8';radar.lineWidth=1.6;
+          radar.beginPath();radar.arc(tdx,tdy,4.2,0,Math.PI*2);radar.stroke();
+          radar.fillStyle='#bae6fd';radar.font='700 9px monospace';radar.textAlign='left';
+          radar.fillText('T/D',tdx+6,tdy+3);
+        }
+      }
+      radar.restore();
+    }
+    // Autopilot Target Heading Bug (when HDG/TOGA hold is active)
+    if(!f.ground&&f.hold&&!f.hold.nav&&Number.isFinite(f.hold.heading)){
+      const bugDist=Math.max(80,f.speed||80)*55;
+      const [bx,by]=project({x:f.x+Math.sin(f.hold.heading)*bugDist,z:f.z-Math.cos(f.hold.heading)*bugDist});
+      radar.save();
+      radar.strokeStyle='rgba(244, 114, 182, 0.85)';
+      radar.lineWidth=1.6;
+      radar.setLineDash([5,3]);
+      radar.beginPath();radar.moveTo(ownX,ownY);radar.lineTo(bx,by);radar.stroke();
+      radar.setLineDash([]);
+      radar.fillStyle='#f472b6';
+      radar.beginPath();radar.arc(bx,by,3,0,Math.PI*2);radar.fill();
       radar.restore();
     }
     // Concentric Range Rings (5km, 15km, 30km)
@@ -5154,7 +5200,18 @@ function initialize(){
     const direction=['北','東北','東','東南','南','西南','西','西北'][Math.round(bearing/45)%8];
     byId('nav').textContent='下一站 '+(target.name||'松山跑道')+'\n往'+direction+' '+Math.round(bearing)+'° · '+(f.ground?Math.round(distance)+' m':(distance/1000).toFixed(1)+' km');
     const geo=latLon(f.x,f.z);
-    byId('coords').textContent=geo.lat.toFixed(4)+'°N · '+geo.lon.toFixed(4)+'°E';
+    const activeRegion=typeof WorldAtlas!=='undefined'&&WorldAtlas.countryAt?WorldAtlas.countryAt(geo.lon,geo.lat):null;
+    const latStr=Math.abs(geo.lat).toFixed(4)+'°'+(geo.lat>=0?'N':'S');
+    const lonStr=Math.abs(geo.lon).toFixed(4)+'°'+(geo.lon>=0?'E':'W');
+    byId('coords').textContent=(activeRegion?activeRegion.zh+' · ':'公海空域 · ')+latStr+' · '+lonStr;
+    if(activeRegion){
+      radar.font='600 10px system-ui';
+      const cTag=activeRegion.zh;
+      const cw=radar.measureText(cTag).width+10;
+      radar.fillStyle='rgba(10,30,46,0.85)';radar.fillRect(58,5,cw,19);
+      radar.strokeStyle='rgba(122,255,190,0.45)';radar.lineWidth=1;radar.strokeRect(58,5,cw,19);
+      radar.fillStyle='#a7f3d0';radar.fillText(cTag,63,15);
+    }
     radar.restore();
   }
   function drawWaypointChip(f){
@@ -5650,7 +5707,147 @@ function initialize(){
       byId('instrumentType').textContent+=' · 燃油 '+Math.round(f.fuel)+' kg'+(f.passengers?' · '+f.passengers+' 名旅客':'');
     }
     if(f.mission==='passenger') byId('instrumentType').textContent='旅客 '+f.passengers+' 人 · 燃油 '+Math.round(f.fuel).toLocaleString()+' kg · 餘額 $'+readMoney().toLocaleString();
+    updateAutopilotMcp(f,speeds);
   }
+  let apMcpLastUpdate=0;
+  function setupAutopilotMcp(){
+    const hudEl=byId('hud');
+    if(!hudEl||byId('autopilotMcp')) return;
+    const wrap=document.createElement('div');
+    wrap.id='autopilotMcp';
+    wrap.className='ap-mcp-wrap';
+    wrap.innerHTML=`
+      <button type="button" id="apFmaStrip" class="ap-fma-strip" aria-expanded="false" title="點擊展開／收合自動駕駛 MCP 面板">
+        <span class="ap-fma-badge" id="apFmaAp">AP OFF</span>
+        <span class="ap-fma-cell" id="apFmaLat">MANUAL</span>
+        <span class="ap-fma-cell" id="apFmaVert">MANUAL</span>
+        <span class="ap-fma-cell" id="apFmaThr">MAN THR</span>
+        <span class="ap-fma-caret">▾</span>
+      </button>
+      <div id="apMcpDrawer" class="ap-mcp-drawer" hidden>
+        <div class="ap-mcp-modes">
+          <button type="button" data-ap-mode="nav">🧭 LNAV/自動降落</button>
+          <button type="button" data-ap-mode="hdg">🎯 HDG/ALT</button>
+          <button type="button" data-ap-mode="apr">📡 APR ILS</button>
+          <button type="button" data-ap-mode="toga">🚀 TO/GA</button>
+          <button type="button" data-ap-mode="off" class="ap-btn-off">✕ 斷開</button>
+        </div>
+        <div class="ap-mcp-knobs">
+          <div class="ap-knob-row"><span>ALT</span><button type="button" data-ap-alt="-500">-500</button><b id="apValAlt">--- m</b><button type="button" data-ap-alt="500">+500</button><button type="button" data-ap-alt="sync">同步</button></div>
+          <div class="ap-knob-row"><span>HDG</span><button type="button" data-ap-hdg="-15">-15°</button><b id="apValHdg">---°</b><button type="button" data-ap-hdg="15">+15°</button><button type="button" data-ap-hdg="sync">同步</button></div>
+          <div class="ap-knob-row"><span>SPD</span><button type="button" data-ap-spd="-20">-20</button><b id="apValSpd">AUTO</b><button type="button" data-ap-spd="20">+20</button><button type="button" data-ap-spd="auto">自動</button></div>
+        </div>
+      </div>
+    `;
+    hudEl.appendChild(wrap);
+    const strip=byId('apFmaStrip'), drawer=byId('apMcpDrawer');
+    strip?.addEventListener('click',()=>{
+      const open=!drawer.hidden;
+      drawer.hidden=open;
+      strip.setAttribute('aria-expanded',String(!open));
+    });
+    const deck=byId('desktopControlDeck');
+    if(deck&&!byId('deckApMcpBtn')){
+      const btn=document.createElement('button');
+      btn.type='button';btn.id='deckApMcpBtn';btn.textContent='✈ AP 面板';
+      btn.addEventListener('click',()=>strip?.click());
+      deck.insertBefore(btn,deck.querySelector('.deck-sep'));
+    }
+    const ensureEditableHold=()=>{
+      if(!flight||flight.ground||!flight.battery||flight.finished||flight.aircraft?.helicopter) return null;
+      if(!flight.hold) flight.hold={mode:'hdg',heading:flight.heading,altitude:Math.round(flight.y)};
+      return flight.hold;
+    };
+    wrap.addEventListener('click',e=>{
+      const mBtn=e.target.closest('[data-ap-mode]');
+      if(mBtn&&flight){
+        const m=mBtn.dataset.apMode;
+        if(m==='off'){stopNavigation(flight);showPill('✈ 自動駕駛已斷開 (AP OFF)');}
+        else if(flight.ground||!flight.battery||flight.finished){showPill('⚠ 需於空中且航電供電時啟用自動駕駛');}
+        else if(flight.aircraft?.helicopter){toggleHelicopterHover(flight);}
+        else if(m==='nav'){
+          flight.navMessage='';
+          flight.hold={nav:true,altitude:Math.max(Math.round(flight.y),flight.destination?.elevation?flight.destination.elevation+600:1200)};
+          showPill('🧭 自動駕駛：LNAV / VNAV 自動導航與降落接通');
+        }else if(m==='apr'){
+          flight.navMessage='';
+          flight.hold={nav:true,forceApproach:true,altitude:Math.round(flight.y)};
+          showPill('📡 自動駕駛：ILS 盲降進場模式 (APR) 已待命');
+        }else if(m==='hdg'){
+          flight.navMessage='';
+          flight.hold={mode:'hdg',heading:flight.heading,altitude:Math.round(flight.y)};
+          showPill('🎯 自動駕駛：航向／高度保持 (HDG / ALT HOLD)');
+        }else if(m==='toga'){
+          flight.navMessage='';
+          const safeAlt=Math.max(Math.round(flight.y)+450,(flight.destination?.elevation||0)+900);
+          flight.hold={mode:'toga',heading:flight.destination?.heading??flight.heading,altitude:safeAlt};
+          showPill('🚀 TO/GA 重飛模式：全油門爬升至 '+safeAlt+' m');
+        }
+        apMcpLastUpdate=0;
+        return;
+      }
+      const altBtn=e.target.closest('[data-ap-alt]');
+      if(altBtn){
+        const h=ensureEditableHold();if(!h) return;
+        const v=altBtn.dataset.apAlt;
+        h.altitude=v==='sync'?Math.round(flight.y):clamp((h.altitude??Math.round(flight.y))+Number(v),300,15000);
+        apMcpLastUpdate=0;return;
+      }
+      const hdgBtn=e.target.closest('[data-ap-hdg]');
+      if(hdgBtn){
+        const h=ensureEditableHold();if(!h) return;
+        if(h.nav){delete h.nav;delete h.stage;h.mode='hdg';h.heading=flight.heading;}
+        const v=hdgBtn.dataset.apHdg;
+        h.heading=v==='sync'?flight.heading:wrapAngle((h.heading??flight.heading)+Number(v)*rad);
+        apMcpLastUpdate=0;return;
+      }
+      const spdBtn=e.target.closest('[data-ap-spd]');
+      if(spdBtn){
+        const h=ensureEditableHold();if(!h) return;
+        const v=spdBtn.dataset.apSpd;
+        if(v==='auto'){delete h.userIAS;}
+        else{
+          const cur=Number.isFinite(h.userIAS)?h.userIAS:Math.round(flightSpeeds(flight).ias*knotsPerMps);
+          h.userIAS=clamp(cur+Number(v),Math.round((flight.aircraft?.approach||110)+20),420);
+        }
+        apMcpLastUpdate=0;
+      }
+    });
+  }
+  function updateAutopilotMcp(f,speeds){
+    const wrap=byId('autopilotMcp');
+    if(!wrap) return;
+    const hide=!f||f.tactical||f.finished||Boolean(replay)||overviewActive;
+    wrap.hidden=hide;
+    if(hide) return;
+    const now=performance.now();
+    if(now-apMcpLastUpdate<180) return;
+    apMcpLastUpdate=now;
+    const fma=typeof computeAutopilotFMA==='function'?computeAutopilotFMA(f):{active:Boolean(f.hold),ap:f.hold?'AP ON':'AP OFF',lat:'—',vert:'—',thr:'—'};
+    const apEl=byId('apFmaAp');
+    if(apEl){
+      apEl.textContent=fma.ap;
+      apEl.classList.toggle('active',Boolean(fma.active));
+    }
+    const latEl=byId('apFmaLat'),vertEl=byId('apFmaVert'),thrEl=byId('apFmaThr');
+    if(latEl) latEl.textContent=fma.lat;
+    if(vertEl) vertEl.textContent=fma.vert;
+    if(thrEl) thrEl.textContent=fma.thr;
+    const h=f.hold;
+    const valAlt=byId('apValAlt'),valHdg=byId('apValHdg'),valSpd=byId('apValSpd');
+    if(valAlt) valAlt.textContent=Math.round(h?.altitude??f.y)+' m';
+    if(valHdg){
+      const deg=Math.round((((h?.heading??f.heading)*180/Math.PI)%360+360)%360);
+      valHdg.textContent=String(deg).padStart(3,'0')+'°';
+    }
+    if(valSpd) valSpd.textContent=Number.isFinite(h?.userIAS)?Math.round(h.userIAS)+' kt':'AUTO';
+    for(const b of wrap.querySelectorAll('[data-ap-mode]')){
+      const m=b.dataset.apMode;
+      const isAct=(m==='nav'&&h?.nav&&!h?.forceApproach)||(m==='apr'&&h?.nav&&h?.forceApproach)||(m==='hdg'&&h&&!h.nav&&h.mode!=='toga')||(m==='toga'&&h?.mode==='toga');
+      b.classList.toggle('active',Boolean(isAct));
+    }
+  }
+  setupAutopilotMcp();
   const approachGateGeometry=new THREE.BufferGeometry();
   approachGateGeometry.setAttribute('position',new THREE.Float32BufferAttribute(
     [-27,-12,0,27,-12,0,27,12,0,-27,12,0],3));

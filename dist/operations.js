@@ -516,15 +516,20 @@ function updateRegionalFlight(f,save=recordFlight){
 }
 function stopNavigation(f){
   if(f.hold?.speedBrake) f.spoilers=false;
+  if(f.hold?.autoReverse) f.reverse=false;
   f.hold=null;
 }
 function navigationControls(f,target){
   const hold=f.hold, runway=f.destination;
   if(f.landed){
     hold.stage='rollout';
-    if(Math.hypot(f.vx,f.vz)<.8){f.parkingBrake=true;stopNavigation(f);}
+    const gs=Math.hypot(f.vx,f.vz);
+    if(f.aircraft.jet&&!f.spoilers&&gs>18){f.spoilers=true;hold.speedBrake=true;}
+    if((f.aircraft.jet||f.aircraft.reverse)&&gs>24){f.reverse=true;hold.autoReverse=true;}
+    else if(hold.autoReverse&&gs<18){f.reverse=false;hold.autoReverse=false;}
+    if(gs<.8){f.parkingBrake=true;stopNavigation(f);}
     return {roll:0,pitch:-.25,throttle:-.8,brake:true,
-      rudder:limit(wrapAngle(runway.heading-f.heading)*2,-.4,.4)};
+      rudder:limit(wrapAngle(runway.heading-f.heading)*2.2,-.42,.42)};
   }
   const frame=runwayCoordinates(f.x,f.z,runway);
   const distance=-frame.along-runway.length/2;
@@ -535,13 +540,15 @@ function navigationControls(f,target){
   const speeds=flightSpeeds(f);
   const ias=speeds.ias*knotsPerMps;
   hold.cruiseIAS??=limit(ias,f.aircraft.approach+65,320);
-  const capture=distance>150&&distance<finalDistance+2500&&Math.abs(frame.cross)<850&&
-    Math.abs(wrapAngle(runway.heading-f.heading))<.70;
+  const crossGate=hold.forceApproach?2200:850;
+  const hdgGate=hold.forceApproach?1.05:.70;
+  const capture=distance>150&&distance<finalDistance+2500&&Math.abs(frame.cross)<crossGate&&
+    Math.abs(wrapAngle(runway.heading-f.heading))<hdgGate;
   const descentRange=Math.max(38000,(hold.altitude-runway.elevation)/.0524-finalDistance+28000)
     +(f.fastCruise?Math.max(0,speeds.gs-250)*650:0);
-  if(approachLeg&&capture) hold.stage='final';
+  if((approachLeg||hold.forceApproach)&&capture) hold.stage='final';
   else if(hold.stage!=='final'&&hold.stage!=='descent'){
-    hold.stage=approachLeg&&remaining<descentRange?'descent':'route';
+    hold.stage=(approachLeg||hold.forceApproach)&&remaining<descentRange?'descent':'route';
   }
   const final=hold.stage==='final';
   const approach=final||hold.stage==='descent';
@@ -552,32 +559,61 @@ function navigationControls(f,target){
     f.navMessage='進場未穩定 · 自動導航已退出，請加油門重飛';
     return {roll:0,pitch:.35,throttle:.7};
   }
-  if(approachLeg){
+  if(approachLeg||hold.forceApproach){
     if(remaining<4600) hold.interceptPassed=true;
     target=final?airportPoint(runway,frame.along+1800,0):
       hold.interceptPassed?airportPoint(runway,-runway.length/2-5200,0):intercept;
   }
   const dx=target.x-f.x,dz=target.z-f.z;
+  const distToTarget=Math.hypot(dx,dz);
   const wind=flightWind(f);
   const crosswind=wind.x*Math.cos(runway.heading)+wind.z*Math.sin(runway.heading);
-  const crab=Math.atan2(crosswind,Math.max(30,speeds.tas));
-  const desired=final?runway.heading-crab-limit(frame.cross/420,-.32,.32):Math.atan2(dx,-dz);
+  const height=f.y-runway.elevation-f.aircraft.gearHeight;
+  const flare=final&&distance<0&&height<(f.aircraft.jet?12:3.6);
+  // Smooth decrab in the last 6m AGL for runway-aligned touchdown
+  const decrabScale=flare&&height<6?limit(height/6,0,1):1;
+  const crab=Math.atan2(crosswind,Math.max(30,speeds.tas))*decrabScale;
+  // Cross-track derivative damping in final locks ILS centerline without S-turn oscillation
+  const crossRate=f.vx*Math.cos(runway.heading)+f.vz*Math.sin(runway.heading);
+  const locCorrection=limit((frame.cross+crossRate*3.2)/420,-.32,.32);
+  let desired=final?runway.heading-crab-locCorrection:Math.atan2(dx,-dz);
+  // LNAV Lead-Turn Anticipation on en-route waypoints (stays inside the 1900m waypoint sequencing radius)
+  if(!approach&&!approachLeg&&f.route&&f.waypoint<f.route.length-1){
+    const nextWp=f.route[f.waypoint+1];
+    if(nextWp){
+      const leg1=Math.atan2(dx,-dz);
+      const leg2=Math.atan2(nextWp.x-target.x,-(nextWp.z-target.z));
+      const turnDelta=Math.abs(wrapAngle(leg2-leg1));
+      const turnRadius=limit((speeds.gs*speeds.gs)/(9.80665*0.46),450,2400);
+      const leadDist=limit(turnRadius*Math.tan(Math.min(1.0,turnDelta*0.45)),450,2350);
+      if(distToTarget<leadDist&&turnDelta>0.10){
+        const blend=limit(1-distToTarget/leadDist,0,0.45);
+        desired=leg1+wrapAngle(leg2-leg1)*blend;
+      }
+    }
+  }
   const track=Math.atan2(f.vx,-f.vz);
   const heading=desired+limit(wrapAngle(desired-track)*.55,-.22,.22);
   const tas=Math.max(24,speeds.tas);
   const q=.5*1.225*Math.exp(-Math.max(0,f.y)/8500)*tas**2;
   let altitude=hold.altitude, feedForward=0;
-  let targetIAS=hold.cruiseIAS;
+  let targetIAS=Number.isFinite(hold.userIAS)?Math.max(f.aircraft.approach+18,hold.userIAS):hold.cruiseIAS;
   let terrainClearance=0;
   if(!final){
     const bearing=Math.atan2(dx,-dz);
     const directionX=Math.sin(bearing),directionZ=-Math.cos(bearing);
-    const horizon=Math.min(15000,Math.hypot(dx,dz));
-    for(const fraction of [.12,.35,.62,1]){
+    // Speed-scaled GPWS look-ahead (15 km..34 km) prevents mountain clipping at high speeds
+    const lookHorizon=limit(speeds.gs*52,15000,34000);
+    const horizon=Math.min(lookHorizon,Math.max(distToTarget,15000));
+    const margin=approach?300:340;
+    for(const fraction of [.10,.25,.45,.68,.88,1]){
       const lookAhead=horizon*fraction;
-      terrainClearance=Math.max(terrainClearance,regionalHeight(f.x+directionX*lookAhead,f.z+directionZ*lookAhead)+300);
+      terrainClearance=Math.max(terrainClearance,regionalHeight(f.x+directionX*lookAhead,f.z+directionZ*lookAhead)+margin);
     }
+    hold.terrainActive=terrainClearance>altitude+5;
     altitude=Math.max(altitude,terrainClearance);
+  }else{
+    hold.terrainActive=false;
   }
   if(approach){
     const alongDistance=final?Math.max(0,distance+(f.aircraft.jet?350:125)):hold.interceptPassed?
@@ -585,14 +621,13 @@ function navigationControls(f,target){
     const glide=runway.elevation+f.aircraft.gearHeight+alongDistance*.0524;
     altitude=final?glide:Math.max(Math.min(hold.altitude,glide),terrainClearance);
     if(final||glide<altitude+1&&altitude<hold.altitude) feedForward=-Math.min(final?6:12,speeds.gs*.0524);
-    targetIAS=final?f.aircraft.approach+5:Math.min(hold.cruiseIAS,f.aircraft.approach+19+remaining/500);
+    targetIAS=final?f.aircraft.approach+5:Math.min(targetIAS,f.aircraft.approach+19+remaining/500);
     if(final){
       f.gear=true;
       if(ias<f.aircraft.approach+31) f.flaps=2;
       else if(ias<f.aircraft.approach+49) f.flaps=1;
     }
   }
-  const height=f.y-runway.elevation-f.aircraft.gearHeight;
   if(hold.speedBrake&&(!approach||height<140||ias<targetIAS+12)){
     f.spoilers=false;
     hold.speedBrake=false;
@@ -600,19 +635,99 @@ function navigationControls(f,target){
     f.spoilers=true;
     hold.speedBrake=true;
   }
-  const flare=final&&distance<0&&height<(f.aircraft.jet?12:3.6);
-  const desiredVS=flare?-.75:limit(feedForward+(altitude-f.y)*(final?.29:.095),final?-8:-13,6);
+  const vsCap=Number.isFinite(hold.userVS)&&!final?limit(Math.abs(hold.userVS),2,18):null;
+  const maxClimbVS=vsCap??6;
+  const maxDescVS=vsCap?-vsCap:(final?-8:-13);
+  const desiredVS=flare?-.75:limit(feedForward+(altitude-f.y)*(final?.29:.095),maxDescVS,maxClimbVS);
   const lift=flightMass(f)*(9.80665+limit((desiredVS-f.vy)*1.2,-4,4))/(q*f.aircraft.wingArea*Math.max(.72,Math.cos(f.bank)));
   const fastQ=.5*atmosphere(f.y,f.temperatureOffset).density*tas**2;
   const attitude=f.fastCruise&&fastQ>14000?fastLevelPitch(f,fastQ,tas,desiredVS):
     Math.atan2(f.vy,tas)+(lift-.27-f.aircraft.flapLift[f.flaps])/5.05-.036;
-  // Route navigation commands full power. Speed control takes over for landing.
+  // Route navigation commands full power unless user engaged SPD Autothrottle; speed control takes over for landing.
   const approachPower=flare?0:limit(f.aircraft.jet?.23+f.flaps*.065+(targetIAS-ias)*.016:
     .40+f.flaps*.105+(targetIAS-ias)*.025,.12,1);
-  const throttle=approach?limit((approachPower-f.power)*2.6,-.8,.8):1;
-  return {roll:limit(wrapAngle(heading-f.heading)*(final?3:2.4)-f.bank*.45,final?-.31:-.65,final?.31:.65),
+  let throttle=approach?limit((approachPower-f.power)*2.6,-.8,.8):1;
+  if(!approach&&Number.isFinite(hold.userIAS)){
+    const alphaFloor=ias<f.aircraft.approach+12;
+    const cruisePower=alphaFloor?1:limit((f.aircraft.jet?.46:.54)+(targetIAS-ias)*.018,.18,1);
+    throttle=limit((cruisePower-f.power)*2.4,-.75,.75);
+  }
+  const maxBank=final?.31:(f.aircraft.role==='fighter'?.65:f.aircraft.role==='trainer'?.45:.52);
+  return {roll:limit(wrapAngle(heading-f.heading)*(final?3:2.4)-f.bank*.45,-maxBank,maxBank),
     pitch:limit((attitude-.015-f.trim-f.flaps*.008)/.24,-.80,.82),
     throttle,airBrake:f.fastCruise&&approach&&ias>targetIAS+55};
+}
+function autopilotControls(f){
+  const hold=f.hold;
+  if(!hold) return null;
+  if(hold.nav) return navigationControls(f,activeTarget(f));
+  if(hold.mach||f.fastCruise){
+    const roll=limit(wrapAngle((hold.heading??f.heading)-f.heading)*2-f.bank*.35,-.45,.45);
+    const {pitch,throttle}=hold.climb?climbCruiseControls(f):cruiseControls(f);
+    return {roll,pitch,throttle};
+  }
+  const speeds=flightSpeeds(f);
+  const ias=speeds.ias*knotsPerMps;
+  const tas=Math.max(24,speeds.tas);
+  const q=.5*1.225*Math.exp(-Math.max(0,f.y)/8500)*tas**2;
+  const isToga=hold.mode==='toga';
+  if(isToga){
+    f.spoilers=false;
+    if(f.flaps>1) f.flaps=1;
+    if(f.y>=(hold.altitude??f.y+600)-60){
+      hold.mode='hdg';
+      f.navMessage='TO/GA 爬升完成 · 已轉入高度保持 (ALT HOLD)';
+    }
+  }
+  const targetHdg=hold.heading??f.heading;
+  // GPWS terrain floor protection in HDG/ALT mode
+  let targetAlt=hold.altitude??f.y;
+  const dirX=Math.sin(f.heading),dirZ=-Math.cos(f.heading);
+  const lookDist=limit(speeds.gs*38,6000,22000);
+  let terrainFloor=0;
+  for(const frac of [.15,.45,.75,1]){
+    terrainFloor=Math.max(terrainFloor,regionalHeight(f.x+dirX*lookDist*frac,f.z+dirZ*lookDist*frac)+260);
+  }
+  hold.terrainActive=terrainFloor>targetAlt+5;
+  targetAlt=Math.max(targetAlt,terrainFloor);
+
+  const maxVS=isToga?8.5:(Number.isFinite(hold.userVS)?limit(Math.abs(hold.userVS),2,14):6.5);
+  const desiredVS=isToga?limit((targetAlt-f.y)*.16,4.5,8.5):limit((targetAlt-f.y)*.12,-maxVS,maxVS);
+  const lift=flightMass(f)*(9.80665+limit((desiredVS-f.vy)*1.15,-3.8,3.8))/(q*f.aircraft.wingArea*Math.max(.72,Math.cos(f.bank)));
+  const attitude=Math.atan2(f.vy,tas)+(lift-.27-f.aircraft.flapLift[f.flaps])/5.05-.036;
+  const pitch=limit((attitude-.015-f.trim-f.flaps*.008)/.24,-.72,.82);
+  const maxBank=isToga?.18:(f.aircraft.role==='fighter'?.55:.44);
+  const roll=limit(wrapAngle(targetHdg-f.heading)*2.1-f.bank*.45,-maxBank,maxBank);
+
+  let throttle=1;
+  if(!isToga&&Number.isFinite(hold.userIAS)){
+    const minSafe=f.aircraft.approach+16;
+    const tgtIAS=Math.max(minSafe,hold.userIAS);
+    const alphaFloor=ias<minSafe-4;
+    const targetPower=alphaFloor?1:limit((f.aircraft.jet?.44:.52)+f.flaps*.07+(tgtIAS-ias)*.018,.15,1);
+    throttle=limit((targetPower-f.power)*2.5,-.75,.75);
+  }
+  return {roll,pitch,throttle};
+}
+function computeAutopilotFMA(f){
+  if(!f?.hold) return {active:false,ap:'AP OFF',lat:'MANUAL',vert:'MANUAL',thr:'MAN THR',detail:'手動操控'};
+  const h=f.hold;
+  if(h.mode==='toga'){
+    return {active:true,ap:'AP ON',lat:'GA TRK',vert:'TO/GA '+Math.round(h.altitude||0)+'m',thr:'TOGA MAX',detail:'重飛爬升中',mode:'toga'};
+  }
+  if(h.nav){
+    const st=h.stage||'route';
+    const lat=st==='final'?'LOC ★':st==='rollout'?'ROLLOUT':'LNAV';
+    const vert=h.terrainActive?'GPWS ↑':st==='final'?'G/S ★':st==='descent'?'VNAV DES':st==='rollout'?'FLARE/BRK':'VNAV '+Math.round(h.altitude||0)+'m';
+    const thr=st==='rollout'?'REV/IDLE':(st==='final'||st==='descent')?'A/T APP':Number.isFinite(h.userIAS)?'A/T '+Math.round(h.userIAS)+'kt':'THR CLB/CRZ';
+    const detail=st==='final'?'ILS 自動進場降落':st==='descent'?'自動下降進場':st==='rollout'?'接地減速煞停':'LNAV 航路導航';
+    return {active:true,ap:'AP ON',lat,vert,thr,detail,stage:st,mode:'nav'};
+  }
+  const hdgDeg=Math.round(((h.heading??f.heading)*180/Math.PI%360+360)%360);
+  const lat='HDG '+String(hdgDeg).padStart(3,'0')+'°';
+  const vert=h.terrainActive?'GPWS ↑':h.climb?'CLB '+Math.round(h.altitude||0)+'m':'ALT '+Math.round(h.altitude||0)+'m';
+  const thr=h.mach?'MACH '+h.mach.toFixed(2):Number.isFinite(h.userIAS)?'A/T '+Math.round(h.userIAS)+'kt':'THR MAX';
+  return {active:true,ap:'AP ON',lat,vert,thr,detail:'航向／高度保持',mode:'hdg'};
 }
 function rangeShot(f){
   const range=f.range;
@@ -632,7 +747,7 @@ function activeTarget(f){
   if(f.phase==='taxi'||f.phase==='cold') return f.taxi[f.taxiIndex];
   return f.route[f.waypoint];
 }
-if(typeof module!=='undefined') Object.assign(globalThis,{makeRegionalFlight,startEngine,updateRegionalFlight,activeTarget,readFlightLog,makeCruiseTrial,makeClimbLesson,climbReady,navigationControls,rangeShot,makeRegionalContract,attachContract,makePassengerFlight,updatePassengerService,savePassenger,readCareer,recordFlight,passengerBrief});
+if(typeof module!=='undefined') Object.assign(globalThis,{makeRegionalFlight,startEngine,updateRegionalFlight,activeTarget,readFlightLog,makeCruiseTrial,makeClimbLesson,climbReady,navigationControls,autopilotControls,computeAutopilotFMA,stopNavigation,rangeShot,makeRegionalContract,attachContract,makePassengerFlight,updatePassengerService,savePassenger,readCareer,recordFlight,passengerBrief});
 
 
 

@@ -13,6 +13,7 @@ const skyMapCore=(()=>{
     {id:'hybrid',label:'🛰 Google 衛星混合',lyrs:'y'},
     {id:'satellite',label:'🌎 Google 純衛星',lyrs:'s'},
     {id:'terrain',label:'⛰ Google 地形圖',lyrs:'p'},
+    {id:'street',label:'🗺 Google 街道圖',lyrs:'m'},
     {id:'vector',label:'🧭 離線衛星航圖',lyrs:''}
   ];
   let defaultLayerIdx=0;
@@ -274,8 +275,8 @@ const skyMapCore=(()=>{
       canvas.dataset.mapLayer=curMode.id;
       canvas.dataset.satelliteTiles=String(tilesDrawn);
 
-      // 4. Vector Overlays (subtle when Google Hybrid is active since Google Hybrid already includes roads & place labels)
-      const isHybridTiles=curMode.id==='hybrid'&&tilesDrawn>0;
+      // 4. Vector Overlays (subtle when Google Hybrid/Street is active since Google already includes roads & place labels)
+      const isHybridTiles=(curMode.id==='hybrid'||curMode.id==='street')&&tilesDrawn>0;
       const isSatTiles=curMode.id!=='vector'&&tilesDrawn>0;
 
       // Graticule grid
@@ -356,8 +357,8 @@ const skyMapCore=(()=>{
           ctx.textAlign='left';ctx.strokeStyle='rgba(4,14,22,.92)';ctx.lineWidth=3.2;
           const tag=a.code+(isDep?' 出發':isDst?' 目的':'');ctx.strokeText(tag,c.x+9,c.y);ctx.fillStyle='#fff';ctx.fillText(tag,c.x+9,c.y);ctx.textAlign='center';
         }
-        if(isFocus||(z>=30&&(isDep||isDst))){
-          const len=46,wid=7,hd=a.heading||0;
+        if(isFocus||(z>=18&&(isDep||isDst))||z>=36){
+          const len=isFocus?46:32,wid=isFocus?7:5,hd=a.heading||0;
           ctx.save();ctx.translate(c.x,c.y);ctx.rotate(hd-Math.PI/2);
           ctx.fillStyle='rgba(24,30,38,.96)';ctx.fillRect(-len/2,-wid/2,len,wid);ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.strokeRect(-len/2,-wid/2,len,wid);
           ctx.fillStyle='#fff';ctx.fillRect(-len/2+4,-.5,len-8,1);ctx.restore();

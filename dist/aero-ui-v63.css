@@ -2052,3 +2052,133 @@ body.title-hub-open>header{padding-top:calc(8px + var(--menu-safe-top));padding-
   padding: 3px 8px;
 }
 
+/* Autopilot FMA & Interactive MCP HUD */
+.ap-mcp-wrap {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 16;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  max-width: min(92vw, 480px);
+}
+.ap-fma-strip {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(7, 20, 32, 0.88);
+  border: 1px solid rgba(110, 208, 246, 0.42);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #d8f2ff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.ap-fma-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-weight: 800;
+  background: rgba(148, 163, 184, 0.22);
+  color: #cbd5e1;
+}
+.ap-fma-badge.active {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #032219;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.55);
+}
+.ap-fma-cell {
+  padding: 0 5px;
+  border-left: 1px solid rgba(140, 200, 235, 0.24);
+  font-weight: 700;
+  color: #7ee7ff;
+  white-space: nowrap;
+}
+.ap-fma-caret {
+  color: #94c5dc;
+  font-size: 10px;
+}
+.ap-mcp-drawer {
+  pointer-events: auto;
+  width: min(92vw, 420px);
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(8, 22, 35, 0.94);
+  border: 1px solid rgba(112, 205, 245, 0.45);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: grid;
+  gap: 8px;
+}
+.ap-mcp-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+}
+.ap-mcp-modes button {
+  padding: 5px 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 7px;
+  background: rgba(18, 48, 72, 0.85);
+  border: 1px solid rgba(112, 205, 245, 0.32);
+  color: #e2f5ff;
+}
+.ap-mcp-modes button.active {
+  background: linear-gradient(135deg, #0ea5e9, #10b981);
+  border-color: #a7f3d0;
+  color: #041d24;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+}
+.ap-mcp-modes button.ap-btn-off {
+  background: rgba(127, 29, 29, 0.72);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #fecaca;
+}
+.ap-mcp-knobs {
+  display: grid;
+  gap: 5px;
+}
+.ap-knob-row {
+  display: grid;
+  grid-template-columns: 36px 48px 1fr 48px 46px;
+  align-items: center;
+  gap: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+}
+.ap-knob-row span {
+  color: #93c5fd;
+  font-weight: 800;
+}
+.ap-knob-row b {
+  text-align: center;
+  color: #fde68a;
+  font-size: 12.5px;
+}
+.ap-knob-row button {
+  padding: 4px 5px;
+  font-size: 11px;
+  border-radius: 6px;
+  background: rgba(16, 42, 64, 0.9);
+  border: 1px solid rgba(120, 195, 232, 0.35);
+}
+.mobile-mode .ap-mcp-wrap {
+  top: 28px;
+}
+.mobile-mode .ap-fma-strip {
+  font-size: 10px;
+  padding: 3px 7px;
+  gap: 4px;
+}
+
+
