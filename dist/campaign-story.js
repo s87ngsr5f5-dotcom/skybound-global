@@ -2003,21 +2003,33 @@
       const distFromTpe = sel && tpe && typeof haversineKm === 'function' ? Math.round(haversineKm(tpe, sel)) : 0;
       const regionColors = { tw: '#7affbe', ea: '#6ceaff', sea: '#ffd976', me: '#ffab6b', eu: '#c7a4ff', na: '#6eb8ff', oc: '#ff8ec7', sa: '#ff7b7b' };
 
+      const satMode = ensureDOM._mapSatMode || 'y';
+      const mapZoom = ensureDOM._mapZoom || 1;
+      const mapCenterLon = ensureDOM._mapCenterLon ?? 20;
+      const mapCenterLat = ensureDOM._mapCenterLat ?? 20;
+
       stage.innerHTML = `
         <div class="hub-section-panel">
           <div class="hub-section-head">
             <div>
-              <h2>🗺 全球完整地圖與機場網路（${list.length} 座國際與區域機場）</h2>
-              <p>支援離線矢量洲界與大圓航路預覽；點選地圖圓點或下方卡片即可查看跑道資訊、一鍵起飛或排入航線。</p>
+              <h2>🛰 Google 全球衛星地圖與機場網路（${list.length} 座國際與區域機場）</h2>
+              <p>整合 Google Maps 衛星混合圖層、大圓航路與 62 座機場導航；支援滾輪縮放、拖曳平移，點選機場即可聚焦檢視衛星地貌或一鍵起飛。</p>
             </div>
           </div>
           <div class="mp-room-chips" style="margin-bottom:8px;">
             ${regions.map(r => `<button type="button" class="mp-chip${curReg === r.id ? ' active' : ''}" data-worldmap-region="${r.id}">${r.label}</button>`).join('')}
           </div>
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
-            <input id="hubWorldMapSearch" type="search" value="${ensureDOM._mapSearch || ''}" placeholder="搜尋 ICAO 代碼或城市名（如 EGLL、紐約、杜拜、雪梨）" style="flex:1;min-width:220px;padding:8px 12px;border-radius:8px;border:1px solid #35586d;background:#091a26;color:#fff;">
+            <input id="hubWorldMapSearch" type="search" value="${ensureDOM._mapSearch || ''}" placeholder="搜尋 ICAO 代碼或城市名（如 EGLL、紐約、杜拜、雪梨）" style="flex:1;min-width:200px;padding:8px 12px;border-radius:8px;border:1px solid #35586d;background:#091a26;color:#fff;">
+            <button type="button" class="mp-chip${satMode === 'y' ? ' active' : ''}" data-worldmap-sat="y">🛰 Google 衛星混合</button>
+            <button type="button" class="mp-chip${satMode === 's' ? ' active' : ''}" data-worldmap-sat="s">🌎 Google 純衛星</button>
+            <button type="button" class="mp-chip${satMode === 'p' ? ' active' : ''}" data-worldmap-sat="p">⛰ Google 地形</button>
+            <button type="button" class="mp-chip" data-worldmap-act="in">＋ 放大</button>
+            <button type="button" class="mp-chip" data-worldmap-act="out">－ 縮小</button>
+            <button type="button" class="mp-chip" data-worldmap-act="focus">🎯 聚焦 ${sel ? sel.code : ''}</button>
+            <button type="button" class="mp-chip" data-worldmap-act="reset">🌍 全球視野</button>
           </div>
-          <canvas id="hubWorldMapCanvas" style="width:100%;height:340px;border-radius:10px;border:1px solid #3c6782;display:block;cursor:pointer;margin-bottom:12px;" aria-label="全球完整世界地圖與機場分佈"></canvas>
+          <canvas id="hubWorldMapCanvas" style="width:100%;height:360px;border-radius:10px;border:1px solid #3c6782;display:block;cursor:grab;margin-bottom:12px;" aria-label="全球完整世界地圖與機場分佈"></canvas>
           ${sel ? `
           <div class="hub-panel-card" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
             <div>
@@ -2038,37 +2050,103 @@
 
       const canvas = document.getElementById('hubWorldMapCanvas');
       if (canvas) {
-        const w = Math.max(420, Math.round(canvas.clientWidth || 760)), h = 340;
+        const w = Math.max(420, Math.round(canvas.clientWidth || 760)), h = 360;
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = w * dpr; canvas.height = h * dpr;
         const ctx = canvas.getContext('2d');
-        ctx.scale(dpr, dpr);
         const mercY = lat => { const r = Math.max(-80, Math.min(80, lat)) * Math.PI / 180; return Math.log(Math.tan(Math.PI / 4 + r / 2)); };
-        const proj = (lon, lat) => [16 + ((lon + 180) / 360) * (w - 32), 18 + ((mercY(75) - mercY(lat)) / (mercY(75) - mercY(-58))) * (h - 36)];
-        if (typeof WorldAtlas !== 'undefined') WorldAtlas.drawVectorWorld(ctx, proj, w, h, { showLabels: true });
-        if (tpe && sel && sel.code !== tpe.code && typeof WorldAtlas !== 'undefined') {
-          const arc = WorldAtlas.greatCircleGeoPoints(tpe, sel, 28);
-          ctx.save(); ctx.strokeStyle = 'rgba(108,234,255,0.75)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.beginPath();
-          let px0 = null;
-          arc.forEach((pt, idx) => { const [ax, ay] = proj(pt.lon, pt.lat); if (idx === 0 || (px0 !== null && Math.abs(ax - px0) > w * 0.5)) ctx.moveTo(ax, ay); else ctx.lineTo(ax, ay); px0 = ax; });
-          ctx.stroke(); ctx.restore();
-        }
-        const hits = [];
-        for (const a of list) {
-          const inFilter = filtered.includes(a);
-          const [ax, ay] = proj(a.lon, a.lat);
-          const isSel = sel && a.code === sel.code;
-          hits.push({ code: a.code, x: ax, y: ay });
-          ctx.beginPath();
-          ctx.arc(ax, ay, isSel ? 6.5 : inFilter ? 4.2 : 2.5, 0, Math.PI * 2);
-          ctx.fillStyle = isSel ? '#ffd700' : inFilter ? (regionColors[a.region] || '#6ceaff') : 'rgba(150,190,210,0.35)';
-          ctx.fill();
-          if (isSel) {
-            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.font = 'bold 11px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(`${a.code} ${a.name}`, Math.min(w - 95, ax + 9), Math.max(16, ay - 6));
+        const yTop = mercY(75), yBot = mercY(-58), ySpan = yTop - yBot;
+        const proj = (lon, lat) => {
+          if (mapZoom <= 1.01) {
+            return [16 + ((lon + 180) / 360) * (w - 32), 18 + ((yTop - mercY(lat)) / ySpan) * (h - 36)];
           }
-        }
+          const spanLon = 360 / mapZoom;
+          const spanMerc = ySpan / mapZoom;
+          const cMerc = mercY(mapCenterLat);
+          return [
+            w * 0.5 + ((lon - mapCenterLon) / spanLon) * (w - 32),
+            h * 0.5 + ((cMerc - mercY(lat)) / spanMerc) * (h - 36)
+          ];
+        };
+        let hits = [];
+        const drawWorldCanvas = () => {
+          if (!ctx || !canvas.isConnected) return;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          if (typeof WorldAtlas !== 'undefined') {
+            WorldAtlas.drawVectorWorld(ctx, proj, w, h, {
+              showLabels: true,
+              satMode,
+              onTileLoad: () => requestAnimationFrame(drawWorldCanvas)
+            });
+          }
+          if (tpe && sel && sel.code !== tpe.code && typeof WorldAtlas !== 'undefined') {
+            const arc = WorldAtlas.greatCircleGeoPoints(tpe, sel, 36);
+            ctx.save();
+            ctx.strokeStyle = 'rgba(6, 20, 32, 0.8)'; ctx.lineWidth = 4.5;
+            ctx.beginPath();
+            let px0 = null;
+            arc.forEach((pt, idx) => { const [ax, ay] = proj(pt.lon, pt.lat); if (idx === 0 || (px0 !== null && Math.abs(ax - px0) > w * 0.5)) ctx.moveTo(ax, ay); else ctx.lineTo(ax, ay); px0 = ax; });
+            ctx.stroke();
+            ctx.strokeStyle = '#ff9d3d'; ctx.lineWidth = 2.2; ctx.setLineDash([6, 4]);
+            ctx.stroke();
+            ctx.restore();
+          }
+          hits = [];
+          for (const a of list) {
+            const inFilter = filtered.includes(a);
+            const [ax, ay] = proj(a.lon, a.lat);
+            const isSel = sel && a.code === sel.code;
+            hits.push({ code: a.code, x: ax, y: ay });
+            if (ax < -20 || ax > w + 20 || ay < -20 || ay > h + 20) continue;
+            ctx.beginPath();
+            ctx.arc(ax, ay, isSel ? 7 : inFilter ? 4.5 : 2.8, 0, Math.PI * 2);
+            ctx.fillStyle = isSel ? '#ffd700' : inFilter ? (regionColors[a.region] || '#6ceaff') : 'rgba(150,190,210,0.4)';
+            ctx.fill();
+            ctx.strokeStyle = '#061522'; ctx.lineWidth = 1.5; ctx.stroke();
+            if (isSel || mapZoom >= 2.2) {
+              ctx.font = isSel ? 'bold 11.5px system-ui' : '600 10px system-ui';
+              ctx.strokeStyle = 'rgba(4,14,22,0.92)'; ctx.lineWidth = 3;
+              const txt = isSel ? `${a.code} ${a.name}` : a.code;
+              const tx = Math.min(w - 95, ax + 9), ty = Math.max(16, ay - 5);
+              ctx.strokeText(txt, tx, ty);
+              ctx.fillStyle = isSel ? '#ffe885' : '#fff';
+              ctx.fillText(txt, tx, ty);
+            }
+          }
+        };
+        drawWorldCanvas();
+
+        let dragging = false, startX = 0, startY = 0, moved = false;
+        canvas.onpointerdown = ev => {
+          dragging = true; moved = false; startX = ev.clientX; startY = ev.clientY;
+          canvas.setPointerCapture?.(ev.pointerId);
+        };
+        canvas.onpointermove = ev => {
+          if (!dragging) return;
+          const dx = ev.clientX - startX, dy = ev.clientY - startY;
+          if (Math.hypot(dx, dy) > 4) moved = true;
+          if (moved && (ensureDOM._mapZoom || 1) > 1.01) {
+            startX = ev.clientX; startY = ev.clientY;
+            const z = ensureDOM._mapZoom || 1;
+            ensureDOM._mapCenterLon = Math.max(-175, Math.min(175, (ensureDOM._mapCenterLon ?? 20) - (dx / w) * (360 / z)));
+            ensureDOM._mapCenterLat = Math.max(-55, Math.min(72, (ensureDOM._mapCenterLat ?? 20) + (dy / h) * (110 / z)));
+            renderStage('worldmap');
+          }
+        };
+        canvas.onpointerup = ev => {
+          if (!dragging) return;
+          dragging = false;
+          if (!moved) {
+            const rect = canvas.getBoundingClientRect();
+            const cx = (ev.clientX - rect.left) * (w / Math.max(1, rect.width));
+            const cy = (ev.clientY - rect.top) * (h / Math.max(1, rect.height));
+            let best = null, bestD = 22;
+            for (const ht of hits) { const d = Math.hypot(cx - ht.x, cy - ht.y); if (d < bestD) { bestD = d; best = ht.code; } }
+            if (best) { ensureDOM._mapSelected = best; renderStage('worldmap'); }
+          }
+        };
         canvas.onclick = ev => {
+          if (moved) return;
           const rect = canvas.getBoundingClientRect();
           const cx = (ev.clientX - rect.left) * (w / Math.max(1, rect.width));
           const cy = (ev.clientY - rect.top) * (h / Math.max(1, rect.height));
@@ -2076,7 +2154,36 @@
           for (const ht of hits) { const d = Math.hypot(cx - ht.x, cy - ht.y); if (d < bestD) { bestD = d; best = ht.code; } }
           if (best) { ensureDOM._mapSelected = best; renderStage('worldmap'); }
         };
+        canvas.onwheel = ev => {
+          ev.preventDefault();
+          const factor = ev.deltaY < 0 ? 1.45 : 1 / 1.45;
+          const nextZ = Math.max(1, Math.min(18, (ensureDOM._mapZoom || 1) * factor));
+          ensureDOM._mapZoom = nextZ;
+          if (nextZ > 1.05 && sel && ensureDOM._mapCenterLon == null) {
+            ensureDOM._mapCenterLon = sel.lon; ensureDOM._mapCenterLat = sel.lat;
+          }
+          renderStage('worldmap');
+        };
       }
+      stage.querySelectorAll('[data-worldmap-sat]').forEach(b => b.onclick = () => {
+        ensureDOM._mapSatMode = b.dataset.worldmapSat;
+        renderStage('worldmap');
+      });
+      stage.querySelectorAll('[data-worldmap-act]').forEach(b => b.onclick = () => {
+        const act = b.dataset.worldmapAct;
+        if (act === 'in') {
+          if ((ensureDOM._mapZoom || 1) <= 1.05 && sel) { ensureDOM._mapCenterLon = sel.lon; ensureDOM._mapCenterLat = sel.lat; }
+          ensureDOM._mapZoom = Math.min(18, (ensureDOM._mapZoom || 1) * 1.75);
+        } else if (act === 'out') {
+          ensureDOM._mapZoom = Math.max(1, (ensureDOM._mapZoom || 1) / 1.75);
+        } else if (act === 'focus' && sel) {
+          ensureDOM._mapCenterLon = sel.lon; ensureDOM._mapCenterLat = sel.lat;
+          ensureDOM._mapZoom = Math.max(4.5, ensureDOM._mapZoom || 4.5);
+        } else if (act === 'reset') {
+          ensureDOM._mapZoom = 1; ensureDOM._mapCenterLon = 20; ensureDOM._mapCenterLat = 20;
+        }
+        renderStage('worldmap');
+      });
       const srch = document.getElementById('hubWorldMapSearch');
       if (srch) srch.oninput = () => { ensureDOM._mapSearch = srch.value; renderStage('worldmap'); const n = document.getElementById('hubWorldMapSearch'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } };
       stage.querySelectorAll('[data-worldmap-region]').forEach(b => b.onclick = () => { ensureDOM._mapRegion = b.dataset.worldmapRegion; renderStage('worldmap'); });

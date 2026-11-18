@@ -12,7 +12,7 @@ const skyLauncher=(()=>{
 .wl-top{position:absolute;left:10px;right:10px;top:10px;display:flex;flex-direction:column;gap:6px;pointer-events:none;z-index:2;transition:opacity .35s}
 .wl-top>*{pointer-events:auto}
 .wl-root.wl-entered .wl-top{opacity:0;pointer-events:none}.wl-root.wl-entered .wl-top>*{pointer-events:none}
-.wl-title{color:#fff;font:700 15px system-ui,"Noto Sans TC",sans-serif;text-shadow:0 1px 4px #000}
+.wl-title{color:#fff;font:700 15px system-ui,"Noto Sans TC",sans-serif;text-shadow:0 1px 4px #000;background:rgba(6,18,28,.78);backdrop-filter:blur(6px);padding:7px 12px;border-radius:10px;border:1px solid rgba(140,200,235,.28);width:fit-content;max-width:100%}
 .wl-title small{display:block;font-weight:500;font-size:12px;color:#cfe6f5;margin-top:2px}
 .wl-chips{overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
 .wl-chips .mp-room-chips{display:flex;flex-wrap:nowrap;gap:6px}
@@ -54,8 +54,8 @@ const skyLauncher=(()=>{
     const chipsRow=card.querySelector('.mp-room-chips');
     const root=document.createElement('div');root.className='wl-root';
     root.innerHTML=`<div class="wl-map"></div>
-      <div class="wl-top"><div class="wl-title">🌍 選擇起飛機場<small>點地圖上的黃點（數字是聚合的機場，點一下會放大）</small></div><div class="wl-chips"></div></div>
-      <div class="wl-zoom"><button type="button" class="wl-btn" data-wl="in" aria-label="放大">＋</button><button type="button" class="wl-btn" data-wl="out" aria-label="縮小">－</button><button type="button" class="wl-btn" data-wl="world" aria-label="回到世界地圖">🌍</button></div>
+      <div class="wl-top"><div class="wl-title">🛰 Google 全球衛星地圖 · 選擇起飛機場<small>點地圖上的黃點（數字是聚合的機場，點一下會放大檢視真實衛星地貌）</small></div><div class="wl-chips"></div></div>
+      <div class="wl-zoom"><button type="button" class="wl-btn" data-wl="layer" aria-label="切換衛星圖層" title="切換 Google 衛星／地形／航圖">🛰 衛星</button><button type="button" class="wl-btn" data-wl="in" aria-label="放大">＋</button><button type="button" class="wl-btn" data-wl="out" aria-label="縮小">－</button><button type="button" class="wl-btn" data-wl="world" aria-label="回到世界地圖">🌍</button></div>
       <div class="wl-card" role="dialog" aria-label="機場資訊"></div>
       <div class="wl-sheet" aria-label="飛行設定"></div>`;
     panel.prepend(root);
@@ -105,6 +105,7 @@ const skyLauncher=(()=>{
       if(b){
         const k=b.dataset.wl;
         if(k==='in') map.zoomBy(1.7);else if(k==='out') map.zoomBy(1/1.7);
+        else if(k==='layer'){const m=map.cycleLayer?.();if(m) b.textContent=m.id==='hybrid'?'🛰 衛星':m.id==='satellite'?'🌎 純衛':m.id==='terrain'?'⛰ 地形':'🧭 航圖';}
         else if(k==='world'){infoCard.classList.remove('open');map.setSelection({focus:null});map.showWorld(true);}
         else if(k==='close'){infoCard.classList.remove('open');map.setSelection({focus:null});}
         else if(k==='enter') enter(picked);

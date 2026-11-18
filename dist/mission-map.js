@@ -2,7 +2,10 @@
 // WGS84 route overlay. Fetch only tiles visible in the current human-selected preview.
 const MissionRouteMap=(()=>{
  const tileSize=256,cache=new Map();let resizeWatch;
- const provider=globalThis.skyboundMapProvider||{url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'};
+ const provider=globalThis.skyboundMapProvider||{
+  url:'https://mt1.google.com/vt/lyrs=y&hl=zh-TW&x={x}&y={y}&z={z}',
+  fallbackUrl:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+ };
  function world(ll,z){const lat=Math.max(-85.05112878,Math.min(85.05112878,ll.lat))*Math.PI/180,s=tileSize*2**z;return {x:(ll.lon+180)/360*s,y:(1-Math.log(Math.tan(lat)+1/Math.cos(lat))/Math.PI)/2*s};}
  function inverse(p,z){const s=tileSize*2**z;return {lon:p.x/s*360-180,lat:Math.atan(Math.sinh(Math.PI*(1-2*p.y/s)))*180/Math.PI};}
  function fit(points,w,h){
@@ -14,9 +17,14 @@ const MissionRouteMap=(()=>{
   const n=2**z;if(y<0||y>=n)return null;x=(x%n+n)%n;const key=z+'/'+x+'/'+y;
   let e=cache.get(key);if(e){cache.delete(key);cache.set(key,e);if(e.state==='loading')e.listeners.add(redraw);return e;}
   const image=new Image();e={image,state:'loading',listeners:new Set([redraw])};cache.set(key,e);
-  const done=state=>{e.state=state;for(const f of e.listeners)f();e.listeners.clear();};image.onload=()=>done('ready');image.onerror=()=>done('error');
-  image.referrerPolicy='strict-origin-when-cross-origin';image.src=provider.url.replace('{z}',z).replace('{x}',x).replace('{y}',y);
-  while(cache.size>64){const oldest=cache.keys().next().value;cache.get(oldest).listeners.clear();cache.delete(oldest);}
+  const done=state=>{e.state=state;for(const f of e.listeners)f();e.listeners.clear();};
+  image.onload=()=>done('ready');
+  image.onerror=()=>{
+   if(!e.triedFallback&&provider.fallbackUrl){e.triedFallback=true;image.src=provider.fallbackUrl.replace('{z}',z).replace('{x}',x).replace('{y}',y);}
+   else done('error');
+  };
+  image.referrerPolicy='no-referrer';image.src=provider.url.replace('{z}',z).replace('{x}',x).replace('{y}',y);
+  while(cache.size>96){const oldest=cache.keys().next().value;cache.get(oldest).listeners.clear();cache.delete(oldest);}
   return e;
  }
  function draw(canvas,ch,dep,dst,gates){

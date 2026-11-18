@@ -137,55 +137,85 @@ const WorldAtlas = (() => {
   }
 
   const BIOME_COLORS = {
-    temperate: '#1e4a56',
-    tropical: '#1d4f49',
-    arid: '#3b4a44',
-    boreal: '#24485a',
-    alpine: '#2b4d60'
+    temperate: '#2b4d2c',
+    tropical: '#1d4424',
+    arid: '#7c6b4b',
+    boreal: '#394f43',
+    alpine: '#646e6a'
   };
+
+  // Shared Google Maps Satellite tile cache for WorldAtlas (2D projections)
+  const satCache = new Map();
+  function getSatTile(lyrs, z, x, y, onReady) {
+    if (!lyrs || typeof Image === 'undefined') return null;
+    const n = 1 << z;
+    if (y < 0 || y >= n) return null;
+    const tx = ((x % n) + n) % n;
+    const key = `${lyrs}:${z}:${tx}:${y}`;
+    let e = satCache.get(key);
+    if (e) {
+      if (e.state === 'loading' && onReady) e.waiters.add(onReady);
+      return e;
+    }
+    const img = new Image();
+    e = { img, state: 'loading', waiters: new Set(onReady ? [onReady] : []) };
+    satCache.set(key, e);
+    const done = st => {
+      e.state = st;
+      for (const fn of e.waiters) { try { fn(); } catch {} }
+      e.waiters.clear();
+    };
+    img.onload = () => done('ready');
+    img.onerror = () => {
+      if (!e.fallback) {
+        e.fallback = true;
+        img.src = `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${tx}`;
+      } else {
+        done('error');
+      }
+    };
+    img.referrerPolicy = 'no-referrer';
+    img.src = `https://mt${(tx + y) & 3}.google.com/vt/lyrs=${lyrs}&hl=zh-TW&x=${tx}&y=${y}&z=${z}`;
+    while (satCache.size > 260) {
+      const firstKey = satCache.keys().next().value;
+      satCache.delete(firstKey);
+    }
+    return e;
+  }
+
+  function tileLon(tx, n) { return (tx / n) * 360 - 180; }
+  function tileLat(ty, n) {
+    const u = Math.PI - (2 * Math.PI * ty) / n;
+    return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(u) - Math.exp(-u)));
+  }
 
   function drawVectorWorld(ctx, projectLonLat, w, h, opts = {}) {
     const {
-      oceanTop = '#071b2c',
-      oceanBot = '#0c2a42',
-      landStroke = 'rgba(130, 210, 240, 0.42)',
+      oceanTop = '#04101e',
+      oceanBot = '#07223b',
+      landStroke = 'rgba(155, 212, 178, 0.48)',
       gridStep = 30,
-      showLabels = true
+      showLabels = true,
+      satMode = 'y',
+      tileZoom = null,
+      onTileLoad = null
     } = opts;
 
+    // 1. Deep Ocean Bathymetry Base
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, oceanTop);
+    grad.addColorStop(0.5, '#092845');
     grad.addColorStop(1, oceanBot);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
     ctx.save();
-    for (let lon = -180; lon <= 180; lon += gridStep) {
-      const [x0, y0] = projectLonLat(lon, 82);
-      const [x1, y1] = projectLonLat(lon, -72);
-      ctx.strokeStyle = lon === 0 ? 'rgba(120, 210, 245, 0.28)' : 'rgba(100, 185, 230, 0.12)';
-      ctx.lineWidth = lon === 0 ? 1.2 : 1;
-      ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      ctx.lineTo(x1, y1);
-      ctx.stroke();
-    }
-    for (let lat = -60; lat <= 75; lat += gridStep) {
-      const [x0, y0] = projectLonLat(-180, lat);
-      const [x1, y1] = projectLonLat(180, lat);
-      ctx.strokeStyle = lat === 0 ? 'rgba(120, 210, 245, 0.30)' : 'rgba(100, 185, 230, 0.12)';
-      ctx.lineWidth = lat === 0 ? 1.2 : 1;
-      ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      ctx.lineTo(x1, y1);
-      ctx.stroke();
-    }
-
-    ctx.lineWidth = 1.1;
+    // 2. Shaded-Relief Satellite Landmasses Base (instant zero-latency base before tiles finish loading)
     ctx.lineJoin = 'round';
     for (const c of COUNTRIES) {
-      ctx.fillStyle = BIOME_COLORS[c.biome] || '#1e4656';
-      ctx.strokeStyle = landStroke;
+      ctx.fillStyle = BIOME_COLORS[c.biome] || '#2b4d2c';
+      ctx.strokeStyle = 'rgba(26, 118, 152, 0.34)';
+      ctx.lineWidth = 3.2;
       ctx.beginPath();
       let prevLon = null;
       for (let i = 0; i < c.poly.length; i++) {
@@ -199,18 +229,84 @@ const WorldAtlas = (() => {
         prevLon = lon;
       }
       ctx.closePath();
+      ctx.stroke();
       ctx.fill();
+      ctx.strokeStyle = landStroke;
+      ctx.lineWidth = 0.9;
       ctx.stroke();
     }
 
-    if (showLabels) {
+    // 3. Google Maps Satellite / Hybrid Web Mercator Tiles
+    let satDrawn = 0;
+    const notify = onTileLoad || (ctx.canvas && ctx.canvas._onSatelliteTileLoad) || null;
+    if (satMode && typeof Image !== 'undefined' && typeof ctx.drawImage === 'function') {
+      const [pWest] = projectLonLat(-180, 0);
+      const [pEast] = projectLonLat(180, 0);
+      const worldSpanPx = Math.max(256, Math.abs(pEast - pWest));
+      const tz = tileZoom || Math.max(2, Math.min(13, Math.round(Math.log2(worldSpanPx / 256))));
+      const n = 1 << tz;
+      for (let ty = 0; ty < n; ty++) {
+        const latTop = Math.max(-82, Math.min(82, tileLat(ty, n)));
+        const latBot = Math.max(-82, Math.min(82, tileLat(ty + 1, n)));
+        const [, y0] = projectLonLat(0, latTop);
+        const [, y1] = projectLonLat(0, latBot);
+        const py = Math.min(y0, y1), ph = Math.abs(y1 - y0);
+        if (py + ph < -2 || py > h + 2 || ph < 2) continue;
+        for (let tx = 0; tx < n; tx++) {
+          const lonL = tileLon(tx, n);
+          const lonR = tileLon(tx + 1, n);
+          const [x0] = projectLonLat(lonL, 0);
+          const [x1] = projectLonLat(lonR, 0);
+          if (x1 < x0) continue; // skip antimeridian wrap inversion
+          const pw = x1 - x0;
+          if (x1 < -2 || x0 > w + 2 || pw < 2) continue;
+          const entry = getSatTile(satMode, tz, tx, ty, notify);
+          if (entry && entry.state === 'ready') {
+            ctx.drawImage(entry.img, x0, py, pw + 0.6, ph + 0.6);
+            satDrawn++;
+          } else if (tz > 2) {
+            const shift = tz - 2;
+            const pEntry = satCache.get(`${satMode}:2:${tx >> shift}:${ty >> shift}`);
+            if (pEntry && pEntry.state === 'ready') {
+              const sc = 1 << shift, sub = 256 / sc;
+              ctx.drawImage(pEntry.img, (tx & (sc - 1)) * sub, (ty & (sc - 1)) * sub, sub, sub, x0, py, pw + 0.6, ph + 0.6);
+              satDrawn++;
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Subtle Graticule Grid
+    for (let lon = -180; lon <= 180; lon += gridStep) {
+      const [x0, y0] = projectLonLat(lon, 82);
+      const [x1, y1] = projectLonLat(lon, -72);
+      ctx.strokeStyle = lon === 0 ? 'rgba(120, 210, 245, 0.22)' : 'rgba(100, 185, 230, 0.09)';
+      ctx.lineWidth = lon === 0 ? 1.1 : 0.8;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+    for (let lat = -60; lat <= 75; lat += gridStep) {
+      const [x0, y0] = projectLonLat(-180, lat);
+      const [x1, y1] = projectLonLat(180, lat);
+      ctx.strokeStyle = lat === 0 ? 'rgba(120, 210, 245, 0.24)' : 'rgba(100, 185, 230, 0.09)';
+      ctx.lineWidth = lat === 0 ? 1.1 : 0.8;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+
+    if (showLabels && satDrawn === 0) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       for (const lbl of REGION_LABELS) {
         const [cx, cy] = projectLonLat(lbl.lon, lbl.lat);
         if (cx > 30 && cx < w - 30 && cy > 18 && cy < h - 18) {
           ctx.font = lbl.ocean ? 'italic 9px system-ui, sans-serif' : 'bold 10px system-ui, sans-serif';
-          ctx.fillStyle = lbl.ocean ? 'rgba(125, 195, 235, 0.24)' : 'rgba(180, 230, 245, 0.32)';
+          ctx.fillStyle = lbl.ocean ? 'rgba(125, 195, 235, 0.34)' : 'rgba(220, 244, 255, 0.65)';
           ctx.fillText(lbl.name, cx, cy);
         }
       }

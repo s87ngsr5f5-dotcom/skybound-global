@@ -2240,7 +2240,7 @@ function initialize(){
         projectLonLat=(lon,lat)=>project(geoPoint(lat,lon));
       }
       if(useWorldView&&typeof WorldAtlas!=='undefined'){
-        WorldAtlas.drawVectorWorld(planMap,projectLonLat,planW,planH,{showLabels:planMapViewMode==='world'});
+        WorldAtlas.drawVectorWorld(planMap,projectLonLat,planW,planH,{showLabels:planMapViewMode==='world',onTileLoad:()=>{if(!flight)requestAnimationFrame(drawPlan);}});
       }
       if(!useWorldView||planMapViewMode!=='world'){
         drawTaiwanMap(planMap,project);
