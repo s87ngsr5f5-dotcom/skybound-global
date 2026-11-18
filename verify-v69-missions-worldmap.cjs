@@ -172,7 +172,8 @@ for (const file of jsFiles) {
   assert.ok(camp, 'SkyboundCampaign global is exposed');
   assert.strictEqual(camp.chapters.length, 7, 'Story chapters length === 7 (Taiwan mainline)');
   assert.strictEqual(camp.worldChapters.length, 8, 'World expedition chapters length === 8 (WP.08..WP.15)');
-  assert.strictEqual(camp.allChapters.length, 35, '19 original missions plus 4 exams and 12 licensed missions');
+  assert.strictEqual(camp.globalChapters.length, 10, 'Global chapters length === 10 (GL.36..GL.45)');
+  assert.strictEqual(camp.allChapters.length, 45, '19 original missions plus 4 exams, 12 licensed, and 10 global missions');
   assert.strictEqual(typeof camp.isOnlineFlight, 'function', 'SkyboundCampaign exposes isOnlineFlight()');
   assert.strictEqual(typeof camp.refreshCareerUI, 'function', 'SkyboundCampaign exposes refreshCareerUI()');
   assert.strictEqual(camp.isOnlineFlight(), false, 'isOnlineFlight() defaults to false for solo play');
@@ -181,16 +182,19 @@ for (const file of jsFiles) {
   assert.ok(JSON.parse(storage.get('skybound.career.v1')).money >= 18000, 'Starter grant seeds $18,000 into skybound.career.v1');
 
   const ep1 = camp.chapters.find(c => c.id === 1);
-  assert.strictEqual(ep1.destination,ep1.departure,'Short mission stays in its departure region');
-  assert.strictEqual(ep1.stages[1].check({ended:false},{gatesPassed:1}),false,'Second stage needs second gate');
-  assert.strictEqual(ep1.stages[1].check({ended:false},{gatesPassed:2}),true,'Second gate advances stage');
-  assert.strictEqual(ep1.winCondition({ended:false,ground:false},{gatesPassed:3,stableS:34.9}),false,'No early completion');
-  assert.strictEqual(ep1.winCondition({ended:false,ground:false},{gatesPassed:3,stableS:35}),true,'Stable segment completes mission');
-  assert.strictEqual(ep1.winCondition({ended:false,ground:false},{gatesPassed:2,stableS:90}),false,'Cannot bypass navigation');
+  const ep4 = camp.chapters.find(c => c.id === 4);
+  const ep7 = camp.chapters.find(c => c.id === 7);
+  assert.strictEqual(ep4.departure, 'CVN78', 'EP.04 carrier mission departs CVN78');
+  assert.strictEqual(ep7.destination, 'RJAA', 'EP.07 Tokyo cargo mission targets RJAA');
+  assert.strictEqual(ep1.stages[1].check({ended:false,ground:false,y:190},{flownM:2500}),false,'EP.01 stage 2 requires 3 km flown');
+  assert.strictEqual(ep1.stages[1].check({ended:false,ground:false,y:190},{flownM:3100}),true,'EP.01 stage 2 advances at 3 km & 183 m');
+  assert.strictEqual(ep1.winCondition({ended:false,ground:false,y:190},{flownM:6900}),true,'EP.01 completes at 6.8+ km & 183+ m');
   const landing=camp.allChapters.find(c=>c.id===16);
+  assert.strictEqual(landing.destination,landing.departure,'Local circuit stays at departure');
   assert.strictEqual(landing.winCondition({ended:false,ground:true,vx:0,vz:0},{gatesPassed:3,wasAirborne:true,nearAirport:false}),false,'Off-airport stop is not a landing success');
   assert.strictEqual(landing.winCondition({ended:false,ground:true,vx:0,vz:0},{gatesPassed:3,wasAirborne:true,nearAirport:true}),true,'Returned and stopped');
-  assert.ok(camp.allChapters.every(c=>c.destination===c.departure&&c.durationLabel==='約 5–10 分鐘'),'No cross-country campaign legs');
+  const gl37=camp.allChapters.find(c=>c.id===37);
+  assert.ok(gl37&&gl37.departure==='EGLL'&&gl37.destination==='LFPG','Global chapter GL.37 flies EGLL -> LFPG');
   camp.startChapter(1);
   assert.strictEqual(camp.isOnlineFlight(), false, 'Starting story chapter keeps isOnlineFlight() false');
 
@@ -199,7 +203,7 @@ for (const file of jsFiles) {
   const wp15 = camp.allChapters.find(c => c.id === 15);
   assert.ok(wp14 && wp14.code === 'WP.14' && wp14.departure === 'RJBB', 'allChapters includes WP.14 Osaka Kansai (RJBB)');
   assert.ok(wp15 && wp15.code === 'WP.15' && wp15.departure === 'VTBS', 'allChapters includes WP.15 Bangkok Suvarnabhumi (VTBS)');
-  assert.strictEqual(new Set(ids).size, 35, '35 unique chapter IDs preserve original 19 missions');
+  assert.strictEqual(new Set(ids).size, 45, '45 unique chapter IDs');
   assert.ok(camp.medals.some(m => m.id === 'world_conqueror'), 'MEDALS includes world_conqueror');
   assert.ok(camp.medals.some(m => m.id === 'aerobatic_ace'), 'MEDALS includes aerobatic_ace');
 
@@ -253,7 +257,8 @@ for (const file of jsFiles) {
     assert.ok(html.includes('<option value="VTBS">桃園 → 曼谷蘇凡納布</option>'), `${htmlName} adds VTBS route option`);
     for (const tag of [
       'aero-ui-v63.css?',
-      'region.js?v=satellite26&r=69',
+      'world-atlas.js?',
+      'region.js?',
       'taiwan-overview.js?v=satellite26&r=69',
       'taiwan-city.js?v=62&r=69',
       'airways-nav.js?r=69',

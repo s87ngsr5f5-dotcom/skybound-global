@@ -149,7 +149,7 @@ function stepHelicopter(f, input, dt = simTick){
       const horizontal = Math.hypot(f.vx, f.vz);
       const frame = f.destination ? runwayCoordinates(f.x, f.z, f.destination) : { along: 0, cross: 0 };
       f.touchdown = { ...frame, verticalSpeed: f.vy, speed: horizontal };
-      f.landed = f.vy > -6.5 && horizontal < 18 && Math.abs(f.bank) < .38 && Math.abs(f.pitch) < .38;
+      f.landed = f.vy > -9.5 && horizontal < 24 && Math.abs(f.bank) < .52 && Math.abs(f.pitch) < .52;
       f.ended = !f.landed; f.ground = true; f.hover = null; f.y = landingFloor;
       f.vx = f.vy = f.vz = 0; f.pitch = f.bank = f.pitchRate = f.bankRate = 0;
     }

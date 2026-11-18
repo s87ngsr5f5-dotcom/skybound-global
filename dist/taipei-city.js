@@ -381,7 +381,7 @@ function createTaipeiCity(scene,ground,airports){
       group.add(new THREE.Mesh(geometry,mat));parts.forEach(g=>g.dispose());
     }
   }
-  const skipBuilding=(x,z)=>landmarkSites.some(s=>Math.abs(x-s.x)<s.radius&&Math.abs(z-s.z)<s.radius)||airports.some(a=>{
+  const skipBuilding=(x,z)=>(typeof expandedAirportFootprint==='function'&&expandedAirportFootprint(x,z,40))||landmarkSites.some(s=>Math.abs(x-s.x)<s.radius&&Math.abs(z-s.z)<s.radius)||airports.some(a=>{
     if(Math.hypot(x-a.x,z-a.z)>a.length/2+500)return false;
     const p=runwayCoordinates(x,z,a);
     if(typeof airportSurroundingsContains==='function'&&airportSurroundingsContains(a,p))return true;
@@ -506,6 +506,7 @@ function createTaipeiCity(scene,ground,airports){
           const segLen=length/sections,v0=cumDist/26,v1=(cumDist+segLen)/26;
           cumDist+=segLen;
           // Keep runway and taxiway surfaces owned by the airport layer.
+          if(typeof expandedAirportFootprint==='function'&&expandedAirportFootprint(x,z,12))continue;
           if(airports.some(a=>Math.hypot(x-a.x,z-a.z)<a.length/2+100&&Math.abs(runwayCoordinates(x,z,a).cross)<250))continue;
           const liftBridge=bridge?8:0,half=width/2;
           const lx1=x+nx*half,lz1=z+nz*half,rx1=x-nx*half,rz1=z-nz*half;

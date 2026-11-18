@@ -3,11 +3,45 @@ const regionalOrigin={lat:25+(4+10.535/60)/60,lon:121+(33+9.085/60)/60};
 const eastScale=111319.49*Math.cos(regionalOrigin.lat*Math.PI/180);
 function geoPoint(lat,lon){return {x:(lon-regionalOrigin.lon)*eastScale,z:(regionalOrigin.lat-lat)*110772};}
 function latLon(x,z){return {lat:regionalOrigin.lat-z/110772,lon:regionalOrigin.lon+x/eastScale};}
-function airport(code,name,lat,lon,degrees,length,width,elevation,designator,reciprocal,apron=175){
-  return {code,name,lat,lon,...geoPoint(lat,lon),heading:degrees*Math.PI/180,length,width,elevation,designator,reciprocal,apron};
+function airport(code,name,lat,lon,degrees,length,width,elevation,designator,reciprocal,apron=175,region='tw'){
+  return {code,name,lat,lon,...geoPoint(lat,lon),heading:degrees*Math.PI/180,length,width,elevation,designator,reciprocal,apron,region};
+}
+const AIRPORT_REGIONS=[
+  {id:'all',label:'🌏 全球機場'},
+  {id:'tw',label:'🇹🇼 台灣與離島'},
+  {id:'ea',label:'🇯🇵🇰🇷🇨🇳 東亞'},
+  {id:'sea',label:'🌴 東南亞／南亞'},
+  {id:'me',label:'🏜 中東'},
+  {id:'eu',label:'🏰 歐洲'},
+  {id:'na',label:'🗽 北美'},
+  {id:'oc',label:'🦘 大洋洲'},
+  {id:'sa',label:'🌎 中南美／非洲'}
+];
+function haversineKm(a,b){
+  if(!a||!b) return 0;
+  const r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLon=(b.lon-a.lon)*r;
+  const s=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLon/2)**2;
+  return 6371*2*Math.atan2(Math.sqrt(s),Math.sqrt(Math.max(0,1-s)));
+}
+function greatCircleWaypoints(from,to,steps=3){
+  if(!from||!to||from===to) return [];
+  const r=Math.PI/180,lat1=from.lat*r,lon1=from.lon*r,lat2=to.lat*r,lon2=to.lon*r;
+  const p1=[Math.cos(lat1)*Math.cos(lon1),Math.cos(lat1)*Math.sin(lon1),Math.sin(lat1)];
+  const p2=[Math.cos(lat2)*Math.cos(lon2),Math.cos(lat2)*Math.sin(lon2),Math.sin(lat2)];
+  const dot=Math.max(-1,Math.min(1,p1[0]*p2[0]+p1[1]*p2[1]+p1[2]*p2[2]));
+  const omega=Math.acos(dot);
+  if(omega<0.02) return [];
+  const sinO=Math.sin(omega),out=[];
+  for(let k=1;k<=steps;k++){
+    const f=k/(steps+1),a=Math.sin((1-f)*omega)/sinO,b=Math.sin(f*omega)/sinO;
+    const x=a*p1[0]+b*p2[0],y=a*p1[1]+b*p2[1],z=a*p1[2]+b*p2[2];
+    const lat=Math.atan2(z,Math.hypot(x,y))/r,lon=Math.atan2(y,x)/r;
+    out.push({name:`大圓航路點 ${k}`,lat,lon,...geoPoint(lat,lon)});
+  }
+  return out;
 }
 const taiwanAirports=[
-  {...airport('RCSS','松山',regionalOrigin.lat,regionalOrigin.lon,92.22,4000,90,4.11,'10','28'),
+  {...airport('RCSS','松山',regionalOrigin.lat,regionalOrigin.lon,92.22,4000,90,4.11,'10','28',260),
     referenceLength:2605,referenceWidth:60,gameExpanded:true},
   airport('RCYU','花蓮',24+(1+25.335/60)/60,121+(37+.955/60)/60,206.29,2751,45,14.48,'21','03',-170),
   airport('RCTP','桃園',25+5.02175/60,121+13.78283/60,49.08,3660,60,20.88,'05L','23R'),
@@ -24,17 +58,65 @@ const taiwanAirports=[
     carrier:true,shortField:true,catapult:true,arrestor:true,parkingAlong:20},
 ];
 const internationalAirports=[
-  airport('RJAA','東京成田',35+(45+31.88/60)/60,140+(22+46.255/60)/60,329.51,4000,60,41,'34L','16R',-205),
-  airport('RJTT','東京羽田',35.5494,139.7798,337.0,3360,60,6.4,'34R','16L',-195),
-  airport('RJBB','大阪關西',34.4347,135.2440,59.0,4000,60,5.2,'06R','24L',-190),
-  airport('VHHH','香港赤鱲角',22+(18+29/60)/60,113+(55+6/60)/60,71.0,3800,60,9,'07L','25R',185),
-  airport('ROAH','沖繩那霸',26+(11+45/60)/60,127+(38+45/60)/60,183.0,3000,45,3.5,'18R','36L',-170),
-  airport('RKSI','首爾仁川',37.4602,126.4407,333.0,4000,60,7.0,'33L','15R',-200),
-  airport('WSSS','新加坡樟宜',1.3592,103.9893,23.0,4000,60,6.7,'02L','20R',190),
-  airport('RPLL','馬尼拉尼諾伊',14.5086,121.0194,61.0,3737,60,22.9,'06','24',-185),
-  airport('VTBS','曼谷蘇凡納布',13.6900,100.7501,15.0,4000,60,2.1,'01R','19L',-195)
+  airport('RJAA','東京成田',35+(45+31.88/60)/60,140+(22+46.255/60)/60,329.51,4000,60,41,'34L','16R',-205,'ea'),
+  airport('RJTT','東京羽田',35.5494,139.7798,337.0,3360,60,6.4,'34R','16L',-195,'ea'),
+  airport('RJBB','大阪關西',34.4347,135.2440,59.0,4000,60,5.2,'06R','24L',-190,'ea'),
+  airport('VHHH','香港赤鱲角',22+(18+29/60)/60,113+(55+6/60)/60,71.0,3800,60,9,'07L','25R',185,'ea'),
+  airport('ROAH','沖繩那霸',26+(11+45/60)/60,127+(38+45/60)/60,183.0,3000,45,3.5,'18R','36L',-170,'ea'),
+  airport('RKSI','首爾仁川',37.4602,126.4407,333.0,4000,60,7.0,'33L','15R',-200,'ea'),
+  airport('WSSS','新加坡樟宜',1.3592,103.9893,23.0,4000,60,6.7,'02L','20R',190,'sea'),
+  airport('RPLL','馬尼拉尼諾伊',14.5086,121.0194,61.0,3737,60,22.9,'06','24',-185,'sea'),
+  airport('VTBS','曼谷蘇凡納布',13.6900,100.7501,15.0,4000,60,2.1,'01R','19L',-195,'sea'),
+  airport('WMKK','吉隆坡國際',2.762835,101.7120015,146.0,4124,60,21.0,'14L','32R',175,'sea'),
+  airport('WIII','雅加達蘇加諾哈達',-6.13646,106.659,68.0,3660,60,10.4,'07R','25L',175,'sea'),
+  // East Asia expansion
+  airport('ZSPD','上海浦東',31.1434,121.8052,167.0,4000,60,4.0,'17L','35R',-190,'ea'),
+  airport('ZBAA','北京首都',40.0799,116.6031,359.0,3800,60,35.4,'36R','18L',185,'ea'),
+  airport('ZGGG','廣州白雲',23.3924,113.2988,19.0,3800,60,15.2,'02R','20L',185,'ea'),
+  airport('ZGSZ','深圳寶安',22.6393,113.8107,153.0,3800,60,4.0,'15','33',-180,'ea'),
+  airport('VMMC','澳門國際',22.1496,113.5915,160.0,3360,45,6.1,'16','34',-160,'ea'),
+  airport('RJCC','札幌新千歲',42.7752,141.6923,5.0,3000,60,25.0,'01L','19R',175,'ea'),
+  airport('RJFF','福岡機場',33.5859,130.4507,157.0,2800,60,9.4,'16','34',-175,'ea'),
+  airport('RJOO','大阪伊丹',34.7855,135.4382,135.0,3000,60,15.2,'14L','32R',175,'ea'),
+  airport('RKPC','濟州國際',33.5113,126.4930,68.0,3180,45,36.0,'07','25',175,'ea'),
+  // South & Southeast Asia
+  airport('VVNB','河內內排',21.2212,105.8072,110.0,3800,45,12.2,'11R','29L',-175,'sea'),
+  airport('VVTS','胡志明新山一',10.8188,106.6519,70.0,3800,45,10.1,'07R','25L',175,'sea'),
+  airport('VIDP','新德里英迪拉甘地',28.5562,77.1000,104.0,4430,60,237.1,'11R','29L',-195,'sea'),
+  airport('VABB','孟買賈特拉帕蒂',19.0887,72.8679,88.0,3448,60,11.9,'09','27',175,'sea'),
+  // Middle East
+  airport('OMDB','杜拜國際',25.2528,55.3644,121.0,4000,60,19.0,'12R','30L',-195,'me'),
+  airport('OTHH','杜哈哈馬德',25.2731,51.6081,160.0,4850,60,4.0,'16L','34R',190,'me'),
+  airport('LTFM','伊斯坦堡新機場',41.2753,28.7519,170.0,4100,60,99.1,'17L','35R',190,'me'),
+  // Europe
+  airport('EGLL','倫敦希斯洛',51.4700,-0.4543,270.0,3902,50,25.3,'27R','09L',195,'eu'),
+  airport('LFPG','巴黎戴高樂',49.0097,2.5479,86.0,4200,60,119.5,'09R','27L',-195,'eu'),
+  airport('EDDF','法蘭克福',50.0379,8.5622,68.0,4000,60,110.9,'07C','25C',195,'eu'),
+  airport('EHAM','阿姆斯特丹史基浦',52.3105,4.7683,183.0,3800,60,-3.4,'18R','36L',185,'eu'),
+  airport('LSZH','蘇黎世國際',47.4647,8.5492,155.0,3700,60,431.6,'16','34',-175,'eu'),
+  airport('LIRF','羅馬費米奇諾',41.8003,12.2389,163.0,3900,60,4.6,'16R','34L',185,'eu'),
+  airport('LEMD','馬德里巴拉哈斯',40.4983,-3.5676,143.0,4179,60,609.0,'14R','32L',-190,'eu'),
+  // North America
+  airport('KJFK','紐約甘迺迪',40.6413,-73.7781,134.0,4423,61,4.0,'13R','31L',195,'na'),
+  airport('KLAX','洛杉磯國際',33.9416,-118.4085,70.0,3685,61,38.4,'07R','25L',195,'na'),
+  airport('KSFO','舊金山國際',37.6213,-122.3790,104.0,3618,61,4.0,'10L','28R',-185,'na'),
+  airport('KORD','芝加哥歐海爾',41.9742,-87.9073,90.0,3963,61,206.7,'09C','27C',195,'na'),
+  airport('KSEA','西雅圖塔科馬',47.4502,-122.3088,164.0,3627,46,132.0,'16L','34R',185,'na'),
+  airport('PANC','安克拉治泰德史蒂文斯',61.1743,-149.9964,71.0,3531,46,46.0,'07R','25L',-175,'na'),
+  airport('PHNL','檀香山丹尼爾井上',21.3187,-157.9225,79.0,3753,46,4.0,'08L','26R',185,'na'),
+  airport('CYVR','溫哥華國際',49.1967,-123.1815,83.0,3505,61,4.3,'08R','26L',-180,'na'),
+  airport('CYYZ','多倫多皮爾遜',43.6777,-79.6248,57.0,3389,61,173.4,'05','23',185,'na'),
+  // Oceania
+  airport('YSSY','雪梨金斯福德史密斯',-33.9399,151.1753,168.0,3962,45,6.4,'16R','34L',-185,'oc'),
+  airport('YMML','墨爾本圖拉馬林',-37.6690,144.8410,160.0,3657,45,132.3,'16','34',180,'oc'),
+  airport('NZAA','奧克蘭國際',-37.0082,174.7850,51.0,3635,45,7.0,'05R','23L',-180,'oc'),
+  // South America & Africa
+  airport('SBGR','聖保羅瓜魯柳斯',-23.4356,-46.4731,90.0,3700,45,750.0,'09R','27L',185,'sa'),
+  airport('MMMX','墨西哥城貝尼托華雷斯',19.4363,-99.0721,52.0,3985,45,2230.0,'05R','23L',-180,'sa'),
+  airport('SCEL','聖地牙哥阿圖羅梅里諾',-33.3930,-70.7858,173.0,3800,45,474.0,'17R','35L',180,'sa'),
+  airport('HECA','開羅國際',30.1219,31.4056,50.0,4000,60,116.4,'05C','23C',185,'sa'),
+  airport('FAOR','約翰尼斯堡奧利弗坦博',-26.1367,28.2411,33.0,4418,60,1694.0,'03L','21R',190,'sa')
 ];
-internationalAirports.push(airport("WMKK","吉隆坡國際",2.762835,101.7120015,146.0,4123.944,60.0456,21.031200000000002,"14L","32R"),airport("WIII","雅加達蘇加諾哈達",-6.13646,106.65900049999999,68.0,3660.0384000000004,60.0456,10.3632,"07R","25L"));
 var allAirports=[...taiwanAirports,...internationalAirports];
 function runwayCoordinates(x,z,r){
   const dx=x-r.x,dz=z-r.z,s=Math.sin(r.heading),c=Math.cos(r.heading);
@@ -167,7 +249,8 @@ function regionalRoute(from,to){
     {name:'南海西南航段',...geoPoint(10.50,108.50)},
     ...finish
   ];
-  return finish;
+  const enroute=from&&to&&from!==to&&haversineKm(from,to)>1200?greatCircleWaypoints(from,to,3):[];
+  return [...enroute,...finish];
 }
 const regionalGridStep=240;
 function islandGridAt(x,z){
@@ -549,6 +632,13 @@ function regionalHeight(x,z){
   if(centralMountainTiles&&height>350) height=detailedMountainHeight(x,z,height);
   const island=islandGridAt(x,z);
   if(island) height=islandHeight(x,z,island);
+  if(height<0.8&&typeof WorldAtlas!=='undefined'&&typeof WorldAtlas.globalLandElevation==='function'){
+    const {lat,lon}=latLon(x,z);
+    if(lat<21.8||lat>25.4||lon<119.3||lon>122.1){
+      const glH=WorldAtlas.globalLandElevation(lon,lat,x,z);
+      if(glH>height) height=glH;
+    }
+  }
   for(const r of allAirports){
     const reach=r.length/2+550;
     if(Math.abs(x-r.x)>reach||Math.abs(z-r.z)>reach) continue;
@@ -560,11 +650,19 @@ function regionalHeight(x,z){
       continue;
     }
     const blend=r.shortField?shortFieldBlend(r,along,cross):
-      Math.max(0,1-Math.max((Math.abs(along)-r.length/2-60)/270,(Math.abs(cross)-265)/165));
+      Math.max(0,1-Math.max((Math.abs(along)-r.length/2-60)/270,(Math.abs(cross)-(r.gameExpanded?Math.max(265,Math.abs(r.apron)+190):265))/165));
     if(blend>0) return height+(r.elevation-height)*Math.min(1,blend);
   }
   return height;
 }
-if(typeof module!=='undefined') Object.assign(globalThis,{geoPoint,latLon,taiwanAirports,internationalAirports,allAirports,internationalRegions,internationalTerrainHeight,airportPoint,parkingPoint,runwayCoordinates,regionalRoute,regionalHeight});
+if(typeof module!=='undefined') Object.assign(globalThis,{geoPoint,latLon,taiwanAirports,internationalAirports,allAirports,AIRPORT_REGIONS,haversineKm,greatCircleWaypoints,internationalRegions,internationalTerrainHeight,airportPoint,parkingPoint,runwayCoordinates,regionalRoute,regionalHeight});
 
 
+
+// Reserve the enlarged game airport pavement from data-generated city objects.
+function expandedAirportFootprint(x,z,padding=0){
+ for(const a of allAirports){if(!a.gameExpanded)continue;const p=runwayCoordinates(x,z,a),side=Math.sign(a.apron)||1;
+  if(Math.abs(p.along)<=a.length/2+80+padding&&p.cross*side>=-a.width/2-30-padding&&p.cross*side<=Math.abs(a.apron)+130+padding)return true;
+ }
+ return false;
+}

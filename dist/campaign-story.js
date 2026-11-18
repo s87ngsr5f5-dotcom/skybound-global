@@ -160,8 +160,8 @@
       subtitle: '海上航艦艦載機實彈戰備',
       image: 'assets/campaign/ch4.jpg',
       aircraft: 'sf16',
-      departure: 'RCYU',
-      destination: 'RCKH',
+      departure: 'CVN78',
+      destination: 'RCYU',
       quickPreset: 'carrierCatapult',
       startType: 'runway',
       weather: 'clouds',
@@ -281,11 +281,11 @@
       id: 7,
       code: 'EP.07',
       title: '終章夜航：晶圓專機直達東京',
-      subtitle: '747-8F 深夜繁星高空貨運史詩',
+      subtitle: '747-8F 深夜高空跨國貨運航線',
       image: 'assets/campaign/ch7.jpg',
       aircraft: 'sf748',
       departure: 'RCTP',
-      destination: 'RCKH',
+      destination: 'RJAA',
       lesson: 'free',
       startType: 'runway',
       weather: 'wet',
@@ -552,7 +552,7 @@
       rewardXp: 960,
       maxSafeG: 8.5,
       targetText: '① 馬尼拉 06 跑道極速升空 ② 穿越馬卡蒂／BGC 摩天樓與海灣摩天輪 (> 1,150 ft) ③ 高空超音速北上巴士海峽 6.6 km',
-      story: '跨國遠征最終章！熱帶風暴生成於呂宋島東方，你將駕駛幻象 2000 自馬尼拉尼諾伊國際機場緊急升空，掠過馬尼拉灣摩天輪與 BGC 金融大樓群，以超音速衝上巴士海峽開闢安全氣象走廊！',
+      story: '東南亞氣象支援任務！熱帶風暴生成於呂宋島東方，你將駕駛幻象 2000 自馬尼拉尼諾伊國際機場緊急升空，掠過馬尼拉灣摩天輪與 BGC 金融大樓群，以超音速衝上巴士海峽開闢安全氣象走廊！',
       radio: [
         { delay: 1.2, speaker: '馬尼拉塔台 · MANILA TWR', text: '「Mirage-Express，06 跑道允許全推力起飛！感謝台灣機隊支援跨國氣象走廊護航！」' }
       ],
@@ -568,7 +568,7 @@
           radio: { speaker: '總指揮官 · SKYBOUND HQ', text: '「六大國際都會遠征即將大功告成！保持全速衝過終點線！」' }
         },
         {
-          label: '階段 3/3 · 完成 6.6 km 跨國史詩遠征',
+          label: '階段 3/3 · 完成 6.6 km 跨國遠征',
           check: (f, st) => !f.ended && !f.ground && f.y >= 351 && st.flownM >= 6600
         }
       ],
@@ -667,27 +667,54 @@
     {...CHAPTERS[1], id:18,code:'LOCAL.18',title:'桃園平穩飛行',aircraft:'a223',departure:'RCTP',smoothLimit:1.5,weather:'0'},
     {...CHAPTERS[5], id:19,code:'LOCAL.19',title:'花蓮轉彎訓練',aircraft:'sf16',departure:'RCYU',weather:'0'}
   ];
-  const ALL_CHAPTERS = [...CHAPTERS, ...WORLD_CHAPTERS, ...SHORT_CHAPTERS];
+  const GLOBAL_CHAPTERS = [
+    [36,'GL.36','阿爾卑斯越嶺：法蘭克福至蘇黎世','歐洲山岳走廊雙發客機調度','a223','EDDF','LSZH','clouds','10:30',36000,48000,920,'level',30,false,null,'① 法蘭克福 07C 起飛 ② 通過三段阿爾卑斯北麓航點 ③ 穩定姿態 30 秒完成調度檢定'],
+    [37,'GL.37','英法海峽晨航：倫敦至巴黎','跨海峽客機離場與儀表進場準備','a320neo','EGLL','LFPG','wet','07:45',34000,52000,980,'level',35,false,null,'① 倫敦希斯洛 27R 起飛 ② 通過多佛海峽三航點 ③ 穩定平飛 35 秒進入巴黎進場'],
+    [38,'GL.38','極地跨洋貨運：安克拉治至東京','747-8F 北太平洋重載高空巡航','sf748','PANC','RJAA','clouds','05:30',46000,68000,1200,'level',40,false,null,'① 安克拉治 07R 重載升空 ② 通過白令海航路門 ③ 高空穩定巡航 40 秒'],
+    [39,'GL.39','加州海岸走廊：舊金山至洛杉磯','美國西岸沿岸轉向與巡航','b38m','KSFO','KLAX','0','16:20',32000,46000,880,'level',30,false,null,'① 舊金山 10L 起飛 ② 沿加州海岸通過三航點 ③ 平穩巡航 30 秒'],
+    [40,'GL.40','北美東岸快線：多倫多至紐約','B777-300ER 五大湖至大西洋走廊','b773','CYYZ','KJFK','clouds','14:00',42000,62000,1150,'level',35,false,null,'① 多倫多 05 起飛爬升 ② 依序穿越東岸三航點 ③ 保持航姿穩定 35 秒'],
+    [41,'GL.41','波斯灣夜航旗艦：杜拜至杜哈','A380 沙漠海岸夜間平飛與返場','sa380','OMDB','OTHH','0','21:15',38000,70000,1300,'level',35,false,null,'① 杜拜 12R 夜間升空 ② 穿越波斯灣三航點 ③ 保持平穩巡航 35 秒'],
+    [42,'GL.42','塔斯曼海跨越：雪梨至奧克蘭','南半球跨海長程高空巡航檢定','b789','YSSY','NZAA','5.144','08:40',44000,64000,1180,'level',35,false,null,'① 雪梨 16R 起飛離場 ② 跨塔斯曼海通過三航點 ③ 側風下穩定巡航 35 秒'],
+    [43,'GL.43','地中海黃金航線：馬德里至羅馬','伊比利至亞平寧半島高空調度','b38m','LEMD','LIRF','0','12:15',34000,50000,960,'level',30,false,null,'① 馬德里 14R 高原機場起飛 ② 飛越巴利阿里航點 ③ 穩定巡航 30 秒'],
+    [44,'GL.44','安地斯山麓試飛：聖地牙哥戰術爬升','F-16V 高原機場高空高速機動','f16v','SCEL','SCEL','0','15:10',45000,56000,1100,'turn',20,true,null,'① 聖地牙哥 17R 後燃器升空 ② 通過安地斯山麓三航點 ③ 完成坡度轉彎並返場落地停住'],
+    [45,'GL.45','赤道遠洋救援調度：開羅至約翰尼斯堡','An-124 重型運輸機非洲縱貫','an124','HECA','FAOR','clouds','06:30',48000,76000,1400,'level',40,false,null,'① 開羅 05C 重型起飛 ② 通過尼羅河走廊三航點 ③ 穩定巡航 40 秒']
+  ].map(([id,code,title,subtitle,aircraft,departure,destination,weather,time,objectiveDistM,rewardMoney,rewardXp,skill,skillDuration,finishLanding,rewardAircraft,targetText])=>({
+    id,code,title,subtitle,isGlobal:true,
+    image:aircraft==='f16v'?'assets/campaign/ch6.jpg':aircraft==='an124'||aircraft==='sf748'?'assets/campaign/ch7.jpg':'assets/campaign/ch2.jpg',
+    aircraft,departure,destination,lesson:'free',startType:departure==='CVN78'?'runway':'runway',
+    weather,time,objectiveDistM,parTimeS:540,durationLabel:'約 5–8 分鐘',
+    rewardMoney,rewardXp,rewardAircraft,maxSafeG:aircraft==='f16v'?7.5:3.2,
+    skill,skillDuration,finishLanding,requiredGates:3,
+    targetText,
+    story:`${subtitle}（${departure} → ${destination}）。依序通過三個高空離場航道閘門，並完成穩定操作或返場落地，無須枯燥等待數小時即可完成航段檢定（亦可搭配加速或自由飛行續飛全程）。`,
+    radio:[{delay:1.8,speaker:`${departure} 塔台`,text:`「Skybound-${id}，${departure} 跑道允許起飛，離場後依循三大圓航道閘門爬升！」`}],
+    stages:[
+      {label:'階段 1/4 · 起飛並通過離場航門 1',check:(f,st)=>!f.ground&&!f.ended&&st.gatesPassed>=1},
+      {label:'階段 2/4 · 爬升通過航道閘門 2',check:(f,st)=>!f.ended&&st.gatesPassed>=2},
+      {label:'階段 3/4 · 通過巡航閘門 3',check:(f,st)=>!f.ended&&st.gatesPassed>=3},
+      {label:finishLanding?'階段 4/4 · 返場落地並在跑道停住':`階段 4/4 · 穩定飛行累計 ${skillDuration} 秒`,check:(f,st)=>finishLanding?!f.ended&&f.ground&&st.wasAirborne&&Math.hypot(f.vx||0,f.vz||0)<3&&st.nearAirport:st.stableS>=skillDuration}
+    ],
+    winCondition:(f,st)=>!f.ended&&st.gatesPassed>=3&&(finishLanding?f.ground&&st.wasAirborne&&st.nearAirport&&Math.hypot(f.vx||0,f.vz||0)<3:!f.ground&&st.stableS>=skillDuration)
+  }));
+
+  const ALL_CHAPTERS = [...CHAPTERS, ...WORLD_CHAPTERS, ...SHORT_CHAPTERS, ...GLOBAL_CHAPTERS];
   const missionPrizes = {1:'Gulfstream G700',2:'Dassault Rafale C',3:'Airbus A400M',4:'F-14B Tomcat',6:'F-22A Raptor',8:'Airbus A350-1000'};
-  for (const ch of ALL_CHAPTERS) {
+  for (const ch of SHORT_CHAPTERS) {
     const trainer = ch.aircraft === 'c172s';
     const fighter = ['sf16','m2000'].includes(ch.aircraft);
     ch.localCircuit = true;
     ch.lesson='free';ch.startType='runway';delete ch.quickPreset;
-    const names=['松山河岸巡航','桃園轉彎航線','風雨離場','海岸導航','低速穩定飛行','花蓮機動航線','山海巡航','東京離場','香港海岸巡航','沖繩島嶼導航','仁川離場','樟宜離場','馬尼拉巡航','關西海岸導航','曼谷離場'];
-    if(ch.id<=15)ch.title=names[ch.id-1];
     ch.destination = ch.departure;
     ch.objectiveDistM = trainer ? 18000 : fighter ? 42000 : 30000;
     ch.parTimeS = 600;
     ch.durationLabel = '約 5–10 分鐘';
-    ch.title = ch.title.replace(/^.*?：/, '').replace(/！/g,'');
-    ch.subtitle = ch.finishLanding ? '導航與落地' : fighter ? '轉彎與航線' : '離場與穩定飛行';
-    ch.story = ch.finishLanding ? '通過三個航點，返回出發機場落地，在跑道停住。' : '依序通過三個航點，再完成操控練習。全程在出發機場周邊。';
-    ch.skill = ch.id===5?'speed':ch.id===19?'turn':ch.id===18?'smooth':'level';
-    ch.skillLabel=ch.skill==='speed'?'保持 200–800 km/h，累計 25 秒':ch.skill==='turn'?'保持 15–50° 坡度轉彎，累計 15 秒':ch.skill==='smooth'?'保持平穩姿態，累計 35 秒':'保持坡度小於 20°、俯仰小於 16°，累計 35 秒';
-    ch.skillDuration=ch.skill==='turn'?15:ch.skill==='speed'?25:35;
+    ch.subtitle = ch.finishLanding ? '本場導航與落地' : fighter ? '本場轉彎與航線' : '本場離場與平穩飛行';
+    ch.story = ch.finishLanding ? '通過三個本場航點後返回出發機場落地，並在跑道安全停住。' : '依序通過三個本場航點，再完成指定操控練習。全程位於出發機場周邊空域。';
+    ch.skill = ch.skill || (fighter ? 'turn' : 'level');
+    ch.skillLabel = ch.skill==='turn'?'保持 15–50° 坡度轉彎，累計 15 秒':'保持坡度小於 20°、俯仰小於 16°，累計 35 秒';
+    ch.skillDuration = ch.skill==='turn'?15:35;
     ch.targetText = ch.finishLanding ? '三航點 → 返場停住' : '三航點 → '+ch.skillLabel;
-    ch.radio = [{delay:3,speaker:'任務中心',text:ch.story}];
+    ch.radio = [{delay:2.5,speaker:'訓練塔台',text:ch.story}];
     ch.stages = [
       {label:'起飛，前往航點 1',check:(f,st)=>!f.ground && !f.ended && st.gatesPassed>=1},
       {label:'轉向航點 2',check:(f,st)=>!f.ended && st.gatesPassed>=2},
@@ -695,6 +722,11 @@
       {label:ch.finishLanding?'返場落地，在跑道停住':ch.skillLabel,check:(f,st)=>ch.finishLanding ? !f.ended && f.ground && st.wasAirborne && Math.hypot(f.vx||0,f.vz||0)<3 && st.nearAirport : st.stableS>=ch.skillDuration}
     ];
     ch.winCondition = (f,st)=>!f.ended && st.gatesPassed>=3 && (ch.finishLanding ? f.ground && st.wasAirborne && st.nearAirport && Math.hypot(f.vx||0,f.vz||0)<3 : !f.ground && st.stableS>=ch.skillDuration);
+  }
+  for (const ch of [...CHAPTERS, ...WORLD_CHAPTERS]) {
+    ch.durationLabel = ch.durationLabel || '約 4–8 分鐘';
+    ch.requiredGates = ch.id <= 5 ? 2 : 3;
+    if (ch.id === 1) ch.destination = 'RCTP';
   }
 
   const LICENSE_CHAPTERS=FlightLicensing.build(CHAPTERS[0]);
@@ -722,6 +754,7 @@
   }
 
   function requiredGates(ch) {
+    if (typeof ch.requiredGates === 'number') return ch.requiredGates;
     if (ch.localCircuit) return 3;
     if (!Number.isInteger(ch.id) || ch.id < 1 || ch.id > 15) return 0;
     return ch.id <= 5 ? 2 : 3;
@@ -746,39 +779,25 @@
       const alt=ch.aircraft==='c172s'?280:ch.aircraft==='sf16'||ch.aircraft==='m2000'?650:450;
       return [[.22,0,alt*.75],[.36,.16,alt],[0,.16,alt*.8]].map(([forward,right,height],i)=>{
         const x=dep.x+(fwdX*forward+rightX*right)*distTotal,z=dep.z+(fwdZ*forward+rightZ*right)*distTotal;
-        const ground=typeof terrainHeight==='function'?terrainHeight(x,z):elev;
+        const ground=typeof terrainHeight==='function'?terrainHeight(x,z):typeof regionalHeight==='function'?regionalHeight(x,z):elev;
         return {id:i+1,name:'航點 '+(i+1),x,z,y:Math.max(elev+height,ground+180),radius:ch.aircraft==='c172s'?900:1400,passed:false};
       });
     }
 
+    const safeGateY = (x, z, altAboveElev) => {
+      const g = typeof terrainHeight === 'function' ? terrainHeight(x, z) : typeof regionalHeight === 'function' ? regionalHeight(x, z) : elev;
+      return Math.round(Math.max(elev + altAboveElev, g + 180));
+    };
+    const g1x = dep.x + fwdX * Math.min(2200, distTotal * 0.22);
+    const g1z = dep.z + fwdZ * Math.min(2200, distTotal * 0.22);
+    const g2x = dep.x + (fwdX * 0.45 + dirX * 0.55) * Math.min(12000, distTotal * 0.52);
+    const g2z = dep.z + (fwdZ * 0.45 + dirZ * 0.55) * Math.min(12000, distTotal * 0.52);
+    const g3x = dep.x + (fwdX * 0.25 + dirX * 0.75) * Math.min(24000, distTotal * 0.85);
+    const g3z = dep.z + (fwdZ * 0.25 + dirZ * 0.75) * Math.min(24000, distTotal * 0.85);
     return [
-      {
-        id: 1,
-        name: 'GATE 1 · 離場爬升門',
-        x: Math.round(dep.x + fwdX * Math.min(1800, distTotal * 0.28)),
-        y: Math.round(elev + 210),
-        z: Math.round(dep.z + fwdZ * Math.min(1800, distTotal * 0.28)),
-        radius: 950,
-        passed: false
-      },
-      {
-        id: 2,
-        name: 'GATE 2 · 地標巡航門',
-        x: Math.round(dep.x + (fwdX * 0.55 + dirX * 0.45) * (distTotal * 0.56)),
-        y: Math.round(elev + 340),
-        z: Math.round(dep.z + (fwdZ * 0.55 + dirZ * 0.45) * (distTotal * 0.56)),
-        radius: 1050,
-        passed: false
-      },
-      {
-        id: 3,
-        name: 'GATE 3 · 終點衝線門',
-        x: Math.round(dep.x + (fwdX * 0.35 + dirX * 0.65) * (distTotal * 0.86)),
-        y: Math.round(elev + 410),
-        z: Math.round(dep.z + (fwdZ * 0.35 + dirZ * 0.65) * (distTotal * 0.86)),
-        radius: 1150,
-        passed: false
-      }
+      { id: 1, name: 'GATE 1 · 離場爬升門', x: Math.round(g1x), y: safeGateY(g1x, g1z, 210), z: Math.round(g1z), radius: 1050, passed: false },
+      { id: 2, name: 'GATE 2 · 航道巡航門', x: Math.round(g2x), y: safeGateY(g2x, g2z, 360), z: Math.round(g2z), radius: 1200, passed: false },
+      { id: 3, name: 'GATE 3 · 巡航檢查門', x: Math.round(g3x), y: safeGateY(g3x, g3z, 480), z: Math.round(g3z), radius: 1350, passed: false }
     ];
   }
 
@@ -1396,6 +1415,7 @@
             <li><button type="button" class="hub-menu-btn" data-hub-tab="welcome"><div class="hub-menu-btn-main"><span>飛行首頁</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="licenses"><div class="hub-menu-btn-main"><span>飛行駕照</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>飛行任務</span></div><span class="hub-menu-badge">${ALL_CHAPTERS.length} 關</span></button></li>
+            <li><button type="button" class="hub-menu-btn" data-hub-tab="worldmap"><div class="hub-menu-btn-main"><span>全球地圖與機場</span></div><span class="hub-menu-badge">${typeof allAirports!=='undefined'?allAirports.length:62} 機場</span></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="shop"><div class="hub-menu-btn-main"><span>機庫商店與塗裝</span></div></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>性能改裝</span></div><span class="hub-menu-badge">工坊</span></button></li>
             <li><button type="button" class="hub-menu-btn" data-hub-tab="multiplayer"><div class="hub-menu-btn-main"><span>線上飛行</span></div><span class="hub-menu-badge" id="hubMpSideBadge">大廳</span></button></li>
@@ -1826,20 +1846,31 @@
 
     if (tab === 'welcome') {
       const nextCh = ALL_CHAPTERS.find(ch => !prog[ch.id]) || CHAPTERS[0];
+      const apTotal = typeof allAirports !== 'undefined' ? allAirports.length : 62;
       stage.innerHTML = `
         <div class="dispatch-home hangar-home">
           <div class="arrival-cinema" aria-hidden="true">
             <div class="arrival-horizon"></div><div class="arrival-cloud arrival-cloud-a"></div><div class="arrival-cloud arrival-cloud-b"></div>
-            <span class="arrival-caption">SKYBOUND GLOBAL<span>準備下一趟飛行</span></span>
           </div>
-          <img class="dispatch-photo" src="assets/brand/hero-v077.jpg" alt="帶有光影的飛機飛越夜間城市" fetchpriority="high">
-          <section class="dispatch-brief">
-            <h2>飛行準備</h2>
+          <img class="dispatch-photo" src="assets/campaign/title-bg.jpg" alt="SKYBOUND GLOBAL 客機與戰機飛越台北夕陽天際線" fetchpriority="high">
+          <div class="dispatch-hero-top">
+            <span class="dispatch-badge">✈ SKYBOUND GLOBAL · ${apTotal} 座全球機場 · ${ALL_CHAPTERS.length} 關任務</span>
             <a class="developer-follow" href="https://www.threads.com/@aiweb.creator" target="_blank" rel="noopener noreferrer" aria-label="在新分頁開啟開發者 Threads：aiweb.creator"><span>追蹤開發者 Threads <span aria-hidden="true">↗</span></span><small>@aiweb.creator</small></a>
-            <button type="button" id="hubQuickFreeBtn" class="campaign-launch-btn">開始飛行</button>
-            <button type="button" id="hubQuickStartBtn" class="hub-back-btn" data-quick-ch="${nextCh.id}">執飛 ${nextCh.code} · ${nextCh.title.split('：').pop()}</button>
-            <button type="button" id="hubOpenHangarBtn" class="hub-back-btn">進入機庫</button>
-            <button type="button" class="hub-back-btn" data-store-passenger="a223">載客任務</button><button type="button" class="hub-back-btn" data-jump-tab="shop">商店與塗裝</button><button type="button" class="hub-back-btn" data-jump-tab="help">操控說明</button>
+          </div>
+          <section class="dispatch-brief">
+            <h2>準備下一趟飛行</h2>
+            <p class="dispatch-lead">自由探索全球五大洲航線、真實國家領地與 100 架機隊，隨選即飛。</p>
+            <div class="dispatch-primary-row">
+              <button type="button" id="hubQuickFreeBtn" class="campaign-launch-btn">✈ 開始飛行</button>
+              <button type="button" id="hubQuickStartBtn" class="hub-back-btn dispatch-mission-btn" data-quick-ch="${nextCh.id}">🎯 執飛 ${nextCh.code} · ${nextCh.title.split('：').pop()}</button>
+            </div>
+            <div class="dispatch-secondary-grid">
+              <button type="button" id="hubOpenHangarBtn" class="hub-back-btn">🏛 進入機庫</button>
+              <button type="button" class="hub-back-btn" data-store-passenger="a223">🛫 載客任務</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="worldmap">🗺 全球地圖</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="shop">🛍 商店與塗裝</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="help">🎮 操控說明</button>
+            </div>
           </section>
         </div>`;
       return;
@@ -1897,18 +1928,21 @@
       };
       const showTw = curFilter === 'all' || curFilter === 'tw';
       const showWorld = curFilter === 'all' || curFilter === 'world';
+      const showGlobal = curFilter === 'all' || curFilter === 'global';
       const cardsHtml = `
         <div class="mp-room-chips" style="margin-bottom:6px;">
           <button type="button" class="mp-chip${curFilter === 'all' ? ' active' : ''}" data-campaign-filter="all">全部 (${ALL_CHAPTERS.length}章)</button>
-          <button type="button" class="mp-chip${curFilter === 'tw' ? ' active' : ''}" data-campaign-filter="tw">🇹🇼 台灣短程 (${CHAPTERS.length+SHORT_CHAPTERS.length}關)</button>
-          <button type="button" class="mp-chip${curFilter === 'world' ? ' active' : ''}" data-campaign-filter="world">🌍 海外短程 (${WORLD_CHAPTERS.length}關)</button>
+          <button type="button" class="mp-chip${curFilter === 'tw' ? ' active' : ''}" data-campaign-filter="tw">🇹🇼 台灣 (${CHAPTERS.length+SHORT_CHAPTERS.length}關)</button>
+          <button type="button" class="mp-chip${curFilter === 'world' ? ' active' : ''}" data-campaign-filter="world">🌍 亞太區域 (${WORLD_CHAPTERS.length}關)</button>
+          <button type="button" class="mp-chip${curFilter === 'global' ? ' active' : ''}" data-campaign-filter="global">🌏 全球遠征 (${GLOBAL_CHAPTERS.length}關)</button>
           <button type="button" class="mp-chip${curFilter === 'exams' ? ' active' : ''}" data-campaign-filter="exams">駕照考試 (4)</button>
           <button type="button" class="mp-chip${curFilter === 'licensed' ? ' active' : ''}" data-campaign-filter="licensed">資格任務 (12)</button>
         </div>
         ${curFilter==='all'||curFilter==='exams'?LICENSE_CHAPTERS.filter(c=>c.isExam).map(renderChBtn).join(''):''}
         ${curFilter==='all'||curFilter==='licensed'?LICENSE_CHAPTERS.filter(c=>!c.isExam).map(renderChBtn).join(''):''}
-        ${showTw ? `<div class="campaign-group-label" style="font-size:11.5px;color:#ffd976;font-weight:700;padding:2px 6px;">🇹🇼 台灣 · 起降與航線</div>${[...CHAPTERS,...SHORT_CHAPTERS].map(renderChBtn).join('')}` : ''}
-        ${showWorld ? `<div class="campaign-group-label" style="font-size:11.5px;color:#72e5ff;font-weight:700;padding:8px 6px 2px;">🌍 海外 · 當地短程飛行</div>${WORLD_CHAPTERS.map(renderChBtn).join('')}` : ''}
+        ${showTw ? `<div class="campaign-group-label" style="font-size:11.5px;color:#ffd976;font-weight:700;padding:2px 6px;">🇹🇼 台灣 · 主線與進階訓練</div>${[...CHAPTERS,...SHORT_CHAPTERS].map(renderChBtn).join('')}` : ''}
+        ${showWorld ? `<div class="campaign-group-label" style="font-size:11.5px;color:#72e5ff;font-weight:700;padding:8px 6px 2px;">🌍 亞太區域 · 跨海航線</div>${WORLD_CHAPTERS.map(renderChBtn).join('')}` : ''}
+        ${showGlobal ? `<div class="campaign-group-label" style="font-size:11.5px;color:#9cf7be;font-weight:700;padding:8px 6px 2px;">🌏 全球遠征 · 五大洲國際航線</div>${GLOBAL_CHAPTERS.map(renderChBtn).join('')}` : ''}
       `;
 
       stage.innerHTML = `
@@ -1933,7 +1967,7 @@
                 <p class="campaign-story-copy">${ch.story}</p>
                 <div class="campaign-meta-chips">
                   <span class="campaign-chip">機型：${ch.aircraft.toUpperCase()} · 任務借用，無須先購買</span>
-                  <span class="campaign-chip">區域：${ch.departure} 周邊</span>
+                  <span class="campaign-chip">${ch.destination && ch.destination !== ch.departure ? `航線：${ch.departure} → ${ch.destination}` : `區域：${ch.departure} 周邊`}</span>
                   <span class="campaign-chip">${ch.durationLabel}</span><span class="campaign-chip">${ch.requiredLicense?"要求："+FlightLicensing.name(ch.requiredLicense)+(FlightLicensing.access(ch)?" · 已具資格":" · 未取得"):"無先修資格要求"}</span>
                   <span class="campaign-chip mission-prize">${ch.licensedMission?FlightLicensing.rewardLabel(ch):missionPrizes[ch.id] ? "首通解鎖："+missionPrizes[ch.id] : "獎品：遊戲金幣"}</span><span class="campaign-chip">報酬：+$${ch.rewardMoney.toLocaleString()} · +${ch.rewardXp} XP</span>
                   <span class="campaign-chip">${ch.targetText}</span>
@@ -1950,6 +1984,116 @@
           </div>
         </div>`;
       drawCampaignRoutePreview(ch);
+      return;
+    }
+
+    if (tab === 'worldmap') {
+      const list = typeof allAirports !== 'undefined' ? allAirports : [];
+      const regions = typeof AIRPORT_REGIONS !== 'undefined' ? AIRPORT_REGIONS : [{ id: 'all', label: '🌏 全球機場' }];
+      const curReg = ensureDOM._mapRegion || 'all';
+      const curQ = (ensureDOM._mapSearch || '').trim().toLowerCase();
+      const filtered = list.filter(a => {
+        const okReg = curReg === 'all' || (a.region || 'tw') === curReg;
+        const okQ = !curQ || a.code.toLowerCase().includes(curQ) || a.name.toLowerCase().includes(curQ);
+        return okReg && okQ;
+      });
+      const selCode = ensureDOM._mapSelected || 'RCTP';
+      const sel = list.find(a => a.code === selCode) || list[0];
+      const tpe = list.find(a => a.code === 'RCTP') || sel;
+      const distFromTpe = sel && tpe && typeof haversineKm === 'function' ? Math.round(haversineKm(tpe, sel)) : 0;
+      const regionColors = { tw: '#7affbe', ea: '#6ceaff', sea: '#ffd976', me: '#ffab6b', eu: '#c7a4ff', na: '#6eb8ff', oc: '#ff8ec7', sa: '#ff7b7b' };
+
+      stage.innerHTML = `
+        <div class="hub-section-panel">
+          <div class="hub-section-head">
+            <div>
+              <h2>🗺 全球完整地圖與機場網路（${list.length} 座國際與區域機場）</h2>
+              <p>支援離線矢量洲界與大圓航路預覽；點選地圖圓點或下方卡片即可查看跑道資訊、一鍵起飛或排入航線。</p>
+            </div>
+          </div>
+          <div class="mp-room-chips" style="margin-bottom:8px;">
+            ${regions.map(r => `<button type="button" class="mp-chip${curReg === r.id ? ' active' : ''}" data-worldmap-region="${r.id}">${r.label}</button>`).join('')}
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+            <input id="hubWorldMapSearch" type="search" value="${ensureDOM._mapSearch || ''}" placeholder="搜尋 ICAO 代碼或城市名（如 EGLL、紐約、杜拜、雪梨）" style="flex:1;min-width:220px;padding:8px 12px;border-radius:8px;border:1px solid #35586d;background:#091a26;color:#fff;">
+          </div>
+          <canvas id="hubWorldMapCanvas" style="width:100%;height:340px;border-radius:10px;border:1px solid #3c6782;display:block;cursor:pointer;margin-bottom:12px;" aria-label="全球完整世界地圖與機場分佈"></canvas>
+          ${sel ? `
+          <div class="hub-panel-card" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+            <div>
+              <strong style="font-size:16px;color:#ffd976;">${sel.code} · ${sel.name}</strong>
+              <p style="margin:4px 0 0;color:#b8d7e8;font-size:13px;">跑道 ${sel.designator}/${sel.reciprocal}（長 ${Math.round(sel.length)} m · 寬 ${Math.round(sel.width)} m）· 海拔 ${Math.round(sel.elevation)} m · 座標 ${sel.lat.toFixed(2)}°, ${sel.lon.toFixed(2)}°${sel.code !== 'RCTP' ? ` · 距桃園約 ${distFromTpe.toLocaleString()} km` : ''}</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="campaign-launch-btn" data-world-fly="${sel.code}">✈ 從 ${sel.code} 直接起飛</button>
+              <button type="button" class="hub-back-btn" data-world-plan="${sel.code}">🧭 設為航線規劃出發／目的地</button>
+            </div>
+          </div>` : ''}
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;max-height:240px;overflow:auto;">
+            ${filtered.map(a => `<button type="button" class="campaign-ch-card${sel && a.code === sel.code ? ' selected' : ''}" data-worldmap-airport="${a.code}" style="padding:8px 10px;text-align:left;">
+              <div><strong>${a.code} · ${a.name}</strong><small>RWY ${a.designator} · ${Math.round(a.length)}m</small></div>
+            </button>`).join('')}
+          </div>
+        </div>`;
+
+      const canvas = document.getElementById('hubWorldMapCanvas');
+      if (canvas) {
+        const w = Math.max(420, Math.round(canvas.clientWidth || 760)), h = 340;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = w * dpr; canvas.height = h * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        const mercY = lat => { const r = Math.max(-80, Math.min(80, lat)) * Math.PI / 180; return Math.log(Math.tan(Math.PI / 4 + r / 2)); };
+        const proj = (lon, lat) => [16 + ((lon + 180) / 360) * (w - 32), 18 + ((mercY(75) - mercY(lat)) / (mercY(75) - mercY(-58))) * (h - 36)];
+        if (typeof WorldAtlas !== 'undefined') WorldAtlas.drawVectorWorld(ctx, proj, w, h, { showLabels: true });
+        if (tpe && sel && sel.code !== tpe.code && typeof WorldAtlas !== 'undefined') {
+          const arc = WorldAtlas.greatCircleGeoPoints(tpe, sel, 28);
+          ctx.save(); ctx.strokeStyle = 'rgba(108,234,255,0.75)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.beginPath();
+          let px0 = null;
+          arc.forEach((pt, idx) => { const [ax, ay] = proj(pt.lon, pt.lat); if (idx === 0 || (px0 !== null && Math.abs(ax - px0) > w * 0.5)) ctx.moveTo(ax, ay); else ctx.lineTo(ax, ay); px0 = ax; });
+          ctx.stroke(); ctx.restore();
+        }
+        const hits = [];
+        for (const a of list) {
+          const inFilter = filtered.includes(a);
+          const [ax, ay] = proj(a.lon, a.lat);
+          const isSel = sel && a.code === sel.code;
+          hits.push({ code: a.code, x: ax, y: ay });
+          ctx.beginPath();
+          ctx.arc(ax, ay, isSel ? 6.5 : inFilter ? 4.2 : 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = isSel ? '#ffd700' : inFilter ? (regionColors[a.region] || '#6ceaff') : 'rgba(150,190,210,0.35)';
+          ctx.fill();
+          if (isSel) {
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.font = 'bold 11px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(`${a.code} ${a.name}`, Math.min(w - 95, ax + 9), Math.max(16, ay - 6));
+          }
+        }
+        canvas.onclick = ev => {
+          const rect = canvas.getBoundingClientRect();
+          const cx = (ev.clientX - rect.left) * (w / Math.max(1, rect.width));
+          const cy = (ev.clientY - rect.top) * (h / Math.max(1, rect.height));
+          let best = null, bestD = 22;
+          for (const ht of hits) { const d = Math.hypot(cx - ht.x, cy - ht.y); if (d < bestD) { bestD = d; best = ht.code; } }
+          if (best) { ensureDOM._mapSelected = best; renderStage('worldmap'); }
+        };
+      }
+      const srch = document.getElementById('hubWorldMapSearch');
+      if (srch) srch.oninput = () => { ensureDOM._mapSearch = srch.value; renderStage('worldmap'); const n = document.getElementById('hubWorldMapSearch'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } };
+      stage.querySelectorAll('[data-worldmap-region]').forEach(b => b.onclick = () => { ensureDOM._mapRegion = b.dataset.worldmapRegion; renderStage('worldmap'); });
+      stage.querySelectorAll('[data-worldmap-airport]').forEach(b => b.onclick = () => { ensureDOM._mapSelected = b.dataset.worldmapAirport; renderStage('worldmap'); });
+      stage.querySelectorAll('[data-world-fly]').forEach(b => b.onclick = () => {
+        const code = b.dataset.worldFly;
+        const dstCode = code === 'RCTP' ? 'RJAA' : 'RCTP';
+        launchMission({ aircraft: 'b773', departure: code, destination: dstCode, lesson: 'free', startType: 'runway', weather: '0', time: '11:00', contractOnly: true });
+      });
+      stage.querySelectorAll('[data-world-plan]').forEach(b => b.onclick = () => {
+        const code = b.dataset.worldPlan;
+        const dep = document.getElementById('departure'), dst = document.getElementById('destination');
+        if (dep) { dep.value = code; dep.dispatchEvent(new Event('change')); }
+        if (dst && dst.value === code) { dst.value = code === 'RCTP' ? 'RJAA' : 'RCTP'; dst.dispatchEvent(new Event('change')); }
+        closeHub();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
       return;
     }
 
@@ -2656,7 +2800,7 @@
     const skillOk=ch.licensedMission?FlightLicensing.skillOk(ch,f):ch.skill==='turn' ? bankAbs>=.262 && bankAbs<=.873 && Math.abs(f.pitch||0)<.28 :
       bankAbs<.35 && Math.abs(f.pitch||0)<.28 && (ch.skill!=='speed'||speedKmh>=200&&speedKmh<=800);
     if(!f.ground && !f.ended && activeMission.gatesPassed>=3 && skillOk) activeMission.stableS+=missionDt;
-    const nearAirport=typeof allAirports!=='undefined' && allAirports.some(a=>a.code===ch.departure && Math.abs((f.x-a.x)*Math.cos(a.heading)+(f.z-a.z)*Math.sin(a.heading))<(a.width||45)*.7 && Math.abs((f.x-a.x)*Math.sin(a.heading)-(f.z-a.z)*Math.cos(a.heading))<a.length*.6);
+    const nearAirport=typeof allAirports!=='undefined' && allAirports.some(a=>a.code===(ch.destination||ch.departure) && Math.abs((f.x-a.x)*Math.cos(a.heading)+(f.z-a.z)*Math.sin(a.heading))<(a.width||45)*.7 && Math.abs((f.x-a.x)*Math.sin(a.heading)-(f.z-a.z)*Math.cos(a.heading))<a.length*.6);
 
     // Check 3D Sky Gate passes
     if (Array.isArray(activeMission.gates) && !f.ground) {
@@ -2788,6 +2932,7 @@
     chapters: CHAPTERS,
     worldChapters: WORLD_CHAPTERS,
     shortChapters: SHORT_CHAPTERS,
+    globalChapters: GLOBAL_CHAPTERS,
     licenseChapters:LICENSE_CHAPTERS,
     getPendingLocalMission:()=>pendingLocalMission,
     getPendingLoanerAircraft:()=>pendingLoanerAircraft,

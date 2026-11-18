@@ -1851,43 +1851,50 @@ body.flight-ui #headerMpBtn {
   }
 }
 
-/* Dispatch menu. Keep the active flight outside the menu styling scope. */
-#titleHub {background:#141c20;color:#f6f3e9;font-family:"Segoe UI","Microsoft JhengHei",sans-serif}
-#titleHub .hub-sidebar {background:#172024;border-color:#394449;backdrop-filter:none;-webkit-backdrop-filter:none}
-#titleHub .hub-kicker,#titleHub .hub-menu-badge {background:none;border:0;padding:0;color:#c8c5b5;border-radius:0}
-#titleHub .hub-title {text-shadow:none}
-#titleHub .hub-menu-list {gap:0}
-#titleHub .hub-menu-btn {border:0;border-bottom:1px solid #364247;border-radius:0;background:transparent;box-shadow:none;transform:none;transition:none;min-height:44px}
-#titleHub .hub-menu-btn:hover {background:#293437}
-#titleHub .hub-menu-btn.active {background:#303a39;box-shadow:inset 3px 0 #f1bd65;color:#fff}
-#titleHub button:focus-visible {outline:2px solid #ffcf7e;outline-offset:-3px}
+/* Dispatch menu hero & modern glass cockpit theme. */
+#titleHub {background:#091520;color:#f3f7fa;font-family:"Segoe UI","Microsoft JhengHei",sans-serif}
+#titleHub .hub-sidebar {background:linear-gradient(180deg,rgba(10,23,35,0.92) 0%,rgba(12,27,40,0.86) 100%);border-color:rgba(112,210,255,0.22);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+#titleHub .hub-kicker {background:rgba(101,220,255,0.14);border:1px solid rgba(101,220,255,0.34);padding:4px 10px;color:#7ee6ff;border-radius:999px}
+#titleHub .hub-menu-badge {background:rgba(112,210,255,0.12);border:1px solid rgba(112,210,255,0.25);padding:2px 8px;color:#bde9ff;border-radius:999px;font-size:11px}
+#titleHub .hub-title {text-shadow:0 4px 18px rgba(0,0,0,0.55)}
+#titleHub .hub-menu-list {gap:6px}
+#titleHub .hub-menu-btn {border:1px solid rgba(112,210,255,0.12);border-radius:10px;background:rgba(19,38,54,0.45);transition:background 0.16s ease,border-color 0.16s ease,transform 0.12s ease;min-height:42px}
+#titleHub .hub-menu-btn:hover {background:rgba(36,68,94,0.72);border-color:rgba(112,210,255,0.35)}
+#titleHub .hub-menu-btn.active {background:linear-gradient(90deg,rgba(241,189,101,0.22),rgba(55,140,190,0.26));border-color:rgba(241,189,101,0.65);box-shadow:inset 3px 0 #f1bd65;color:#fff}
+#titleHub button:focus-visible {outline:2px solid #ffcf7e;outline-offset:2px}
 #titleHub .hub-stage {font-variant-numeric:tabular-nums}
-.dispatch-home {position:relative;isolation:isolate;display:flex;align-items:flex-end;min-height:clamp(330px,67vh,810px);overflow:hidden;background:#222d33}
-.dispatch-photo {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1}
-.dispatch-brief {margin:clamp(12px,3vw,44px);padding:clamp(16px,2vw,30px);max-width:34rem;background:#152024f2;border-top:3px solid #e6b867}
-.dispatch-route {font:600 14px/1.4 Consolas,monospace;letter-spacing:.1em;color:#f2c475}
-.dispatch-brief h2 {font-size:clamp(26px,3.3vw,52px);line-height:1.15;margin:.4em 0}
-.dispatch-brief p {margin:0 0 1.1em;color:#c6ced0;font-variant-numeric:tabular-nums}
-#titleHub :is(.campaign-launch-btn,.hub-back-btn,.campaign-chip,.campaign-ch-card,.campaign-feature,.hub-section-panel,.hub-career-card) {border-radius:2px;box-shadow:none;transform:none}
-#titleHub .campaign-launch-btn {background:#eac17c;color:#182023;border:1px solid #eac17c;text-shadow:none;min-height:44px}
-#titleHub .hub-back-btn {background:#253035;color:white;min-height:44px}
-#titleHub .campaign-ch-card {background:#1d282d;border-color:#415055}
-#titleHub .campaign-ch-card.selected {border-color:#eac17c}
-#storyObjectiveHud,#storyRadioBar {font-variant-numeric:tabular-nums;border-radius:2px;box-shadow:none;text-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
-@media(max-width:900px){.dispatch-home{min-height:clamp(215px,48svh,400px)}.dispatch-brief{margin:8px;padding:12px}.dispatch-brief h2{font-size:24px}}
+.dispatch-home {position:relative;isolation:isolate;display:flex;flex-direction:column;justify-content:space-between;min-height:clamp(380px,100%,860px);padding:clamp(14px,2.6vw,34px);box-sizing:border-box;overflow:hidden;background:#0a1824}
+.dispatch-photo {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:62% center;z-index:-2;transform:scale(1.02)}
+.dispatch-hero-top {position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.dispatch-badge {display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;background:rgba(9,23,36,0.74);border:1px solid rgba(120,210,255,0.36);color:#9ee8ff;font-size:12px;font-weight:700;letter-spacing:0.06em;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.dispatch-brief {position:relative;z-index:2;width:100%;max-width:min(640px,100%);margin:0;padding:clamp(18px,2.4vw,28px);box-sizing:border-box;background:linear-gradient(155deg,rgba(10,23,36,0.88) 0%,rgba(14,31,46,0.78) 100%);border:1px solid rgba(125,212,255,0.26);border-top:3px solid #f0c26b;border-radius:16px;box-shadow:0 22px 54px rgba(3,10,18,0.68);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.dispatch-brief h2 {font-size:clamp(24px,3vw,36px);line-height:1.15;margin:0 0 8px;font-weight:900;letter-spacing:0.02em;color:#ffffff}
+.dispatch-lead {margin:0 0 16px;font-size:13.5px;line-height:1.5;color:#c2dce9}
+.dispatch-primary-row {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:10px;margin-bottom:10px}
+.dispatch-secondary-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+@media(max-width:640px){.dispatch-secondary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#titleHub :is(.campaign-launch-btn,.hub-back-btn,.campaign-chip,.campaign-ch-card,.campaign-feature,.hub-section-panel,.hub-career-card) {border-radius:10px;transition:transform 0.14s ease,filter 0.14s ease,border-color 0.14s ease}
+#titleHub .campaign-launch-btn {background:linear-gradient(135deg,#f6cf82 0%,#dfa13e 100%);color:#101c24;border:1px solid #f6cf82;font-weight:800;min-height:46px;box-shadow:0 8px 22px rgba(223,161,62,0.28)}
+#titleHub .campaign-launch-btn:hover {filter:brightness(1.06);transform:translateY(-1px)}
+#titleHub .hub-back-btn {background:rgba(28,48,66,0.82);border:1px solid rgba(120,205,245,0.22);color:#e9f4fb;min-height:42px;font-size:13px}
+#titleHub .hub-back-btn:hover {background:rgba(42,72,98,0.92);border-color:rgba(120,205,245,0.48)}
+#titleHub .dispatch-mission-btn {background:rgba(22,52,74,0.86);border-color:rgba(101,220,255,0.42);color:#bceeff;font-weight:700}
+#titleHub .campaign-ch-card {background:rgba(18,35,49,0.85);border-color:rgba(105,190,230,0.22)}
+#titleHub .campaign-ch-card.selected {border-color:#f0c26b;background:rgba(36,56,74,0.92)}
+#storyObjectiveHud,#storyRadioBar {font-variant-numeric:tabular-nums;border-radius:10px}
+@media(max-width:720px){.dispatch-primary-row{grid-template-columns:1fr}.dispatch-brief h2{font-size:22px}.dispatch-lead{font-size:12.5px}}
 @media(prefers-reduced-motion:reduce){#titleHub button,#storyRadioBar{transition:none;animation:none}}
 
 #titleHub:has(.hangar-home) .hub-stage {padding:0}
-.hangar-home {height:100%;min-height:260px;align-items:flex-end}
-.hangar-home .dispatch-photo {object-position:center}
-.hangar-home .dispatch-brief {display:grid;gap:5px;margin:0 0 3% 3%;padding:14px;background:#101b20ed;border:0}
-.hangar-home .dispatch-brief h2 {font-size:19px;margin:0 0 6px}
-.hangar-home button {text-align:left}
+.hangar-home {height:100%;min-height:280px}
+.hangar-home .dispatch-brief {margin:0}
+.hangar-home .dispatch-brief button {text-align:center;justify-content:center}
+.hangar-home .developer-follow {margin:0;min-height:36px;padding:6px 12px;border-radius:999px;background:rgba(13,29,43,0.8);border:1px solid rgba(240,194,107,0.52);font-size:12px;gap:8px;width:auto}
 .route-caption {display:block;color:#a7bac4}
 .hangar-step {display:flex;align-items:end;gap:4px}
 .hangar-step button {min-height:40px}
 body.flight-ui.cockpit-active #glassReadouts {pointer-events:none;width:94%;height:64%;top:38%}
-#storyDebrief .debrief-box {border-radius:2px;background:#101c23;box-shadow:none}
+#storyDebrief .debrief-box {border-radius:14px;background:#101c23}
 @media(min-width:901px){
   #titleHub .campaign-layout {grid-template-columns:minmax(185px,.75fr) minmax(285px,1.4fr)}
   .campaign-layout .campaign-chapter-list {grid-area:1/1}
@@ -1897,8 +1904,9 @@ body.flight-ui.cockpit-active #glassReadouts {pointer-events:none;width:94%;heig
 }
 @media(max-width:960px) and (orientation:landscape){
   body.mobile-mode.flight-ui.cockpit-active #glassReadouts {width:78% !important;height:46dvh !important;top:30%}
-  .hangar-home {min-height:190px}
-  .hangar-home .dispatch-brief {margin:6px;padding:7px}
+  .hangar-home {min-height:220px;padding:10px 14px}
+  .hangar-home .dispatch-brief {padding:12px 14px}
+  .dispatch-lead {display:none}
 }
 
 #storyDebrief { grid-template-rows:minmax(0,1fr); touch-action:pan-y; padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); }
@@ -1906,14 +1914,11 @@ body.flight-ui.cockpit-active #glassReadouts {pointer-events:none;width:94%;heig
 #storyDebrief .debrief-banner {max-height:24vh}
 #landingCard,#tacticalReport {box-sizing:border-box;max-height:80vh;max-height:80dvh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
 
-/* Lightweight original vector welcome sequence; all controls remain interactive. */
-.arrival-cinema{position:absolute;inset:0;pointer-events:none;overflow:hidden;background:linear-gradient(155deg,#102534ed 0%,#304b5c9c 42%,#d4ad6b26 73%,#101b2020 100%);z-index:0}
-.arrival-horizon{position:absolute;left:-10%;right:-10%;top:48%;height:1px;background:linear-gradient(90deg,transparent,#f0cc84aa,transparent);transform:rotate(-8deg)}
-.arrival-aircraft{position:absolute;width:min(72%,760px);height:auto;left:21%;top:13%;filter:drop-shadow(0 20px 18px #08151b66);animation:arrival-flight 9s ease-in-out infinite alternate;transform-origin:center}
-.arrival-caption{position:absolute;top:8%;left:6%;font:500 clamp(11px,1.1vw,15px)/1.8 system-ui,sans-serif;letter-spacing:.24em;color:#eed5a5}
-.arrival-caption span{display:block;letter-spacing:.12em;font-size:.8em;color:#d6e0e4}
-.arrival-cloud{position:absolute;width:80%;height:22%;background:linear-gradient(170deg,transparent,#e1e8e919,transparent);transform:rotate(-8deg);animation:arrival-drift 24s linear infinite}
-.arrival-cloud-a{top:27%;left:-40%}.arrival-cloud-b{top:53%;left:20%;animation-delay:-12s;opacity:.5}
+/* Atmospheric scrim blending title-bg sky cleanly under interactive dispatch card. */
+.arrival-cinema{position:absolute;inset:0;pointer-events:none;overflow:hidden;background:linear-gradient(12deg,rgba(6,15,24,0.88) 0%,rgba(9,22,34,0.52) 48%,rgba(12,26,40,0.18) 100%);z-index:-1}
+.arrival-horizon{display:none}
+.arrival-cloud{position:absolute;width:80%;height:22%;background:linear-gradient(170deg,transparent,rgba(255,216,155,0.06),transparent);transform:rotate(-8deg);animation:arrival-drift 28s linear infinite}
+.arrival-cloud-a{top:27%;left:-40%}.arrival-cloud-b{top:53%;left:20%;animation-delay:-14s;opacity:.45}
 .hangar-home .dispatch-brief{position:relative;z-index:1}
 @keyframes arrival-flight{from{transform:translate(-5%,9%) rotate(-3deg)}to{transform:translate(6%,-4%) rotate(1deg)}}
 @keyframes arrival-drift{from{translate:-30% 0}to{translate:90% 0}}

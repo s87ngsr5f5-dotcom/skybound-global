@@ -31,6 +31,9 @@ const MissionRouteMap=(()=>{
   const fallback=document.createElement('canvas');fallback.width=w;fallback.height=h;const fc=fallback.getContext('2d');
   fc.fillStyle='#264a5c';fc.fillRect(0,0,w,h);
   const tw=center.lat>=21.5&&center.lat<=26.5&&center.lon>=117&&center.lon<=123.5;
+  if(typeof WorldAtlas!=='undefined'&&typeof WorldAtlas.drawVectorWorld==='function'){
+   WorldAtlas.drawVectorWorld(fc,(lon,lat)=>{const q=world({lat,lon},view.z);return [q.x-view.left,q.y-view.top];},w,h,{showLabels:view.z<=4});
+  }
   if(tw&&typeof regionalHeight==='function')for(let py=0;py<h;py+=7)for(let px=0;px<w;px+=7){const g=inverse({x:view.left+px,y:view.top+py},view.z),p=geoPoint(g.lat,g.lon),e=regionalHeight(p.x,p.z);fc.fillStyle=e<2?'#264a5c':e<180?'#b1bb8b':e<900?'#81996f':'#657d61';fc.fillRect(px,py,7,7);}
   function label(text,x,y,color){ctx.font='bold 12px system-ui';const width=ctx.measureText(text).width;const tx=Math.max(5,Math.min(w-width-12,x)),ty=Math.max(20,Math.min(h-34,y));ctx.fillStyle='rgba(10,25,34,.9)';ctx.fillRect(tx-4,ty-14,width+8,20);ctx.fillStyle=color;ctx.fillText(text,tx,ty);}
   function paint(){

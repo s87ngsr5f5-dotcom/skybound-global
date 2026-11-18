@@ -94,19 +94,22 @@ function clearMissionCheckpoint(id){
 }
 function passengerBrief(aircraft,departure,destination){
   const passengers=aircraft.passengers??320;
-  const route=destination.code==='RJAA'?cargoVoyageRoute:
+  const route=(departure.code==='RCTP'&&destination.code==='RJAA'&&typeof cargoVoyageRoute!=='undefined')?cargoVoyageRoute:
     departure.code==='RCTP'?benchmarkRoute('passenger',departure,destination):regionalRoute(departure,destination);
-  const distance=route.reduce((sum,point,i)=>{
+  const gcKm=typeof haversineKm==='function'&&departure&&destination?haversineKm(departure,destination):0;
+  const planarNm=route.reduce((sum,point,i)=>{
     const previous=i?route[i-1]:departure;
     return sum+Math.hypot(point.x-previous.x,point.z-previous.z)/1852;
   },0);
+  const distance=gcKm>400?Math.max(gcKm/1.852,planarNm*0.65):planarNm;
   const hourlyFuel=((aircraft.fuelIdle??.30)+(aircraft.fuelPower??3.3)*.61)*3600;
-  const cruiseKnots=destination.code==='RJAA'?450:195;
+  const cruiseKnots=aircraft.cruiseMach?Math.max(380,Math.round(aircraft.cruiseMach*573)):destination.code==='RJAA'?450:Math.max(195,aircraft.cruise||220);
   const enrouteHours=distance/cruiseKnots+.22;
   const estimated=Math.ceil(hourlyFuel*enrouteHours/100)*100;
   const reserve=Math.ceil(hourlyFuel*.45/100)*100;
-  return {passengers,distance,estimated,reserve,hourlyFuel,capacity:aircraft.missionFuel??56000,
-    schedule:Math.ceil((enrouteHours+.53)*60),base:passengers*180,route};
+  const capacity=Math.max(aircraft.missionFuel??56000,estimated+reserve+6000);
+  return {passengers,distance,estimated,reserve,hourlyFuel,capacity,
+    schedule:Math.ceil((enrouteHours+.53)*60),base:Math.round(passengers*(180+Math.min(620,distance*0.14))),route};
 }
 function makePassengerFlight(departure,destination,aircraft,wind,fuel,weather,time){
   const career=readCareer();
@@ -307,12 +310,15 @@ function settlePassenger(f,result){
 }
 const regionalContracts={
   sightseeing:{label:'臺北觀光 · 松山返場',from:'RCSS',to:'RCSS',base:4200},
-  ferry:{label:'飛機調度 · 松山至花蓮',from:'RCSS',to:'RCYU',base:5700}
+  ferry:{label:'飛機調度 · 松山至花蓮',from:'RCSS',to:'RCYU',base:5700},
+  islandMedevac:{label:'離島醫療包機 · 松山至澎湖',from:'RCSS',to:'RCQC',base:9800},
+  asiaCargo:{label:'國際急件貨運 · 桃園至香港',from:'RCTP',to:'VHHH',base:18500},
+  globalExpress:{label:'跨國包機調度 · 桃園至東京成田',from:'RCTP',to:'RJAA',base:32000}
 };
 function regionalContractPlan(kind){
   const contract=regionalContracts[kind];
-  const departure=taiwanAirports.find(a=>a.code===contract.from);
-  const destination=taiwanAirports.find(a=>a.code===contract.to);
+  const departure=allAirports.find(a=>a.code===contract.from)||taiwanAirports[0];
+  const destination=allAirports.find(a=>a.code===contract.to)||taiwanAirports[1];
   const route=kind==='sightseeing'?[
     {name:'臺北東側爬升',...airportPoint(departure,8500,0)},
     {name:'北海岸轉向',...geoPoint(25.23,121.62)},
@@ -634,4 +640,29 @@ if(typeof module!=='undefined') Object.assign(globalThis,{makeRegionalFlight,sta
 function arrivalParkingTarget(f){
  if(!f?.destination||!f.ground||!f.landed||f.finished)return null;
  return {...parkingPoint(f.destination),y:f.destination.elevation,code:f.destination.code+' A1',name:'指定停機位 A1'};
+}
+
+// Airport dimensions are advisory: passenger type is a mission rule, not a runway-size lock.
+function canDispatchPassenger(aircraft,from,to){return Boolean(aircraft?.role==='passenger'&&from&&to);}
+function airportRunwayLabel(r){return r.name+' '+r.length+' × '+r.width+' m'+(r.gameExpanded?'（遊戲擴建）':'');}
+// Refresh only the expanded airport in old browser checkpoints, keeping money and service state intact.
+function refreshExpandedAirportReferences(f){
+ if(!f)return;
+ let departureChanged=false;
+ const oldDeparture=f.departure;
+ for(const key of ['departure','destination'])if(f[key]?.code==='RCSS'){
+  const current=allAirports.find(a=>a.code==='RCSS');
+  if(current&&(f[key].length!==current.length||f[key].apron!==current.apron)){
+   f[key]={...f[key],...current};if(key==='departure')departureChanged=true;
+   if(key==='destination'&&f.arrivalTaxi&&!f.tow){f.arrivalTaxi=null;f.taxiIndex=0;}
+  }
+ }
+ if(departureChanged&&!f.tow&&f.ground&&!f.airborne){
+  const a=f.departure,threshold=-a.length/2+95;
+  f.taxi=[{name:'滑行至跑道端',...airportPoint(a,threshold+40,a.apron)},{name:'轉入跑道',...airportPoint(a,threshold+40,0)}];f.taxiIndex=0;
+  if(f.parkingBrake&&!f.engines?.some(Boolean)){
+   const oldStand=parkingPoint(oldDeparture);
+   if(Math.hypot(f.x-oldStand.x,f.z-oldStand.z)<80)Object.assign(f,parkingPoint(a),{y:a.elevation+f.aircraft.gearHeight});
+  }
+ }
 }

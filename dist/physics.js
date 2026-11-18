@@ -237,8 +237,9 @@ function stepTrainer(f, input, dt=simTick){
   const q=.5*rho*speed*speed;
   const stallAngle=aircraft.stallAngle+.02*f.flaps;
   const liftSlope=5.05;
+  const postStallFloor=aircraft.role==='fighter'?.31:.46, postStallSlope=aircraft.role==='fighter'?2.9:1.6;
   let cl=(.27+liftSlope*limit(alpha,-stallAngle,stallAngle)+aircraft.flapLift[f.flaps])*
-    Math.max(.31,1-Math.max(0,Math.abs(alpha)-stallAngle)*2.9);
+    Math.max(postStallFloor,1-Math.max(0,Math.abs(alpha)-stallAngle)*postStallSlope);
   if(aircraft.role==='fighter'&&alpha>stallAngle&&alpha<1.55){
     const extraAlpha=alpha-stallAngle;
     cl+=Math.sin(extraAlpha*2.2)*1.75*(aircraft.vortexFactor||1.15);
@@ -475,9 +476,21 @@ function stepTrainer(f, input, dt=simTick){
       const {along,cross}=f.regional?runwayCoordinates(f.x,f.z,runway):localRunway(f.x,f.z);
       f.touchdown={along,cross,verticalSpeed:f.vy,speed,pitch:f.pitch,bank:f.bank,time:f.elapsed};
       const training=Boolean(f.shortMission?.assistedLanding);
-      f.landed=Math.abs(along)<=runway.length/2 && Math.abs(cross)<=runway.width/2 && f.gear!==false &&
-        f.vy>(training?-8:-5) && Math.abs(f.bank)<(training?.50:.32) && Math.abs(wrapAngle(f.heading-runway.heading))<(training?.65:.40);
-      f.ended=!f.landed;
+      const sinkMult=f.crashSinkMult||1;
+      const runwayTouchOk=(rw,al,cr)=>{
+        const hErr=Math.min(Math.abs(wrapAngle(f.heading-rw.heading)),Math.abs(wrapAngle(f.heading-rw.heading-Math.PI)));
+        return Math.abs(al)<=rw.length/2+90 && Math.abs(cr)<=rw.width/2+18 && f.gear!==false &&
+          f.vy>(training?-12.5:-5.5)*sinkMult && Math.abs(f.bank)<(training?.62:.48) && hErr<(training?.78:.58);
+      };
+      f.landed=runwayTouchOk(runway,along,cross);
+      let safeTouch=f.landed;
+      if(!safeTouch && f.regional && f.departure && f.departure!==runway){
+        const depFrame=runwayCoordinates(f.x,f.z,f.departure);
+        safeTouch=runwayTouchOk(f.departure,depFrame.along,depFrame.cross);
+      }
+      const severeCrash=f.vy<=(training?-16.5:-5.5)*sinkMult || Math.abs(f.bank)>=(training?.88:.75) ||
+        (f.pitch<=-.38 && speed>45) || (f.gear===false && f.vy<=-5.5);
+      f.ended=!safeTouch && severeCrash;
     }
     f.ground=true;f.y=floor;f.vy=0;
   }

@@ -42,12 +42,12 @@ function createAirportSurroundings(parent,airport,layout){
     add(new THREE.CylinderGeometry(.08,.13,h,7),frame,x,h/2,z);
     box(frame,2.4,.09,.12,x+1, h-.12,z);box(lamp,.75,.15,.36,x+2,h-.18,z);stats.lights++;
   }
-  // Landside access: parallel drop-off road, sidewalks and bus/taxi bays.
-  box(road,15,.12,length,roadX,.06,apronZ);
-  for(const end of [-1,1]){
-    const cap=new THREE.CircleGeometry(7.5,24);cap.rotateX(-Math.PI/2);
-    add(cap,road,roadX,.125,apronZ+end*length/2);
-  }
+  // Landside access: parallel drop-off road + outward airport expressway spurs joining regional highways.
+  const spurLen=680;
+  box(road,15,.12,length+spurLen*2,roadX,.06,apronZ);
+  box(road,spurLen,.12,14,roadX+side*(spurLen*0.5+6),.06,apronZ+length*0.5+45);
+  box(road,spurLen,.12,14,roadX+side*(spurLen*0.5+6),.06,apronZ-length*0.5-45);
+  for(let z=-length/2-spurLen+16;z<length/2+spurLen-12;z+=18)box(paint,.14,.018,7,roadX,.13,apronZ+z);
   for(const s of [-1,1]){
     box(paving,3.5,.18,length,roadX+s*9.2,.09,apronZ);
     box(curb,.24,.24,length,roadX+s*7.6,.12,apronZ);
