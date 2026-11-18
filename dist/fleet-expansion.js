@@ -4362,7 +4362,25 @@ const expansionFleet=[
 ];
 fleet.push(...expansionFleet);
 
-const fleetCategories={all:'所有機型',trainer:'教練／通用',prop:'渦槳／通勤',business:'商務噴射',airliner:'民航客機',cargo:'貨運／運輸',fighter:'戰鬥／訓練',helicopter:'直升機',special:'任務解鎖'};
+const fleetCategories={
+  all:'🌟 所有機型 (100架)',
+  unlocked:'✅ 已解鎖可用',
+  tw_fleet:'🇹🇼 台灣軍民航主力',
+  airliner_wide:'✈️ 廣體越洋客機 (雙走道)',
+  airliner_narrow:'🛫 窄體／支線噴射客機',
+  airliner:'🛫 全部民航客機',
+  cargo:'📦 貨運／重型戰略運輸',
+  fighter_stealth:'🦅 五代匿蹤／重型制空戰機',
+  fighter_multi:'⚔️ 多用途／艦載戰鬥機',
+  fighter:'⚔️ 全部戰鬥／訓練機',
+  business:'💼 私人商務噴射機',
+  prop:'🌀 渦槳通勤／支線機',
+  trainer:'🛩 輕型教練／特技通用機',
+  helicopter:'🚁 旋翼直升機',
+  special:'🏆 任務獎勵解鎖專機'
+};
+const TW_FLEET_SET=new Set(['f16v','sf16','fck1','m2000','f5e','at3','t50','c130j','b773','a359','a35k','b789','a333','a321neo','a320neo','b738','atr72','sf748','b77f','uh60m','ah64e','ch47f']);
+const STEALTH_HEAVY_SET=new Set(['f22a','f35a','sf15','f15c','su27','f14b','mig31']);
 const specialAircraft={f14b:{chapter:4,label:'EP.04 海岸導航'},f22a:{chapter:6,label:'EP.06 花蓮機動航線'},rafalec:{chapter:2,label:'EP.02 桃園轉彎航線'},a35k:{chapter:8,label:'WP.08 東京離場'},g700:{chapter:1,label:'EP.01 松山河岸巡航'},a400m:{chapter:3,label:'EP.03 風雨離場'}};
 for(const plane of fleet){
  plane.category ||= plane.helicopter?'helicopter':plane.role==='passenger'?'airliner':plane.role||'trainer';
@@ -4379,7 +4397,18 @@ function aircraftUnlocked(plane){
  if(!plane?.unlock)return true;
  try { const p=JSON.parse(localStorage.getItem('skybound.campaignProgress.v1')||'{}');return Number(p?.[plane.unlock.chapter]?.stars)>=1; }catch{return false;}
 }
-function fleetMatches(plane,category){return category==='all'||(category==='special'?Boolean(plane.unlock):plane.category===category);}
+function fleetMatches(plane,category){
+ if(!plane)return false;
+ if(!category||category==='all')return true;
+ if(category==='unlocked')return aircraftUnlocked(plane);
+ if(category==='special')return Boolean(plane.unlock);
+ if(category==='tw_fleet')return TW_FLEET_SET.has(plane.id);
+ if(category==='airliner_wide')return plane.category==='airliner'&&(plane.geometry?.[0]>=24||plane.geometry?.[4]>=4||plane.centerSeats>0);
+ if(category==='airliner_narrow')return plane.category==='airliner'&&!(plane.geometry?.[0]>=24||plane.geometry?.[4]>=4||plane.centerSeats>0);
+ if(category==='fighter_stealth')return plane.category==='fighter'&&(STEALTH_HEAVY_SET.has(plane.id)||plane.mass>=16000);
+ if(category==='fighter_multi')return plane.category==='fighter'&&!(STEALTH_HEAVY_SET.has(plane.id)||plane.mass>=16000);
+ return plane.category===category;
+}
 function aircraftLockText(plane){if(aircraftUnlocked(plane))return plane.purchasePrice?'已購買':'已開放';if(plane.purchasePrice)return '購買 '+plane.purchasePrice.toLocaleString()+' 遊戲金幣 · 任務可試飛';return '完成 '+plane.unlock.label+' 解鎖';}
 if(typeof module!=='undefined')Object.assign(globalThis,{fleetCategories,expansionFleet,aircraftUnlocked,fleetMatches});
 

@@ -32,12 +32,29 @@ const FleetCommerce=(()=>{
  }
  function preview(planeId,theme){previewTheme=theme||null;window.dispatchEvent(new CustomEvent('skybound:shop-preview',{detail:{planeId,theme:previewTheme}}));}
  function paintDisplay(){return previewTheme;}
+ let shopFilter='all';
  function renderShop(stage){
   const c=readCareer();
+  const storePlanes=fleet.filter(p=>p.purchasePrice);
+  const filteredPlanes=storePlanes.filter(p=>shopFilter==='all'||(shopFilter==='passenger'&&p.role==='passenger')||(shopFilter==='cargo'&&p.role==='cargo')||(shopFilter==='owned'&&owned(p.id)));
+  const showPlanes=['all','passenger','cargo','owned'].includes(shopFilter)&&filteredPlanes.length>0;
+  const showPaints=['all','paints','owned'].includes(shopFilter);
+  const showKits=['all','kits','owned'].includes(shopFilter);
+  const tabs=[
+   ['all','🌟 全部商品'],
+   ['passenger','✈️ 民航客機 ('+storePlanes.filter(p=>p.role==='passenger').length+')'],
+   ['cargo','📦 貨運巨無霸 ('+storePlanes.filter(p=>p.role==='cargo').length+')'],
+   ['paints','🎨 機隊塗裝 ('+paints.length+')'],
+   ['kits','🛠 載客套件 ('+kits.length+')'],
+   ['owned','✅ 已擁有']
+  ];
   stage.innerHTML=`<section class="control-guide fleet-store"><h2>機庫商店</h2><p>餘額 ${c.money.toLocaleString()} 遊戲金幣 · 買下永久自由使用；任務提供指定機試飛。</p>
-  <h3>購買飛機</h3><div class="store-grid">${fleet.filter(p=>p.purchasePrice).map(p=>`<article><h4>${p.name}</h4><p>${p.type}</p><strong>${p.purchasePrice.toLocaleString()} 金幣</strong><p>${p.id==='b773'?'獨立 777 精細模型、可查看客艙':p.id==='sf748'?'獨立 747 貨機模型、機鼻貨門與貨艙':p.id==='an124'?'獨立大型運輸機模型、機鼻與坡道':'可操作機型、近距離機庫檢視'}</p><div class="actions"><button data-store-preview="${p.id}">3D 檢視</button><button data-store-trial="${p.id}">短程試飛</button>${p.role==='passenger'?`<button data-store-passenger="${p.id}">完整載客</button>`:''}<button data-store-kind="plane" data-store-id="${p.id}" ${owned(p.id)||c.money<p.purchasePrice?'disabled':''}>${owned(p.id)?'已擁有':'購買'}</button></div></article>`).join('')}</div>
-  <h3>塗裝 · 購買後全機隊可用</h3><div class="store-grid">${paints.map(p=>`<article><div class="paint-swatch" style="--paint-primary:${p.primary};--paint-accent:${p.accent};--paint-tail:${p.tail}" aria-label="${p.name}色票"></div><h4>${p.name}</h4><strong>${p.price.toLocaleString()} 金幣</strong><div class="actions"><button data-store-paint-preview="${p.id}">3D 預覽</button><button data-store-kind="paint" data-store-id="${p.id}" ${paintOwned(p.id)||c.money<p.price?'disabled':''}>${paintOwned(p.id)?'已擁有':'購買塗裝'}</button>${paintOwned(p.id)?`<button data-store-equip="${p.id}">套用</button>`:''}</div></article>`).join('')}</div>
-  <h3>載客改裝 · 全機隊套用</h3><div class="store-grid">${kits.map(p=>`<article><h4>${p.name}</h4><p>${p.desc}</p><strong>${p.price.toLocaleString()} 金幣</strong><button data-store-kind="kit" data-store-id="${p.id}" ${kitOwned(p.id)||c.money<p.price?'disabled':''}>${kitOwned(p.id)?'已安裝':'購買並安裝'}</button></article>`).join('')}</div><p id="storeFeedback" role="status"></p></section>`;
+  <div class="mp-room-chips" style="margin:10px 0 14px">${tabs.map(([id,label])=>`<button type="button" class="mp-chip${shopFilter===id?' active':''}" data-shop-tab="${id}">${label}</button>`).join('')}</div>
+  ${showPlanes?`<h3>購買飛機</h3><div class="store-grid">${filteredPlanes.map(p=>`<article><h4>${p.name}</h4><p>${p.type}</p><strong>${p.purchasePrice.toLocaleString()} 金幣</strong><p>${p.id==='b773'?'獨立 777 精細模型、可查看客艙':p.id==='sf748'?'獨立 747 貨機模型、機鼻貨門與貨艙':p.id==='an124'?'獨立大型運輸機模型、機鼻與坡道':'可操作機型、近距離機庫檢視'}</p><div class="actions"><button data-store-preview="${p.id}">3D 檢視</button><button data-store-trial="${p.id}">短程試飛</button>${p.role==='passenger'?`<button data-store-passenger="${p.id}">完整載客</button>`:''}<button data-store-kind="plane" data-store-id="${p.id}" ${owned(p.id)||c.money<p.purchasePrice?'disabled':''}>${owned(p.id)?'已擁有':'購買'}</button></div></article>`).join('')}</div>`:''}
+  ${showPaints?`<h3>塗裝 · 購買後全機隊可用</h3><div class="store-grid">${paints.filter(p=>shopFilter!=='owned'||paintOwned(p.id)).map(p=>`<article><div class="paint-swatch" style="--paint-primary:${p.primary};--paint-accent:${p.accent};--paint-tail:${p.tail}" aria-label="${p.name}色票"></div><h4>${p.name}</h4><strong>${p.price.toLocaleString()} 金幣</strong><div class="actions"><button data-store-paint-preview="${p.id}">3D 預覽</button><button data-store-kind="paint" data-store-id="${p.id}" ${paintOwned(p.id)||c.money<p.price?'disabled':''}>${paintOwned(p.id)?'已擁有':'購買塗裝'}</button>${paintOwned(p.id)?`<button data-store-equip="${p.id}">套用</button>`:''}</div></article>`).join('')}</div>`:''}
+  ${showKits?`<h3>載客改裝 · 全機隊套用</h3><div class="store-grid">${kits.filter(p=>shopFilter!=='owned'||kitOwned(p.id)).map(p=>`<article><h4>${p.name}</h4><p>${p.desc}</p><strong>${p.price.toLocaleString()} 金幣</strong><button data-store-kind="kit" data-store-id="${p.id}" ${kitOwned(p.id)||c.money<p.price?'disabled':''}>${kitOwned(p.id)?'已安裝':'購買並安裝'}</button></article>`).join('')}</div>`:''}
+  <p id="storeFeedback" role="status"></p></section>`;
+  stage.querySelectorAll?.('[data-shop-tab]')?.forEach(btn=>{btn.onclick=()=>{shopFilter=btn.dataset.shopTab||'all';renderShop(stage);};});
  }
  if(typeof document!=='undefined')document.addEventListener('click',e=>{
   let b=e.target.closest('[data-store-kind]');if(b){const r=purchase(b.dataset.storeKind,b.dataset.storeId);const out=document.getElementById('storeFeedback')||document.getElementById('commerceFeedback');if(out)out.textContent=r.message;return;}

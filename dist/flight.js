@@ -415,15 +415,14 @@ function initialize(){
       previousChunk=id;
       const visible=new Set();
       terrainQueue=[];
-      for(let row=cz-3;row<=cz+3;row++){
-        for(let col=cx-3;col<=cx+3;col++){
+      for(let row=cz-4;row<=cz+4;row++){
+        for(let col=cx-4;col<=cx+4;col++){
           const key=col+':'+row;
           visible.add(key);
           const mountain=Boolean(centralMountainTile(col,row));
-          const near=Math.max(Math.abs(col-cx),Math.abs(row-cz))<=1;
-          const nearAirport=airports.some(airport=>Math.abs(airport.x-(col+.5)*span)<span*.85&&
-            Math.abs(airport.z-(row+.5)*span)<span*.85);
-          const step=near?120:terrainStep(col,row);
+          const cheb=Math.max(Math.abs(col-cx),Math.abs(row-cz));
+          const near=cheb<=1;
+          const step=near?120:cheb<=2?terrainStep(col,row):480;
           const old=terrainChunks.get(key)?.userData;
           if(old?.colorRevision!==terrainColorRevision||old.step!==step){
             terrainQueue.push({col,row,key,step,mountain,distance:(x/span-col-.5)**2+(z/span-row-.5)**2});
@@ -443,7 +442,7 @@ function initialize(){
       }
     }
     // Build the nearest patches first without generating a whole region in one frame.
-    const deadline=performance.now()+2.5;
+    const deadline=performance.now()+4.2;
     while(terrainBuild||terrainQueue.length){
       if(!terrainBuild){
         const {col,row,key,step,mountain}=terrainQueue.shift();
@@ -453,7 +452,7 @@ function initialize(){
           colors:new THREE.BufferAttribute(new Float32Array(mesh.attributes.position.count*3),3)};
       }
       const {key,col,row,mesh,step,mountain,px,pz,colors}=terrainBuild,pos=mesh.attributes.position;
-      const end=Math.min(pos.count,terrainBuild.index+128);
+      const end=Math.min(pos.count,terrainBuild.index+512);
       for(let i=terrainBuild.index;i<end;i++){
         const worldX=px+pos.getX(i),worldZ=pz+Math.round(pos.getZ(i));
         const height=stitchedHeight(worldX,worldZ,step);
@@ -1742,9 +1741,19 @@ function initialize(){
   const planeCategory=byId('aircraftCategory');
   for(const [value,label] of Object.entries(fleetCategories))planeCategory.add(new Option(label,value));
   function populateAircraft(selected){
-    const matching=fleet.filter(p=>fleetMatches(p,planeCategory.value));
-    byId('aircraft').replaceChildren(...fleet.map(p=>{const o=new Option(p.name+(aircraftUnlocked(p)?'':' 🔒'),p.id);o.hidden=!fleetMatches(p,planeCategory.value);return o;}));
+    const cat=planeCategory.value||'all';
+    const matching=fleet.filter(p=>fleetMatches(p,cat));
+    const others=cat==='all'?[]:fleet.filter(p=>!fleetMatches(p,cat));
+    const ordered=[...matching,...others];
+    byId('aircraft').replaceChildren(...ordered.map(p=>{
+      const inCat=fleetMatches(p,cat);
+      const prefix=!inCat?'[其他] ':'';
+      const o=new Option(prefix+p.name+(aircraftUnlocked(p)?'':' 🔒'),p.id);
+      o.hidden=!inCat;
+      return o;
+    }));
     if(matching.some(p=>p.id===selected))byId('aircraft').value=selected;
+    else if(matching.length)byId('aircraft').value=(matching.find(aircraftUnlocked)||matching[0]).id;
   }
   populateAircraft('a223');
   planeCategory.onchange=()=>{populateAircraft(byId('aircraft').value);drawPlan();};
@@ -1995,11 +2004,36 @@ function initialize(){
     // Thailand: Bangkok Chao Phraya Delta & Upper Gulf of Thailand (VTBS)
     {fill:'#37634e',pts:[[13.48,100.12],[14.18,100.15],[14.22,101.18],[13.32,101.12],[13.52,100.78],[13.55,100.56]].map(([a,o])=>geoPoint(a,o))}
   ];
-  function drawTaiwanMap(context,project){
+  let radarSatMode='y';
+  function drawTaiwanMap(context,project,opts={}){
+    const [p0x,p0y]=project({x:0,z:0}),[p1x,p1y]=project({x:10000,z:10000});
+    const scaleX=(p1x-p0x)/10000,scaleZ=(p1y-p0y)/10000;
+    const dprVal=Math.min(window.devicePixelRatio||1,2);
+    const cw=opts.width||context.canvas?.clientWidth||Math.round((context.canvas?.width||326)/dprVal)||326;
+    const ch=opts.height||context.canvas?.clientHeight||Math.round((context.canvas?.height||201)/dprVal)||201;
+    if(!opts.skipWorldBase&&typeof WorldAtlas!=='undefined'&&typeof WorldAtlas.drawVectorWorld==='function'&&Math.abs(scaleX)>1e-9&&Math.abs(scaleZ)>1e-9){
+      const wx0=-p0x/scaleX,wz0=-p0y/scaleZ,wx1=(cw-p0x)/scaleX,wz1=(ch-p0y)/scaleZ;
+      const llA=latLon(Math.min(wx0,wx1),Math.max(wz0,wz1));
+      const llB=latLon(Math.max(wx0,wx1),Math.min(wz0,wz1));
+      const boundsLonLat={
+        minLon:Math.max(-180,Math.min(llA.lon,llB.lon)),
+        maxLon:Math.min(180,Math.max(llA.lon,llB.lon)),
+        minLat:Math.max(-82,Math.min(llA.lat,llB.lat)),
+        maxLat:Math.min(84,Math.max(llA.lat,llB.lat))
+      };
+      WorldAtlas.drawVectorWorld(context,(lon,lat)=>project(geoPoint(lat,lon)),cw,ch,{
+        boundsLonLat,
+        satMode:radarSatMode,
+        showLabels:!opts.mini,
+        onTileLoad:()=>{nextNavDraw=0;if(!flight)requestAnimationFrame(drawPlan);}
+      });
+    }
     const [x,z,width,height]=atlasReady.value?taiwanSatelliteData.overview:[-290*900,-43*900,430*900,440*900];
     const image=atlasReady.value?atlasImage.value.image:terrainPreview;
     const [left,top]=project({x,z}),[right,bottom]=project({x:x+width,z:z+height});
-    context.drawImage(image,left,top,right-left,bottom-top);
+    if(right>-cw*2&&left<cw*3&&bottom>-ch*2&&top<ch*3){
+      context.drawImage(image,left,top,right-left,bottom-top);
+    }
     context.save();
     context.strokeStyle='rgba(110, 215, 242, 0.48)';
     context.lineWidth=1.15;
@@ -2243,7 +2277,7 @@ function initialize(){
         WorldAtlas.drawVectorWorld(planMap,projectLonLat,planW,planH,{showLabels:planMapViewMode==='world',onTileLoad:()=>{if(!flight)requestAnimationFrame(drawPlan);}});
       }
       if(!useWorldView||planMapViewMode!=='world'){
-        drawTaiwanMap(planMap,project);
+        drawTaiwanMap(planMap,project,{skipWorldBase:useWorldView,width:planW,height:planH});
       }
       const placedPlanBoxes=[
         {x1:planW-166,y1:4,x2:planW-2,y2:54}, // top-right telemetry box
@@ -3319,14 +3353,61 @@ function initialize(){
   const hangarPointers=new Map();
   let hangarYaw=null,hangarElevation=.59,hangarZoom=1;
   const displayedAircraft=()=>fleet.find(a=>a.id===hangarAircraft.value);
+  let hangarSearchQ='';
+  function ensureHangarQuickPanel(){
+    if(!hangarOptions||byId('hangarQuickPanel')) return;
+    const qp=document.createElement('div');
+    qp.id='hangarQuickPanel';
+    qp.className='hangar-quick-panel';
+    const quickCats=[
+      ['all','🌟 全部'],['tw_fleet','🇹🇼 台灣'],['airliner_wide','✈️ 廣體客機'],['airliner_narrow','🛫 窄體客機'],
+      ['fighter_stealth','🦅 五代重戰'],['fighter_multi','⚔️ 多用途戰機'],['cargo','📦 貨機'],
+      ['business','💼 商務'],['prop','🌀 渦槳'],['trainer','🛩 教練'],['helicopter','🚁 直升機'],['special','🏆 獎勵']
+    ];
+    qp.innerHTML=`
+      <div class="hangar-cat-chips" id="hangarCatChips">${quickCats.map(([k,lbl])=>`<button type="button" class="mp-chip" data-hangar-cat="${k}">${lbl}</button>`).join('')}</div>
+      <input type="search" id="hangarSearchInput" placeholder="🔍 搜尋機型名稱（如 F-16、777、A350、黑鷹）" style="width:100%;margin:4px 0;padding:5px 9px;font-size:12px;">
+      <div class="hangar-plane-pills" id="hangarPlanePills"></div>
+    `;
+    hangarFilter.closest('label')?.before(qp);
+    qp.addEventListener('click',e=>{
+      const catBtn=e.target.closest('[data-hangar-cat]');
+      if(catBtn){
+        hangarFilter.value=catBtn.dataset.hangarCat;
+        populateHangar(hangarAircraft.value);
+        return;
+      }
+      const plBtn=e.target.closest('[data-hangar-plane]');
+      if(plBtn){
+        hangarAircraft.value=plBtn.dataset.hangarPlane;
+        updateHangarInfo();
+      }
+    });
+    const sInp=byId('hangarSearchInput');
+    if(sInp){
+      sInp.oninput=()=>{hangarSearchQ=(sInp.value||'').trim().toLowerCase();populateHangar(hangarAircraft.value);};
+    }
+  }
   function populateHangar(selected){
-    const matching=fleet.filter(plane=>fleetMatches(plane,hangarFilter.value));
-    hangarAircraft.replaceChildren(...matching.map(plane=>new Option(plane.name+(aircraftUnlocked(plane)?'':' 🔒'),plane.id)));
-    if(matching.some(plane=>plane.id===selected)) hangarAircraft.value=selected;
+    ensureHangarQuickPanel();
+    const matching=fleet.filter(plane=>{
+      const okCat=fleetMatches(plane,hangarFilter.value);
+      const okQ=!hangarSearchQ||plane.name.toLowerCase().includes(hangarSearchQ)||plane.id.toLowerCase().includes(hangarSearchQ)||(plane.type||'').toLowerCase().includes(hangarSearchQ);
+      return okCat&&okQ;
+    });
+    const list=matching.length?matching:fleet.filter(plane=>fleetMatches(plane,hangarFilter.value));
+    hangarAircraft.replaceChildren(...list.map(plane=>new Option(plane.name+(aircraftUnlocked(plane)?'':' 🔒'),plane.id)));
+    if(list.some(plane=>plane.id===selected)) hangarAircraft.value=selected;
+    byId('hangarCatChips')?.querySelectorAll('[data-hangar-cat]')?.forEach(b=>b.classList.toggle('active',b.dataset.hangarCat===hangarFilter.value));
     updateHangarInfo();
   }
   function updateHangarInfo(){
-    const plane=displayedAircraft();
+    const plane=displayedAircraft()||fleet[0];
+    const pillsBox=byId('hangarPlanePills');
+    if(pillsBox){
+      const curOpts=[...hangarAircraft.options];
+      pillsBox.innerHTML=curOpts.slice(0,24).map(o=>`<button type="button" class="mp-chip${o.value===plane.id?' active':''}" data-hangar-plane="${o.value}" style="font-size:11px;padding:3px 8px;">${o.textContent.split(' · ')[0]}</button>`).join('');
+    }
     const parts=[
       '外觀：'+(plane.modelStatus||'近似模型'),
       '座艙：'+(plane.cockpitStatus||'共用座艙'),
@@ -4601,11 +4682,12 @@ function initialize(){
     flight.destination=ap;
     flight.route=regionalRoute(flight.departure||ap,ap);
     flight.waypoint=0;
+    const code=ap.code||ap.id;
     const destSelect=byId('destination');
-    if(destSelect) destSelect.value=ap.id;
+    if(destSelect) destSelect.value=code;
     const directSel=byId('radarDirectSelect');
-    if(directSel) directSel.value=ap.id;
-    showPill(`🧭 GPS 即時導航：直飛 ${ap.name} (${ap.id})`);
+    if(directSel) directSel.value=code;
+    showPill(`🧭 GPS 即時導航：直飛 ${ap.name} (${code})`);
   }
 
   function setupRadarToolbar(){
@@ -4620,6 +4702,7 @@ function initialize(){
         <button type="button" id="radarZoomOutBtn" title="縮小導航地圖 (Zoom Out)">－ 縮小</button>
         <button type="button" id="radarCenterBtn" title="回到飛機位置並恢復自動縮放">⌖ 置中</button>
         <button type="button" id="radarWorldBtn" title="跨國航線全覽">🌏 跨國</button>
+        <button type="button" id="radarSatBtn" title="切換 Google 衛星／地形／航圖圖層">🛰 衛星</button>
         <button type="button" id="radar3dBtn" title="切換 3D 戰術空域俯瞰圖">🗺 3D</button>
       </div>
       <div class="radar-direct-row">
@@ -4628,30 +4711,63 @@ function initialize(){
         <span>🌍 區域</span>
         <select id="radarRegionSelect" aria-label="地圖國家區域快速切換">
           <option value="auto">📍 飛機位置</option>
-          <option value="TW">🇹🇼 台灣</option>
-          <option value="JP_TYO">🇯🇵 東京關東</option>
-          <option value="JP_KIX">🇯🇵 大阪關西</option>
-          <option value="JP_OKA">🇯🇵 沖繩那霸</option>
-          <option value="HK_HKG">🇭🇰 香港維港</option>
-          <option value="KR_ICN">🇰🇷 首爾仁川</option>
-          <option value="SG_SIN">🇸🇬 新加坡</option>
-          <option value="PH_MNL">🇵🇭 馬尼拉灣</option>
-          <option value="TH_BKK">🇹🇭 曼谷湄南河</option>
-          <option value="MY_KUL">馬來西亞 · 吉隆坡試作區</option><option value="ID_CGK">印尼 · 雅加達試作區</option><option value="WORLD">🌏 亞太全覽</option>
+          <optgroup label="🌏 全球七大洲別分類">
+            <option value="REGION_tw">🇹🇼 台灣與離島 (11)</option>
+            <option value="REGION_ea">🇯🇵🇰🇷🇨🇳 東亞 · 日韓中港澳 (16)</option>
+            <option value="REGION_sea">🌴 東南亞／南亞 (9)</option>
+            <option value="REGION_me">🏜 中東 · 杜拜卡達土耳其 (3)</option>
+            <option value="REGION_eu">🏰 歐洲 · 英法德荷瑞義西 (7)</option>
+            <option value="REGION_na">🗽 北美 · 美加夏威夷阿拉斯加 (9)</option>
+            <option value="REGION_oc">🦘 大洋洲 · 澳洲紐西蘭 (3)</option>
+            <option value="REGION_sa">🌎 中南美／非洲 (5)</option>
+          </optgroup>
+          <optgroup label="🏙 熱門都會戰區快速聚焦">
+            <option value="TW">🇹🇼 台灣全景</option>
+            <option value="JP_TYO">🇯🇵 東京關東</option>
+            <option value="JP_KIX">🇯🇵 大阪關西</option>
+            <option value="JP_OKA">🇯🇵 沖繩那霸</option>
+            <option value="HK_HKG">🇭🇰 香港維港</option>
+            <option value="KR_ICN">🇰🇷 首爾仁川</option>
+            <option value="SG_SIN">🇸🇬 新加坡</option>
+            <option value="PH_MNL">🇵🇭 馬尼拉灣</option>
+            <option value="TH_BKK">🇹🇭 曼谷湄南河</option>
+            <option value="MY_KUL">馬來西亞 · 吉隆坡試作區</option>
+            <option value="ID_CGK">印尼 · 雅加達試作區</option>
+            <option value="WORLD">🌏 全球全覽</option>
+          </optgroup>
         </select>
       </div>
     `;
     navPanel.insertBefore(bar,radar.canvas);
     const sel=byId('radarDirectSelect');
-    if(sel){
-      for(const ap of airports){
-        const opt=document.createElement('option');
-        opt.value=ap.id;
-        opt.textContent=`${ap.name} (${ap.id})`;
-        sel.appendChild(opt);
+    function rebuildRadarDirectOptions(regionFilter='all'){
+      if(!sel) return;
+      const curVal=sel.value||flight?.destination?.code||'RCSS';
+      sel.replaceChildren();
+      const regs=typeof AIRPORT_REGIONS!=='undefined'?AIRPORT_REGIONS.filter(r=>r.id!=='all'):[{id:'tw',label:'🇹🇼 台灣與離島'}];
+      const orderedRegs=regionFilter&&regionFilter!=='all'
+        ?[...regs.filter(r=>r.id===regionFilter),...regs.filter(r=>r.id!==regionFilter)]
+        :regs;
+      for(const rg of orderedRegs){
+        const list=airports.filter(a=>(a.region||'tw')===rg.id);
+        if(!list.length) continue;
+        const grp=document.createElement('optgroup');
+        grp.label=(rg.id===regionFilter?'★ ':'')+rg.label+` (${list.length})`;
+        for(const ap of list){
+          const code=ap.code||ap.id;
+          const opt=document.createElement('option');
+          opt.value=code;
+          opt.textContent=`${ap.name} (${code})`;
+          grp.appendChild(opt);
+        }
+        sel.appendChild(grp);
       }
+      if(airports.some(a=>(a.code||a.id)===curVal)) sel.value=curVal;
+    }
+    rebuildRadarDirectOptions('all');
+    if(sel){
       sel.onchange=()=>{
-        const ap=airports.find(a=>a.id===sel.value);
+        const ap=airports.find(a=>(a.code||a.id)===sel.value);
         if(ap) setDirectToAirport(ap);
       };
     }
@@ -4659,14 +4775,32 @@ function initialize(){
     if(regSel){
       regSel.onchange=()=>{
         const val=regSel.value;
+        nextNavDraw=0;
         if(val==='auto'){
           radarCustomRange=0;radarPanX=0;radarPanZ=0;radarZoomIdx=0;
+          rebuildRadarDirectOptions('all');
           taiwanOverview?.resetView?.();
           return;
         }
         if(val==='WORLD'){
-          radarCustomRange=1600000;radarPanX=0;radarPanZ=0;
-          taiwanOverview?.centerOnCoords?.(0,0,0.65);
+          radarCustomRange=4200000;radarPanX=0;radarPanZ=0;
+          rebuildRadarDirectOptions('all');
+          taiwanOverview?.centerOnCoords?.(0,0,0.58);
+          return;
+        }
+        if(val.startsWith('REGION_')){
+          const rgId=val.slice(7);
+          rebuildRadarDirectOptions(rgId);
+          const rgAirports=airports.filter(a=>!a.carrier&&(a.region||'tw')===rgId);
+          if(rgAirports.length){
+            const xs=rgAirports.map(a=>a.x),zs=rgAirports.map(a=>a.z);
+            const cx=(Math.min(...xs)+Math.max(...xs))*0.5,cz=(Math.min(...zs)+Math.max(...zs))*0.5;
+            const span=Math.max(180000,Math.max(...xs)-Math.min(...xs),Math.max(...zs)-Math.min(...zs));
+            const fX=flight?.x||0,fZ=flight?.z||0;
+            radarCustomRange=clamp(Math.round(span*0.62),85000,4500000);
+            radarPanX=cx-fX;radarPanZ=cz-fZ;
+            taiwanOverview?.centerOnCoords?.(cx,cz,0.95);
+          }
           return;
         }
         const reg=(typeof internationalRegions!=='undefined'&&Array.isArray(internationalRegions))?internationalRegions.find(r=>r.id===val):null;
@@ -4678,6 +4812,17 @@ function initialize(){
           taiwanOverview?.centerOnCoords?.(reg.center.x,reg.center.z,1.35);
         }
       };
+    }
+    const satBtn=byId('radarSatBtn');
+    if(satBtn){
+      const satModes=[['y','🛰 衛星'],['s','🌎 純衛'],['p','⛰ 地形'],['','🧭 航圖']];
+      satBtn.addEventListener('click',()=>{
+        const idx=satModes.findIndex(m=>m[0]===radarSatMode);
+        const next=satModes[(idx+1)%satModes.length];
+        radarSatMode=next[0];
+        satBtn.textContent=next[1];
+        nextNavDraw=0;
+      });
     }
     const stepZoom=factor=>{
       const base=radarCustomRange>0?radarCustomRange:(typeof radarZoomModes[radarZoomIdx]==='number'?radarZoomModes[radarZoomIdx]:30000);
@@ -4753,8 +4898,9 @@ function initialize(){
       canvas.height=Math.round(displayH*dpr);
     }
     const directSel=byId('radarDirectSelect');
-    if(directSel&&f.destination&&directSel.value!==f.destination.id&&document.activeElement!==directSel){
-      directSel.value=f.destination.id;
+    const destCode=f.destination?.code||f.destination?.id;
+    if(directSel&&destCode&&directSel.value!==destCode&&document.activeElement!==directSel){
+      directSel.value=destCode;
     }
     radar.save();
     radar.scale(dpr,dpr);
@@ -4770,7 +4916,7 @@ function initialize(){
       const dx=goal.x-f.x,dz=goal.z-f.z,range=Math.max(parkingGoal?160:2500,Math.abs(dx),Math.abs(dz));
       const scale=Math.min(width-46,height-48)/range;
       const project=p=>[width/2+(p.x-(f.x+goal.x)/2)*scale,height/2+(p.z-(f.z+goal.z)/2)*scale];
-      drawTaiwanMap(radar,project);
+      drawTaiwanMap(radar,project,{mini:true,width,height});
       if(parkingGoal){const ap=f.destination;mapPath(radar,[airportPoint(ap,-ap.length/2,0),airportPoint(ap,ap.length/2,0)],project,'#cad5da',5);}
       mapPath(radar,[f,goal],project,'#ffd27a',3);
       const [gx,gy]=project(goal),[px,py]=project(f);
@@ -4813,7 +4959,7 @@ function initialize(){
           mapPath(radar,[airportPoint(ap,-ap.length/2,0),airportPoint(ap,ap.length/2,0)],project,'#d9e2e5',5);
         }
       }
-    }else drawTaiwanMap(radar,project);
+    }else drawTaiwanMap(radar,project,{width,height});
     const nextLegs=f.ground?[]:f.route?.slice((f.waypoint??0)+1)||[];
     radar.lineWidth=2;
     if(trail.length>1) mapPath(radar,trail,project,'#dcb771');

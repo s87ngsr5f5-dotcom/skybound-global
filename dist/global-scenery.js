@@ -329,12 +329,11 @@ function createGlobalScenery(scene, ground, airports = []) {
     const cx = (col + 0.5) * TILE, cz = (row + 0.5) * TILE;
     const ll = typeof latLon === 'function' ? latLon(cx, cz) : null;
     if (!ll || insideTaiwanDetailed(ll.lat, ll.lon)) return null;
+    const centerGround = ground(cx, cz);
+    if (centerGround < 0.8) return null;
     const country = typeof WorldAtlas !== 'undefined' ? WorldAtlas.countryAt(ll.lon, ll.lat) : null;
     const hubInfo = nearestHubInfo(cx, cz);
     const hubDist = hubInfo.dist;
-    if (!country && hubDist > 26000) return null;
-    const centerGround = ground(cx, cz);
-    if (centerGround < 0.8) return null;
 
     const group = new THREE.Group();
     const posArr = [], linePosArr = [];
@@ -345,9 +344,13 @@ function createGlobalScenery(scene, ground, airports = []) {
     const cbdX = hubAp ? hubAp.x + Math.cos(hubAp.heading) * (cbdSide * 3400) : 1e9;
     const cbdZ = hubAp ? hubAp.z + Math.sin(hubAp.heading) * (cbdSide * 3400) : 1e9;
     const cbdDist = Math.hypot(cx - cbdX, cz - cbdZ);
-    const isMetroCore = cbdDist < 2800 || (hubDist > 2600 && hubDist < 6800 && hash2(col * 5, row * 9) > 0.68);
-    const isUrbanTile = hubDist < 20000 || hash2(col * 3, row * 5) > 0.52;
-    const isSuburbanTile = !isUrbanTile && (hubDist < 34000 || hash2(col * 7, row * 11) > 0.30);
+    // Regional inland cities every ~11 km across all continents so flying anywhere on Earth has realistic cities & towns
+    const regCellX = Math.floor(col / 7), regCellZ = Math.floor(row / 7);
+    const regCityCore = hubDist > 22000 && hash2(regCellX * 13, regCellZ * 17) > 0.42 &&
+      Math.abs(((col % 7) + 7) % 7 - 3) <= 1 && Math.abs(((row % 7) + 7) % 7 - 3) <= 1;
+    const isMetroCore = cbdDist < 2800 || regCityCore || (hubDist > 2600 && hubDist < 6800 && hash2(col * 5, row * 9) > 0.68);
+    const isUrbanTile = hubDist < 22000 || regCityCore || hash2(col * 3, row * 5) > 0.42;
+    const isSuburbanTile = !isUrbanTile && (hubDist < 42000 || hash2(col * 7, row * 11) > 0.18);
     const biome = country?.biome || 'temperate';
     const pal = getRegionalPalette(country, hubAp?.region);
 

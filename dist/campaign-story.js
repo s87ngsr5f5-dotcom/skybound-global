@@ -1411,21 +1411,32 @@
 
           </div>
           <div id="hubCareerCard" class="hub-career-card"></div>
+          <div class="hub-nav-cat-bar" id="hubNavCatBar" role="group" aria-label="選單分類篩選">
+            <button type="button" class="hub-nav-cat-pill active" data-nav-cat="all">🌟 全部</button>
+            <button type="button" class="hub-nav-cat-pill" data-nav-cat="fly">✈ 飛行</button>
+            <button type="button" class="hub-nav-cat-pill" data-nav-cat="mission">🗺 任務航圖</button>
+            <button type="button" class="hub-nav-cat-pill" data-nav-cat="hangar">🏛 機庫工坊</button>
+            <button type="button" class="hub-nav-cat-pill" data-nav-cat="sys">⚙ 設定</button>
+          </div>
           <ul class="hub-menu-list" role="tablist">
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="welcome"><div class="hub-menu-btn-main"><span>飛行首頁</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="licenses"><div class="hub-menu-btn-main"><span>飛行駕照</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>飛行任務</span></div><span class="hub-menu-badge">${ALL_CHAPTERS.length} 關</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="worldmap"><div class="hub-menu-btn-main"><span>全球地圖與機場</span></div><span class="hub-menu-badge">${typeof allAirports!=='undefined'?allAirports.length:62} 機場</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="shop"><div class="hub-menu-btn-main"><span>機庫商店與塗裝</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>性能改裝</span></div><span class="hub-menu-badge">工坊</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="multiplayer"><div class="hub-menu-btn-main"><span>線上飛行</span></div><span class="hub-menu-badge" id="hubMpSideBadge">大廳</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="challenges"><div class="hub-menu-btn-main"><span>每日挑戰</span></div><span class="hub-menu-badge">6 模式</span></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="tactical"><div class="hub-menu-btn-main"><span>戰術訓練</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="freeflight"><div class="hub-menu-btn-main"><span>自由飛行與機庫</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="scenery"><div class="hub-menu-btn-main"><span>地景與勳章</span></div></button></li>
-            <li id="supportDevelopment" hidden><a class="hub-menu-btn" target="_blank" rel="noopener noreferrer">支持開發</a></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="help"><div class="hub-menu-btn-main"><span>操控說明</span></div></button></li>
-            <li><button type="button" class="hub-menu-btn" data-hub-tab="settings"><div class="hub-menu-btn-main"><span>設定</span></div></button></li>
+            <li class="hub-menu-group-title" data-nav-group="fly">✈ 飛行派遣</li>
+            <li data-nav-group="fly"><button type="button" class="hub-menu-btn" data-hub-tab="welcome"><div class="hub-menu-btn-main"><span>🏠 飛行首頁</span></div></button></li>
+            <li data-nav-group="fly"><button type="button" class="hub-menu-btn" data-hub-tab="freeflight"><div class="hub-menu-btn-main"><span>🛫 自由飛行與機庫</span></div><span class="hub-menu-badge">100 機</span></button></li>
+            <li data-nav-group="fly"><button type="button" class="hub-menu-btn" data-hub-tab="multiplayer"><div class="hub-menu-btn-main"><span>🌐 線上飛行</span></div><span class="hub-menu-badge" id="hubMpSideBadge">大廳</span></button></li>
+            <li class="hub-menu-group-title" data-nav-group="mission">🗺 任務與全球航圖</li>
+            <li data-nav-group="mission"><button type="button" class="hub-menu-btn" data-hub-tab="campaign"><div class="hub-menu-btn-main"><span>🎯 飛行任務</span></div><span class="hub-menu-badge">${ALL_CHAPTERS.length} 關</span></button></li>
+            <li data-nav-group="mission"><button type="button" class="hub-menu-btn" data-hub-tab="worldmap"><div class="hub-menu-btn-main"><span>🛰 全球地圖與機場</span></div><span class="hub-menu-badge">${typeof allAirports!=='undefined'?allAirports.length:62} 機場</span></button></li>
+            <li data-nav-group="mission"><button type="button" class="hub-menu-btn" data-hub-tab="challenges"><div class="hub-menu-btn-main"><span>🏆 每日挑戰</span></div><span class="hub-menu-badge">6 模式</span></button></li>
+            <li data-nav-group="mission"><button type="button" class="hub-menu-btn" data-hub-tab="licenses"><div class="hub-menu-btn-main"><span>📜 飛行駕照</span></div></button></li>
+            <li data-nav-group="mission"><button type="button" class="hub-menu-btn" data-hub-tab="tactical"><div class="hub-menu-btn-main"><span>⚔️ 戰術訓練</span></div></button></li>
+            <li class="hub-menu-group-title" data-nav-group="hangar">🏛 機庫與改裝工坊</li>
+            <li data-nav-group="hangar"><button type="button" class="hub-menu-btn" data-hub-tab="shop"><div class="hub-menu-btn-main"><span>🛍 機庫商店與塗裝</span></div></button></li>
+            <li data-nav-group="hangar"><button type="button" class="hub-menu-btn" data-hub-tab="upgrades"><div class="hub-menu-btn-main"><span>🔧 性能改裝</span></div><span class="hub-menu-badge">工坊</span></button></li>
+            <li data-nav-group="hangar"><button type="button" class="hub-menu-btn" data-hub-tab="scenery"><div class="hub-menu-btn-main"><span>🏅 地景與勳章</span></div></button></li>
+            <li class="hub-menu-group-title" data-nav-group="sys">⚙ 指南與設定</li>
+            <li id="supportDevelopment" data-nav-group="sys" hidden><a class="hub-menu-btn" target="_blank" rel="noopener noreferrer">支持開發</a></li>
+            <li data-nav-group="sys"><button type="button" class="hub-menu-btn" data-hub-tab="help"><div class="hub-menu-btn-main"><span>🎮 操控說明</span></div></button></li>
+            <li data-nav-group="sys"><button type="button" class="hub-menu-btn" data-hub-tab="settings"><div class="hub-menu-btn-main"><span>⚙ 設定</span></div></button></li>
           </ul>
         </div>
 
@@ -1452,6 +1463,30 @@
     document.body.appendChild(debrief);
 
     hub.addEventListener('click', e => {
+      const navCatBtn = e.target.closest('[data-nav-cat]');
+      if (navCatBtn) {
+        const cat = navCatBtn.dataset.navCat || 'all';
+        hub.querySelectorAll('[data-nav-cat]').forEach(b => b.classList.toggle('active', b === navCatBtn));
+        hub.querySelectorAll('[data-nav-group]').forEach(li => {
+          if (li.id === 'supportDevelopment') return;
+          li.hidden = cat !== 'all' && li.dataset.navGroup !== cat;
+        });
+        return;
+      }
+      const welcomeCatBtn = e.target.closest('[data-welcome-cat]');
+      if (welcomeCatBtn) {
+        ensureDOM._welcomeCat = welcomeCatBtn.dataset.welcomeCat || 'fly';
+        renderStage('welcome');
+        return;
+      }
+      const welcomeRouteBtn = e.target.closest('[data-welcome-fly]');
+      if (welcomeRouteBtn) {
+        const dep = welcomeRouteBtn.dataset.welcomeFly || 'RCTP';
+        const dst = welcomeRouteBtn.dataset.welcomeDst || 'RJAA';
+        const ac = welcomeRouteBtn.dataset.welcomeAc || 'b773';
+        launchMission({ aircraft: ac, departure: dep, destination: dst, lesson: 'free', startType: 'runway', weather: '0', time: '14:00', contractOnly: true });
+        return;
+      }
       const helpMode=e.target.closest('[data-help-mode]');
       if(helpMode){ensureDOM._helpMode=helpMode.dataset.helpMode;renderStage('help');return;}
       const tabBtn = e.target.closest('[data-hub-tab]');
@@ -1847,6 +1882,7 @@
     if (tab === 'welcome') {
       const nextCh = ALL_CHAPTERS.find(ch => !prog[ch.id]) || CHAPTERS[0];
       const apTotal = typeof allAirports !== 'undefined' ? allAirports.length : 62;
+      const wCat = ensureDOM._welcomeCat || 'fly';
       stage.innerHTML = `
         <div class="dispatch-home hangar-home">
           <div class="arrival-cinema" aria-hidden="true">
@@ -1854,23 +1890,55 @@
           </div>
           <img class="dispatch-photo" src="assets/campaign/title-bg.jpg" alt="SKYBOUND GLOBAL 客機與戰機飛越台北夕陽天際線" fetchpriority="high">
           <div class="dispatch-hero-top">
-            <span class="dispatch-badge">✈ SKYBOUND GLOBAL · ${apTotal} 座全球機場 · ${ALL_CHAPTERS.length} 關任務</span>
+            <span class="dispatch-badge">✈ SKYBOUND GLOBAL · ${apTotal} 座全球機場 · 100 架機隊 · ${ALL_CHAPTERS.length} 關任務</span>
             <a class="developer-follow" href="https://www.threads.com/@aiweb.creator" target="_blank" rel="noopener noreferrer" aria-label="在新分頁開啟開發者 Threads：aiweb.creator"><span>追蹤開發者 Threads <span aria-hidden="true">↗</span></span><small>@aiweb.creator</small></a>
           </div>
           <section class="dispatch-brief">
             <h2>準備下一趟飛行</h2>
-            <p class="dispatch-lead">自由探索全球五大洲航線、真實國家領地與 100 架機隊，隨選即飛。</p>
+            <p class="dispatch-lead">自由探索全球五大洲衛星地圖、真實國家領地與 100 架機隊，隨選即飛。</p>
+            <div class="dispatch-cat-tabs" role="tablist" aria-label="快速派遣分類">
+              <button type="button" class="dispatch-cat-pill${wCat === 'fly' ? ' active' : ''}" data-welcome-cat="fly">✈ 快速派遣</button>
+              <button type="button" class="dispatch-cat-pill${wCat === 'world' ? ' active' : ''}" data-welcome-cat="world">🌍 五大洲直飛</button>
+              <button type="button" class="dispatch-cat-pill${wCat === 'mission' ? ' active' : ''}" data-welcome-cat="mission">🎯 任務與挑戰</button>
+              <button type="button" class="dispatch-cat-pill${wCat === 'hangar' ? ' active' : ''}" data-welcome-cat="hangar">🏛 機庫與工坊</button>
+            </div>
             <div class="dispatch-primary-row">
               <button type="button" id="hubQuickFreeBtn" class="campaign-launch-btn">✈ 開始飛行</button>
               <button type="button" id="hubQuickStartBtn" class="hub-back-btn dispatch-mission-btn" data-quick-ch="${nextCh.id}">🎯 執飛 ${nextCh.code} · ${nextCh.title.split('：').pop()}</button>
             </div>
+            ${wCat === 'world' ? `
+            <div class="dispatch-secondary-grid">
+              <button type="button" class="hub-back-btn" data-welcome-fly="RCSS" data-welcome-dst="RCTP" data-welcome-ac="a223">🇹🇼 台北松山起飛</button>
+              <button type="button" class="hub-back-btn" data-welcome-fly="RJTT" data-welcome-dst="RJAA" data-welcome-ac="b773">🇯🇵 東京羽田起飛</button>
+              <button type="button" class="hub-back-btn" data-welcome-fly="LFPG" data-welcome-dst="EGLL" data-welcome-ac="a320neo">🏰 巴黎戴高樂起飛</button>
+              <button type="button" class="hub-back-btn" data-welcome-fly="KJFK" data-welcome-dst="CYYZ" data-welcome-ac="b773">🗽 紐約甘迺迪起飛</button>
+              <button type="button" class="hub-back-btn" data-welcome-fly="OMDB" data-welcome-dst="OTHH" data-welcome-ac="sa380">🏜 杜拜哈里發起飛</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="worldmap">🛰 全球 62 機場地圖</button>
+            </div>` : wCat === 'mission' ? `
+            <div class="dispatch-secondary-grid">
+              <button type="button" class="hub-back-btn" data-jump-tab="campaign">🎯 45 關劇情與遠征</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="challenges">🏆 每日與 6 大挑戰</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="licenses">📜 飛行駕照考驗</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="tactical">⚔️ 空戰與航艦戰術</button>
+              <button type="button" class="hub-back-btn" data-store-passenger="a223">🛫 定期載客航班</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="multiplayer">🌐 線上多人連線</button>
+            </div>` : wCat === 'hangar' ? `
+            <div class="dispatch-secondary-grid">
+              <button type="button" id="hubOpenHangarBtn" class="hub-back-btn">🏛 3D 100機機庫</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="shop">🛍 機庫商店與塗裝</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="upgrades">🔧 性能改裝工坊</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="scenery">🏅 地景巡覽與勳章</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="help">🎮 操控說明</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="settings">⚙ 畫質與設定</button>
+            </div>` : `
             <div class="dispatch-secondary-grid">
               <button type="button" id="hubOpenHangarBtn" class="hub-back-btn">🏛 進入機庫</button>
               <button type="button" class="hub-back-btn" data-store-passenger="a223">🛫 載客任務</button>
               <button type="button" class="hub-back-btn" data-jump-tab="worldmap">🗺 全球地圖</button>
               <button type="button" class="hub-back-btn" data-jump-tab="shop">🛍 商店與塗裝</button>
+              <button type="button" class="hub-back-btn" data-jump-tab="freeflight">🛫 全球自由選機場</button>
               <button type="button" class="hub-back-btn" data-jump-tab="help">🎮 操控說明</button>
-            </div>
+            </div>`}
           </section>
         </div>`;
       return;
@@ -1913,6 +1981,8 @@
       const chStars = prog[ch.id]?.stars || 0;
       const bonusObj = getBonusObjective(ch);
       const curFilter = ensureDOM._campaignFilter || 'all';
+      const curQ = (ensureDOM._campaignSearch || '').trim().toLowerCase();
+      const matchSearch = item => !curQ || item.code.toLowerCase().includes(curQ) || item.title.toLowerCase().includes(curQ) || (item.subtitle || '').toLowerCase().includes(curQ) || (item.departure || '').toLowerCase().includes(curQ) || (item.destination || '').toLowerCase().includes(curQ) || (item.aircraft || '').toLowerCase().includes(curQ);
       const renderChBtn = item => {
         const s = prog[item.id]?.stars || 0;
         const starsStr = s ? '★'.repeat(s) + '☆'.repeat(3 - s) : '未完成';
@@ -1926,23 +1996,43 @@
             <span class="campaign-stars">${starsStr}</span>
           </button>`;
       };
-      const showTw = curFilter === 'all' || curFilter === 'tw';
-      const showWorld = curFilter === 'all' || curFilter === 'world';
-      const showGlobal = curFilter === 'all' || curFilter === 'global';
+      const euMeCodes = new Set(['GL.36', 'GL.37', 'GL.41', 'GL.43']);
+      const listExams = LICENSE_CHAPTERS.filter(c => c.isExam && matchSearch(c));
+      const listLicensed = LICENSE_CHAPTERS.filter(c => !c.isExam && matchSearch(c));
+      const listTwMain = CHAPTERS.filter(matchSearch);
+      const listLocal = SHORT_CHAPTERS.filter(matchSearch);
+      const listWorld = WORLD_CHAPTERS.filter(matchSearch);
+      const listEuMe = GLOBAL_CHAPTERS.filter(c => euMeCodes.has(c.code) && matchSearch(c));
+      const listAmOcAf = GLOBAL_CHAPTERS.filter(c => !euMeCodes.has(c.code) && matchSearch(c));
+      const listPending = ALL_CHAPTERS.filter(c => !(prog[c.id]?.stars) && matchSearch(c));
+      const listDone = ALL_CHAPTERS.filter(c => (prog[c.id]?.stars > 0) && matchSearch(c));
+
       const cardsHtml = `
-        <div class="mp-room-chips" style="margin-bottom:6px;">
-          <button type="button" class="mp-chip${curFilter === 'all' ? ' active' : ''}" data-campaign-filter="all">全部 (${ALL_CHAPTERS.length}章)</button>
-          <button type="button" class="mp-chip${curFilter === 'tw' ? ' active' : ''}" data-campaign-filter="tw">🇹🇼 台灣 (${CHAPTERS.length+SHORT_CHAPTERS.length}關)</button>
-          <button type="button" class="mp-chip${curFilter === 'world' ? ' active' : ''}" data-campaign-filter="world">🌍 亞太區域 (${WORLD_CHAPTERS.length}關)</button>
-          <button type="button" class="mp-chip${curFilter === 'global' ? ' active' : ''}" data-campaign-filter="global">🌏 全球遠征 (${GLOBAL_CHAPTERS.length}關)</button>
-          <button type="button" class="mp-chip${curFilter === 'exams' ? ' active' : ''}" data-campaign-filter="exams">駕照考試 (4)</button>
-          <button type="button" class="mp-chip${curFilter === 'licensed' ? ' active' : ''}" data-campaign-filter="licensed">資格任務 (12)</button>
+        <div style="margin-bottom:8px;">
+          <input id="campaignSearchInput" type="search" value="${ensureDOM._campaignSearch || ''}" placeholder="🔍 搜尋關卡、機場代碼或機型（如 巴黎、KJFK、F-16、A380）" style="width:100%;padding:7px 11px;border-radius:8px;border:1px solid #35586d;background:#091a26;color:#fff;font-size:12.5px;margin-bottom:6px;">
+          <div class="mp-room-chips">
+            <button type="button" class="mp-chip${curFilter === 'all' ? ' active' : ''}" data-campaign-filter="all">📋 全部 (${ALL_CHAPTERS.length})</button>
+            <button type="button" class="mp-chip${curFilter === 'pending' ? ' active' : ''}" data-campaign-filter="pending">🔥 待完成 (${listPending.length})</button>
+            <button type="button" class="mp-chip${curFilter === 'tw' ? ' active' : ''}" data-campaign-filter="tw">🇹🇼 台灣主線 (${CHAPTERS.length})</button>
+            <button type="button" class="mp-chip${curFilter === 'local' ? ' active' : ''}" data-campaign-filter="local">🛫 本場訓練 (${SHORT_CHAPTERS.length})</button>
+            <button type="button" class="mp-chip${curFilter === 'world' ? ' active' : ''}" data-campaign-filter="world">🌍 東亞／東南亞 (${WORLD_CHAPTERS.length})</button>
+            <button type="button" class="mp-chip${curFilter === 'eu_me' ? ' active' : ''}" data-campaign-filter="eu_me">🏰 歐洲／中東 (4)</button>
+            <button type="button" class="mp-chip${curFilter === 'am_oc_af' ? ' active' : ''}" data-campaign-filter="am_oc_af">🗽 美洲／大洋洲／非洲 (6)</button>
+            <button type="button" class="mp-chip${curFilter === 'global' ? ' active' : ''}" data-campaign-filter="global">🌏 全球遠征 (${GLOBAL_CHAPTERS.length})</button>
+            <button type="button" class="mp-chip${curFilter === 'exams' ? ' active' : ''}" data-campaign-filter="exams">📜 駕照考試 (4)</button>
+            <button type="button" class="mp-chip${curFilter === 'licensed' ? ' active' : ''}" data-campaign-filter="licensed">🎖 資格任務 (12)</button>
+            <button type="button" class="mp-chip${curFilter === 'done' ? ' active' : ''}" data-campaign-filter="done">✅ 已通關 (${listDone.length})</button>
+          </div>
         </div>
-        ${curFilter==='all'||curFilter==='exams'?LICENSE_CHAPTERS.filter(c=>c.isExam).map(renderChBtn).join(''):''}
-        ${curFilter==='all'||curFilter==='licensed'?LICENSE_CHAPTERS.filter(c=>!c.isExam).map(renderChBtn).join(''):''}
-        ${showTw ? `<div class="campaign-group-label" style="font-size:11.5px;color:#ffd976;font-weight:700;padding:2px 6px;">🇹🇼 台灣 · 主線與進階訓練</div>${[...CHAPTERS,...SHORT_CHAPTERS].map(renderChBtn).join('')}` : ''}
-        ${showWorld ? `<div class="campaign-group-label" style="font-size:11.5px;color:#72e5ff;font-weight:700;padding:8px 6px 2px;">🌍 亞太區域 · 跨海航線</div>${WORLD_CHAPTERS.map(renderChBtn).join('')}` : ''}
-        ${showGlobal ? `<div class="campaign-group-label" style="font-size:11.5px;color:#9cf7be;font-weight:700;padding:8px 6px 2px;">🌏 全球遠征 · 五大洲國際航線</div>${GLOBAL_CHAPTERS.map(renderChBtn).join('')}` : ''}
+        ${curFilter === 'pending' ? `<div class="campaign-group-label" style="font-size:11.5px;color:#ffd976;font-weight:700;padding:2px 6px;">🔥 推薦待完成任務 (${listPending.length} 關)</div>${listPending.map(renderChBtn).join('')}` : ''}
+        ${curFilter === 'done' ? `<div class="campaign-group-label" style="font-size:11.5px;color:#7affbe;font-weight:700;padding:2px 6px;">✅ 已完成章節 (${listDone.length} 關)</div>${listDone.map(renderChBtn).join('')}` : ''}
+        ${(curFilter === 'all' || curFilter === 'exams') && listExams.length ? `<div class="campaign-group-label" style="font-size:11.5px;color:#ffb4a2;font-weight:700;padding:4px 6px 2px;">📜 飛行駕照考驗 (4 關)</div>${listExams.map(renderChBtn).join('')}` : ''}
+        ${(curFilter === 'all' || curFilter === 'licensed') && listLicensed.length ? `<div class="campaign-group-label" style="font-size:11.5px;color:#d8b4fe;font-weight:700;padding:6px 6px 2px;">🎖 資格認證任務 (12 關)</div>${listLicensed.map(renderChBtn).join('')}` : ''}
+        ${(curFilter === 'all' || curFilter === 'tw') && listTwMain.length ? `<div class="campaign-group-label" style="font-size:11.5px;color:#ffd976;font-weight:700;padding:6px 6px 2px;">🇹🇼 台灣主線劇情 (7 關)</div>${listTwMain.map(renderChBtn).join('')}` : ''}
+        ${(curFilter === 'all' || curFilter === 'tw' || curFilter === 'local') && listLocal.length ? `<div class="campaign-group-label" style="font-size:11.5px;color:#fcd34d;font-weight:700;padding:6px 6px 2px;">🛫 本場短程起降訓練 (4 關)</div>${listLocal.map(renderChBtn).join('')}` : ''}
+        ${(curFilter === 'all' || curFilter === 'world') && listWorld.length ? `<div class="campaign-group-label" style="font-size:11.5px;color:#72e5ff;font-weight:700;padding:8px 6px 2px;">🌍 東亞與東南亞 · 跨海航線 (8 關)</div>${listWorld.map(renderChBtn).join('')}` : ''}
+        ${(curFilter === 'all' || curFilter === 'global' || curFilter === 'eu_me') && listEuMe.length ? `<div class="campaign-group-label" style="font-size:11.5px;color:#c4b5fd;font-weight:700;padding:8px 6px 2px;">🏰 歐洲與中東 · 洲際航線 (4 關)</div>${listEuMe.map(renderChBtn).join('')}` : ''}
+        ${(curFilter === 'all' || curFilter === 'global' || curFilter === 'am_oc_af') && listAmOcAf.length ? `<div class="campaign-group-label" style="font-size:11.5px;color:#9cf7be;font-weight:700;padding:8px 6px 2px;">🗽 美洲、大洋洲與非洲 · 遠洋航線 (6 關)</div>${listAmOcAf.map(renderChBtn).join('')}` : ''}
       `;
 
       stage.innerHTML = `
@@ -1983,6 +2073,15 @@
             <div class="campaign-chapter-list" aria-label="章節列表">${cardsHtml}</div>
           </div>
         </div>`;
+      const campSrch = document.getElementById('campaignSearchInput');
+      if (campSrch) {
+        campSrch.oninput = () => {
+          ensureDOM._campaignSearch = campSrch.value;
+          renderStage('campaign');
+          const n = document.getElementById('campaignSearchInput');
+          if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); }
+        };
+      }
       drawCampaignRoutePreview(ch);
       return;
     }
@@ -2403,28 +2502,56 @@
         { dep: 'RKSI', dst: 'RCTP', ac: 'sf748', label: '🇰🇷 韓國首爾 (RKSI)' },
         { dep: 'WSSS', dst: 'RPLL', ac: 'a223', label: '🇸🇬 新加坡 (WSSS)' },
         { dep: 'RPLL', dst: 'RCKH', ac: 'm2000', label: '🇵🇭 馬尼拉 (RPLL)' },
-        { dep: 'VTBS', dst: 'WSSS', ac: 'a320neo', label: '🇹🇭 泰國曼谷 (VTBS)' }
+        { dep: 'VTBS', dst: 'WSSS', ac: 'a320neo', label: '🇹🇭 泰國曼谷 (VTBS)' },
+        { dep: 'OMDB', dst: 'OTHH', ac: 'sa380', label: '🏜 杜拜哈里發 (OMDB)' },
+        { dep: 'LFPG', dst: 'EGLL', ac: 'a320neo', label: '🏰 巴黎戴高樂 (LFPG)' },
+        { dep: 'EGLL', dst: 'EDDF', ac: 'b773', label: '🏰 倫敦希斯洛 (EGLL)' },
+        { dep: 'LSZH', dst: 'LIRF', ac: 'a223', label: '🏔 蘇黎世阿爾卑斯 (LSZH)' },
+        { dep: 'KJFK', dst: 'CYYZ', ac: 'b773', label: '🗽 紐約甘迺迪 (KJFK)' },
+        { dep: 'KSFO', dst: 'KLAX', ac: 'b38m', label: '🌉 舊金山灣區 (KSFO)' },
+        { dep: 'YSSY', dst: 'NZAA', ac: 'b789', label: '🦘 澳洲雪梨 (YSSY)' },
+        { dep: 'HECA', dst: 'OMDB', ac: 'an124', label: '🐪 開羅金字塔 (HECA)' },
+        { dep: 'SBGR', dst: 'SCEL', ac: 'b773', label: '🌎 聖保羅南美 (SBGR)' }
       ].map(h => `<button type="button" class="mp-chip" data-world-hub="${h.dep}" data-world-dst="${h.dst}" data-world-ac="${h.ac}">${h.label}</button>`).join('');
+      const apList = typeof allAirports !== 'undefined' ? allAirports : [];
+      const apRegions = typeof AIRPORT_REGIONS !== 'undefined' ? AIRPORT_REGIONS : [{ id: 'all', label: '🌏 全球機場' }];
+      const buildGroupedAirportOptions = (defaultCode) => {
+        const curCode = document.getElementById(defaultCode)?.value || (defaultCode === 'departure' ? 'RCSS' : 'RCYU');
+        if (!apList.length) return cloneOptionsHtml(defaultCode);
+        return apRegions.filter(r => r.id !== 'all').map(rg => {
+          const items = apList.filter(a => (a.region || 'tw') === rg.id);
+          if (!items.length) return '';
+          return `<optgroup label="${rg.label} (${items.length})">${items.map(a => `<option value="${a.code}"${a.code === curCode ? ' selected' : ''}>${a.code} ${a.name} · RWY ${a.designator}</option>`).join('')}</optgroup>`;
+        }).join('');
+      };
+      const primaryOptGroups = ['tw_fleet','airliner_wide','airliner_narrow','cargo','fighter_stealth','fighter_multi','business','prop','trainer','helicopter'];
+      const acOptHtml = primaryOptGroups.filter(k => fleetCategories[k]).map(key => {
+        const list = fleet.filter(p => fleetMatches(p, key));
+        if (!list.length) return '';
+        return `<optgroup label="${fleetCategories[key]} (${list.length})">${list.map(p => `<option value="${p.id}" ${aircraftUnlocked(p) ? '' : 'disabled'}>${p.name}${aircraftUnlocked(p) ? '' : ' 🔒'}</option>`).join('')}</optgroup>`;
+      }).join('');
       stage.innerHTML = `
         <div class="hub-section-panel">
           <div class="hub-online-banner">
             <img src="assets/campaign/ch2.jpg" alt="自由飛行與 3D 機庫">
             <div class="hub-online-banner-body">
-              <span class="hub-mode-pill gold">✈ FREE FLIGHT · 9 REGIONS & 3D HANGAR</span>
+              <span class="hub-mode-pill gold">✈ FREE FLIGHT · GLOBAL SATELLITE & 100 AIRCRAFT</span>
               <h2>跨國自由飛行與 3D 機庫</h2>
-              <p>一鍵切換台灣與 8 大國際都會機場起降，自由探索各國 3D 摩天樓、跨海大橋、港口船隊與地標</p>
+              <p>一鍵切換全球七大洲 62 座國際機場與 15 大機型分類，自由探索各國 3D 城市、跨海大橋與地標</p>
             </div>
           </div>
           <div class="hub-panel-card">
             <div style="margin-bottom:10px;">
-              <small style="color:#9ec4dc;display:block;margin-bottom:6px;">🌍 點擊快速帶入各國代表性起降航線：</small>
+              <small style="color:#9ec4dc;display:block;margin-bottom:6px;">🌍 點擊快速帶入全球代表性起降航線：</small>
               <div class="mp-room-chips">${worldQuickHubs}</div>
             </div>
             <div class="hub-form-grid">
-              <label>機型分類<select id="hubFfCategory">${Object.entries(fleetCategories).map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label><label>執飛機型<select id="hubFfAircraft">${Object.entries(fleetCategories).filter(([key])=>!['all','special'].includes(key)).map(([key,label])=>`<optgroup label="${label}">${fleet.filter(p=>fleetMatches(p,key)).map(p=>`<option value="${p.id}" ${aircraftUnlocked(p)?'':'disabled'}>${p.name}</option>`).join('')}</optgroup>`).join('')}</select></label>
+              <label>機型細分篩選 (15類)<select id="hubFfCategory">${Object.entries(fleetCategories).map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label>
+              <label>執飛機型<select id="hubFfAircraft">${acOptHtml}</select></label>
+              <label>機場洲別分類<select id="hubFfRegion">${apRegions.map(r => `<option value="${r.id}">${r.label}</option>`).join('')}</select></label>
               <label>起始狀態<select id="hubFfStartType">${cloneOptionsHtml('startType')}</select></label>
-              <label>出發機場<select id="hubFfDeparture">${cloneOptionsHtml('departure')}</select></label>
-              <label>目的機場<select id="hubFfDestination">${cloneOptionsHtml('destination')}</select></label>
+              <label>出發機場<select id="hubFfDeparture">${buildGroupedAirportOptions('departure')}</select></label>
+              <label>目的機場<select id="hubFfDestination">${buildGroupedAirportOptions('destination')}</select></label>
               <label>天候環境<select id="hubFfWeather">${cloneOptionsHtml('weather')}</select></label>
               <label>當地時刻<input type="time" id="hubFfTime" value="${document.getElementById('time')?.value || '13:00'}"></label>
             </div>
@@ -2845,6 +2972,35 @@
   }
 
   document.addEventListener('change',event=>{
+    if(event.target.id==='hubFfRegion'&&typeof allAirports!=='undefined'){
+      const rgVal=event.target.value||'all';
+      const depEl=document.getElementById('hubFfDeparture'),dstEl=document.getElementById('hubFfDestination');
+      const regs=typeof AIRPORT_REGIONS!=='undefined'?AIRPORT_REGIONS.filter(r=>r.id!=='all'):[{id:'tw',label:'🇹🇼 台灣與離島'}];
+      const ordered=rgVal==='all'?regs:[...regs.filter(r=>r.id===rgVal),...regs.filter(r=>r.id!==rgVal)];
+      for(const sel of [depEl,dstEl]){
+        if(!sel) continue;
+        const prev=sel.value;
+        sel.replaceChildren();
+        for(const rg of ordered){
+          const items=allAirports.filter(a=>(a.region||'tw')===rg.id);
+          if(!items.length) continue;
+          const grp=document.createElement('optgroup');
+          grp.label=(rg.id===rgVal?'★ ':'')+rg.label+` (${items.length})`;
+          for(const a of items){
+            const opt=new Option(`${a.code} ${a.name} · RWY ${a.designator}`,a.code);
+            grp.appendChild(opt);
+          }
+          sel.appendChild(grp);
+        }
+        if(rgVal!=='all'&&sel===depEl){
+          const first=allAirports.find(a=>!a.carrier&&(a.region||'tw')===rgVal);
+          if(first){sel.value=first.code;sel.dispatchEvent(new Event('change',{bubbles:true}));}
+        }else if(allAirports.some(a=>a.code===prev)){
+          sel.value=prev;
+        }
+      }
+      return;
+    }
     if(event.target.id!=='hubFfCategory')return;
     const select=document.getElementById('hubFfAircraft'),category=event.target.value;
     const matches=fleet.filter(p=>fleetMatches(p,category));

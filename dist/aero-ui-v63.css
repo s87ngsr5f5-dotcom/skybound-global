@@ -1946,3 +1946,109 @@ body.title-hub-open>header{padding-top:calc(8px + var(--menu-safe-top));padding-
  #titleHub .hub-stage{flex:1 1 0;height:100%}
  #titleHub .hub-menu-btn{min-height:44px}
 }
+
+/* Categorized Sidebar Navigation, Welcome Dispatch Tabs & 3D Hangar Quick Picker (v0.84) */
+.hub-nav-cat-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0 0 8px;
+  padding: 5px;
+  border-radius: 10px;
+  background: rgba(6, 17, 28, 0.72);
+  border: 1px solid rgba(112, 210, 255, 0.18);
+}
+.hub-nav-cat-pill {
+  flex: 1 1 auto;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(112, 210, 255, 0.18);
+  background: rgba(16, 36, 52, 0.65);
+  color: #bfe4f8;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+}
+.hub-nav-cat-pill:hover {
+  background: rgba(28, 64, 92, 0.85);
+  color: #fff;
+}
+.hub-nav-cat-pill.active {
+  background: linear-gradient(135deg, rgba(246, 207, 130, 0.28), rgba(62, 152, 204, 0.34));
+  border-color: #f0c26b;
+  color: #ffe8a8;
+}
+.hub-menu-group-title {
+  list-style: none;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #82c8e8;
+  padding: 6px 8px 2px;
+  margin-top: 2px;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+@media (max-width: 900px) {
+  .hub-menu-group-title {
+    display: none !important;
+  }
+}
+.dispatch-cat-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.dispatch-cat-pill {
+  flex: 1 1 auto;
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 205, 245, 0.28);
+  background: rgba(14, 34, 50, 0.78);
+  color: #cbe8f8;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.dispatch-cat-pill:hover {
+  background: rgba(28, 62, 88, 0.92);
+  color: #fff;
+}
+.dispatch-cat-pill.active {
+  background: linear-gradient(135deg, rgba(246, 207, 130, 0.32), rgba(45, 132, 185, 0.42));
+  border-color: #f6cf82;
+  color: #fff2c6;
+  box-shadow: 0 0 12px rgba(246, 207, 130, 0.22);
+}
+.dispatch-secondary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 640px) {
+  .dispatch-secondary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.hangar-quick-panel {
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(8, 22, 34, 0.78);
+  border: 1px solid rgba(112, 205, 245, 0.24);
+}
+.hangar-cat-chips,
+.hangar-plane-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-height: 112px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+.hangar-cat-chips .mp-chip {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+

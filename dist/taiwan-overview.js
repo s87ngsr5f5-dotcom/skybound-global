@@ -121,6 +121,45 @@ function createTaiwanOverview(){
     }
   }
 
+  // Dynamic Global Continental 3D Relief Patch (follows overview camera anywhere on Earth)
+  const dynSpan=680000,dynSegs=68,dynStep=dynSpan/dynSegs;
+  const dynGeo=new THREE.PlaneGeometry(dynSpan,dynSpan,dynSegs,dynSegs);
+  dynGeo.rotateX(-Math.PI/2);
+  const dynCols=new Float32Array(dynGeo.attributes.position.count*3);
+  dynGeo.setAttribute('color',new THREE.BufferAttribute(dynCols,3));
+  const dynMat=new THREE.MeshBasicMaterial({vertexColors:true,toneMapped:false});
+  const dynMesh=new THREE.Mesh(dynGeo,dynMat);
+  dynMesh.visible=false;
+  intlTerrainGroup.add(dynMesh);
+  let dynLastX=1e12,dynLastZ=1e12;
+  function updateDynamicGlobalRelief(fx,fz){
+    if(Math.abs(fx-center.x)<280000&&Math.abs(fz-center.z)<280000){dynMesh.visible=false;return;}
+    if(Math.hypot(fx-dynLastX,fz-dynLastZ)<90000) return;
+    dynLastX=fx;dynLastZ=fz;
+    const pos=dynGeo.attributes.position,colAttr=dynGeo.attributes.color;
+    const half=dynSpan*0.5;
+    for(let row=0;row<=dynSegs;row++){
+      for(let col=0;col<=dynSegs;col++){
+        const idx=row*(dynSegs+1)+col;
+        const wx=fx-half+col*dynStep,wz=fz-half+row*dynStep;
+        const h=regionalHeight(wx,wz);
+        pos.setXYZ(idx,wx,h>1.2?h*2.0:-15,wz);
+        if(h<1.2){
+          color.copy(sea);
+        }else{
+          color.copy(coast).lerp(forest,Math.min(1,h/450));
+          if(h>700) color.lerp(ridge,Math.min(1,(h-700)/1400));
+          const shade=(h-regionalHeight(wx-dynStep*0.5,wz-dynStep*0.5))/dynStep;
+          color.multiplyScalar(Math.max(.74,Math.min(1.26,.98+shade*1.8)));
+        }
+        colAttr.setXYZ(idx,color.r,color.g,color.b);
+      }
+    }
+    pos.needsUpdate=true;
+    colAttr.needsUpdate=true;
+    dynMesh.visible=true;
+  }
+
   // 3D Label Sprite Helper for Airports, VORs, and Multiplayer Callsigns
   function createTagSprite(text, borderColor='#6ee7ff', textColor='#ffffff', bgColor='rgba(9, 23, 36, 0.86)'){
     if(typeof document==='undefined') return null;
@@ -345,11 +384,12 @@ function createTaiwanOverview(){
   }
 
   let userPanned=false;
+  const ASIA_PAN_LIMIT=3500000,GLOBAL_PAN_LIMIT=20000000;
   function panBy(dxPx,dyPx){
     userPanned=true;
     const worldPerPx=spriteScaleBase||400;
-    viewState.panX=Math.max(-3500000,Math.min(3500000,viewState.panX-dxPx*worldPerPx));
-    viewState.panZ=Math.max(-3500000,Math.min(3500000,viewState.panZ-dyPx*worldPerPx));
+    viewState.panX=Math.max(-GLOBAL_PAN_LIMIT,Math.min(GLOBAL_PAN_LIMIT,viewState.panX-dxPx*worldPerPx));
+    viewState.panZ=Math.max(-GLOBAL_PAN_LIMIT,Math.min(GLOBAL_PAN_LIMIT,viewState.panZ-dyPx*worldPerPx));
     updateCameraTransform();
   }
 
@@ -470,6 +510,7 @@ function createTaiwanOverview(){
         updateCameraTransform();
       }
     }
+    updateDynamicGlobalRelief(center.x+viewState.panX,center.z+viewState.panZ);
     const acAlt=Math.max(9200, (f.y||0)+4000);
     markerGroup.position.set(f.x,acAlt,f.z);
     markerGroup.rotation.y=-f.heading;
