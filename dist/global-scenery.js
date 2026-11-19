@@ -989,13 +989,18 @@ function createGlobalScenery(scene, ground, airports = []) {
     };
 
     if (lm.type === 'burj') {
-      const tiers = [[46, 95], [36, 195], [27, 295], [20, 390], [14, 475], [8, 550], [2.4, 620]];
-      let prev = 0;
-      for (const [r, top] of tiers) {
-        addCyl(landmarkGlassMat, r * 0.78, r, top - prev, 9, cx, gy + prev + (top - prev) * 0.5 - 1, cz);
-        prev = top;
+      // Y-shaped 3-wing spiraling setbacks rising to 828m (scaled ~680m silhouette)
+      addCyl(landmarkGlassMat, 10, 22, 540, 6, cx, gy + 270, cz);
+      for (let w = 0; w < 3; w++) {
+        const ang = (w * Math.PI * 2) / 3;
+        for (let t = 0; t < 4; t++) {
+          const th = 420 - t * 90 - w * 28;
+          const dist = 16 + t * 9;
+          addCyl(landmarkGlassMat, 9 - t * 1.1, 11 - t * 1.1, th, 10, cx + Math.cos(ang) * dist, gy + th * 0.5, cz + Math.sin(ang) * dist);
+        }
       }
-      beacons.push({ x: cx, y: gy + 622, z: cz });
+      addCyl(whiteShellMat, 1.4, 7.5, 165, 10, cx, gy + 610, cz);
+      beacons.push({ x: cx, y: gy + 695, z: cz });
     } else if (lm.type === 'eiffel' || lm.type === 'tokyo_tower') {
       const mat = lm.type === 'tokyo_tower' ? bridgeOrangeMat : monumentGoldMat;
       // 4 angled lattice corner legs meeting at 1st & 2nd decks
@@ -1017,12 +1022,21 @@ function createGlobalScenery(scene, ground, airports = []) {
       addCyl(whiteShellMat, 1.2, 6.5, 115, 10, cx, gy + 485, cz);
       beacons.push({ x: cx, y: gy + 544, z: cz });
     } else if (lm.type === 'mbs') {
+      // Marina Bay Sands: 3 tilted towers + 340m SkyPark cantilevered boat + ArtScience Lotus Museum
       for (const ox of [-58, 0, 58]) {
         const tw = addBox(landmarkGlassMat, 26, 194, 42, cx + ox, gy + 96, cz);
-        tw.rotation.z = 0.06;
+        tw.rotation.z = 0.08;
+        const tw2 = addBox(landmarkGlassMat, 22, 194, 38, cx + ox + 12, gy + 96, cz);
+        tw2.rotation.z = -0.04;
       }
-      addBox(monumentGoldMat, 210, 12, 46, cx + 14, gy + 198, cz);
-      beacons.push({ x: cx + 115, y: gy + 206, z: cz }, { x: cx - 88, y: gy + 206, z: cz });
+      addBox(monumentGoldMat, 250, 12, 48, cx + 24, gy + 198, cz);
+      // 10-petal white ArtScience Lotus Museum on bayfront
+      for (let p = 0; p < 10; p++) {
+        const a = (p / 10) * Math.PI * 2;
+        const petal = addBox(whiteShellMat, 8, 36, 14, cx - 125 + Math.cos(a) * 18, gy + 18, cz + 65 + Math.sin(a) * 18, -a);
+        petal.rotation.z = 0.35;
+      }
+      beacons.push({ x: cx + 145, y: gy + 206, z: cz }, { x: cx - 98, y: gy + 206, z: cz });
     } else if (lm.type === 'petronas') {
       for (const ox of [-42, 42]) {
         addCyl(landmarkGlassMat, 20, 24, 340, 16, cx + ox, gy + 170, cz);
@@ -1068,16 +1082,37 @@ function createGlobalScenery(scene, ground, airports = []) {
       addCyl(whiteShellMat, 1.2, 4.8, 124, 12, cx, gy + 478, cz);
       beacons.push({ x: cx, y: gy + 543, z: cz });
     } else if (lm.type === 'empire') {
-      addBox(bldgWallMat, 52, 265, 36, cx, gy + 132, cz);
-      addBox(bldgWallMat, 34, 88, 24, cx, gy + 308, cz);
-      addCyl(whiteShellMat, 1.1, 6, 90, 12, cx, gy + 397, cz);
-      beacons.push({ x: cx, y: gy + 444, z: cz });
+      if (lm.id === 'chicago_willis') {
+        // Exact 9-bundled-tube Fazlur Khan setback matrix + twin 85m white broadcast antennas
+        const tubes = [
+          [-1, -1, 198], [0, -1, 362], [1, -1, 266],
+          [-1, 0, 442],  [0, 0, 442],  [1, 0, 362],
+          [-1, 1, 266],  [0, 1, 362],  [1, 1, 198]
+        ];
+        for (const [gx, gz, th] of tubes) {
+          addBox(roofMat, 22.5, th, 22.5, cx + gx * 22.9, gy + th * 0.5, cz + gz * 22.9);
+        }
+        addCyl(whiteShellMat, 1.0, 2.8, 85, 10, cx - 22.9, gy + 484, cz);
+        addCyl(whiteShellMat, 1.0, 2.8, 78, 10, cx, gy + 481, cz);
+        beacons.push({ x: cx - 22.9, y: gy + 528, z: cz }, { x: cx, y: gy + 521, z: cz });
+      } else {
+        addBox(bldgWallMat, 52, 265, 36, cx, gy + 132, cz);
+        addBox(bldgWallMat, 34, 88, 24, cx, gy + 308, cz);
+        addCyl(whiteShellMat, 1.1, 6, 90, 12, cx, gy + 397, cz);
+        beacons.push({ x: cx, y: gy + 444, z: cz });
+      }
     } else if (lm.type === 'liberty') {
       addBox(roofMat, 34, 46, 34, cx, gy + 23, cz);
       addCyl(copperGreenMat, 5, 9, 34, 12, cx, gy + 63, cz);
       addCyl(monumentGoldMat, 2.2, 1.5, 14, 10, cx + 5, gy + 86, cz);
     } else if (lm.type === 'shard') {
-      addCyl(landmarkGlassMat, 3.2, 35, 310, 4, cx, gy + 154, cz, Math.PI / 4);
+      // 8 angled overlapping extra-white glass shards meeting at fractured open-air spire
+      addCyl(landmarkGlassMat, 3.2, 35, 310, 8, cx, gy + 154, cz, Math.PI / 8);
+      for (let sh = 0; sh < 4; sh++) {
+        const a = (sh / 4) * Math.PI * 2;
+        const shH = 290 + sh * 6;
+        addBox(whiteShellMat, 2.5, shH * 0.35, 14, cx + Math.cos(a) * 5, gy + shH * 0.82, cz + Math.sin(a) * 5, -a);
+      }
       beacons.push({ x: cx, y: gy + 312, z: cz });
     } else if (lm.type === 'clock_tower') {
       addBox(monumentGoldMat, 14, 72, 14, cx, gy + 36, cz);
@@ -1086,14 +1121,31 @@ function createGlobalScenery(scene, ground, airports = []) {
       addCyl(whiteShellMat, 2.8, 34, 260, 4, cx, gy + 130, cz, Math.PI / 4);
       beacons.push({ x: cx, y: gy + 262, z: cz });
     } else if (lm.type === 'glass_obelisk') {
-      addCyl(landmarkGlassMat, 18, 28, lm.h, 16, cx, gy + lm.h * 0.5, cz);
+      if (lm.id === 'shanghai_tower') {
+        // 120-degree helically twisted tapered rounded-triangle loft (9 stacked sky-lobby zones!)
+        for (let zIdx = 0; zIdx < 9; zIdx++) {
+          const zH = lm.h / 9;
+          const rBot = 40 * (1 - zIdx * 0.06);
+          const rTop = 40 * (1 - (zIdx + 1) * 0.06);
+          addCyl(landmarkGlassMat, rTop, rBot, zH, 3, cx, gy + zIdx * zH + zH * 0.5, cz, (zIdx / 9) * (Math.PI * 2 / 3));
+        }
+      } else {
+        addCyl(landmarkGlassMat, 18, 28, lm.h, 16, cx, gy + lm.h * 0.5, cz);
+      }
       beacons.push({ x: cx, y: gy + lm.h + 2, z: cz });
     } else if (lm.type === 'needle') {
       const h = lm.h || 350;
-      addCyl(bldgWallMat, 7, 22, h * 0.72, 16, cx, gy + h * 0.36 - 1, cz);
-      addCyl(monumentGoldMat, 26, 22, 18, 20, cx, gy + h * 0.68, cz);
-      addCyl(landmarkGlassMat, 28, 28, 12, 20, cx, gy + h * 0.72, cz);
-      addCyl(monumentGoldMat, 1.0, 5.0, h * 0.28, 10, cx, gy + h * 0.86, cz);
+      if (lm.id === 'gz_canton') {
+        // Hyperboloid twisted hourglass waist (Canton Tower)
+        addCyl(steelArchMat, 13, 36, h * 0.44, 16, cx, gy + h * 0.22, cz);
+        addCyl(steelArchMat, 26, 13, h * 0.30, 16, cx, gy + h * 0.59, cz);
+        addCyl(whiteShellMat, 1.0, 5.0, h * 0.26, 10, cx, gy + h * 0.87, cz);
+      } else {
+        addCyl(bldgWallMat, 7, 22, h * 0.72, 16, cx, gy + h * 0.36 - 1, cz);
+        addCyl(monumentGoldMat, 26, 22, 18, 20, cx, gy + h * 0.68, cz);
+        addCyl(landmarkGlassMat, 28, 28, 12, 20, cx, gy + h * 0.72, cz);
+        addCyl(monumentGoldMat, 1.0, 5.0, h * 0.28, 10, cx, gy + h * 0.86, cz);
+      }
       beacons.push({ x: cx, y: gy + h + 2, z: cz });
     } else if (lm.type === 'pyramids') {
       addCyl(monumentGoldMat, 2, 115, 146, 4, cx, gy + 72, cz, Math.PI / 4);
@@ -1184,16 +1236,29 @@ function createGlobalScenery(scene, ground, airports = []) {
       addBox(bldgWallMat, 58, 45, 76, cx, gy + 22, cz);
       beacons.push({ x: cx, y: gy + 174, z: cz });
     }
-    // Optional Blender .glb external landmark model override if lm.glb is specified
-    if (lm.glb && typeof THREE.GLTFLoader === 'function') {
-      try {
-        new THREE.GLTFLoader().load('models/' + lm.glb, (gltf) => {
-          if (gltf && gltf.scene) {
-            gltf.scene.position.set(cx, gy, cz);
-            g.add(gltf.scene);
+    // Automatic Blender .glb landmark model loader via models/glb-manifest.json (or explicit lm.glb)
+    if (typeof THREE.GLTFLoader === 'function') {
+      const loadGlbFile = (relPath) => {
+        try {
+          new THREE.GLTFLoader().load('models/' + relPath, (gltf) => {
+            if (gltf && gltf.scene) {
+              // Hide procedural fallback meshes once Blender .glb arrives
+              g.children.forEach(ch => { ch.visible = false; });
+              gltf.scene.position.set(cx, gy, cz);
+              g.add(gltf.scene);
+            }
+          });
+        } catch (_) {}
+      };
+      if (lm.glb) {
+        loadGlbFile(lm.glb);
+      } else if (typeof getSkyboundGlbManifest === 'function') {
+        getSkyboundGlbManifest().then(manifest => {
+          if (manifest && Array.isArray(manifest.landmarks) && manifest.landmarks.includes(lm.id)) {
+            loadGlbFile('landmarks/' + lm.id + '.glb');
           }
         });
-      } catch (_) {}
+      }
     }
     if (beacons.length) {
       const dummy = new THREE.Object3D();

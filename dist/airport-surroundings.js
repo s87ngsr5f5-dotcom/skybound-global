@@ -1,5 +1,14 @@
 'use strict';
 const airportEnvironmentBounds=new Map();
+let skyboundGlbManifestPromise=null;
+function getSkyboundGlbManifest(){
+  if(skyboundGlbManifestPromise)return skyboundGlbManifestPromise;
+  if(typeof fetch!=='function'||typeof window==='undefined')return Promise.resolve({airports:[],landmarks:[],aircraft:[]});
+  skyboundGlbManifestPromise=fetch('models/glb-manifest.json')
+    .then(r=>r.ok?r.json():{airports:[],landmarks:[],aircraft:[]})
+    .catch(()=>({airports:[],landmarks:[],aircraft:[]}));
+  return skyboundGlbManifestPromise;
+}
 function airportSurroundingsContains(airport,frame){
   const b=airportEnvironmentBounds.get(airport.code);
   return b&&frame.cross>b[0]&&frame.cross<b[1]&&Math.abs(-frame.along-b[2])<b[3];
@@ -215,24 +224,68 @@ function createAirportSurroundings(parent,airport,layout){
       add(new THREE.CylinderGeometry(12.5,7.8,8.5,16),litGlass,tX,76,tZ);
       stats.landmark=code+' Aerodynamic Teardrop Concourse & Crescent/Tulip ATCT';
     }else if(code==='EGLL'||code==='LFPG'||code==='EDDF'||code==='EHAM'||code==='LEMD'||code==='LIRF'||code==='LSZH'){
-      // London Heathrow T5 / Paris CDG T1 Circular Drum / Frankfurt Squaire / Madrid T4 Bamboo Wave
+      // London Heathrow T5 / Paris CDG T1 Circular Drum + 7 Octopus Satellites / Frankfurt Squaire / Madrid T4 Bamboo Wave + Rainbow Y-struts
       if(code==='LFPG'){
-        add(new THREE.CylinderGeometry(48,48,height+6,24),white,back+side*38,(height+6)*0.5,apronZ);
-        add(new THREE.CylinderGeometry(49,49,4.2,24),litGlass,back+side*38,height*0.7,apronZ);
+        const dX=back+side*38;
+        add(new THREE.CylinderGeometry(48,48,height+6,24),white,dX,(height+6)*0.5,apronZ);
+        add(new THREE.CylinderGeometry(49,49,4.2,24),litGlass,dX,height*0.7,apronZ);
+        for(let sat=0;sat<7;sat++){
+          const ang=(sat/7)*Math.PI*2;
+          const sx=dX+Math.cos(ang)*68, sz=apronZ+Math.sin(ang)*68;
+          add(new THREE.CylinderGeometry(12,12,height*0.65,10),white,sx,height*0.32,sz);
+          add(new THREE.CylinderGeometry(12.4,12.4,2.8,10),litGlass,sx,height*0.45,sz);
+        }
       }
       const roofCol=code==='LEMD'?yellow:white;
+      const lemdCols=[red,yellow,blue,frame];
       for(let b=-4;b<=4;b++){
         const bz=apronZ+b*(buildingLength/9);
         box(roofCol,terminalWidth+12,1.2,buildingLength/8.6,terminalX,height+2.2+Math.sin(b)*1.1,bz);
-        box(code==='LEMD'?red:frame,1.4,height+2.4,1.4,gateWall-side*2.2,(height+2.4)*0.5,bz);
-        box(code==='LEMD'?red:frame,1.4,height+2.4,1.4,back+side*2.2,(height+2.4)*0.5,bz);
+        const strutMat=code==='LEMD'?lemdCols[Math.abs(b)%lemdCols.length]:frame;
+        box(strutMat,1.4,height+2.4,1.4,gateWall-side*2.2,(height+2.4)*0.5,bz);
+        box(strutMat,1.4,height+2.4,1.4,back+side*2.2,(height+2.4)*0.5,bz);
       }
       add(new THREE.CylinderGeometry(3.8,4.2,78,16),frame,tX,39,tZ);
       add(new THREE.CylinderGeometry(12.8,5.5,7.5,16),litGlass,tX,80,tZ);
       add(new THREE.CylinderGeometry(0.6,0.9,14,8),yellow,tX,90,tZ);
       stats.landmark=code+' European Mega-Hub Vaulted Terminal & 87m Cone-Cab ATCT';
+    }else if(code==='KORD'||code==='KSEA'||code==='CYYZ'||code==='YSSY'||code==='MMMX'){
+      // O'Hare Barrel-Vault Concourses / Sea-Tac IAF Aerial Skybridge / Toronto Hammerhead Rotunda / Sydney Cable-Stayed ATCT
+      if(code==='KSEA'){
+        // 26m-high IAF Aerial Pedestrian Skybridge spanning over active taxiway!
+        box(litGlass,64,6.2,10,gateWall-side*32,24,apronZ+buildingLength*0.24);
+        box(white,66,1.1,11,gateWall-side*32,27.5,apronZ+buildingLength*0.24);
+        box(frame,3.5,27,3.5,gateWall-side*58,13.5,apronZ+buildingLength*0.24);
+      }else if(code==='CYYZ'||code==='MMMX'){
+        // Hammerhead Circular Drum Rotunda at Pier Tip
+        add(new THREE.CylinderGeometry(36,36,height+2,24),white,gateWall-side*18,(height+2)*0.5,apronZ+buildingLength*0.44);
+        add(new THREE.CylinderGeometry(37,37,4.2,24),litGlass,gateWall-side*18,height*0.65,apronZ+buildingLength*0.44);
+      }else if(code==='KORD'){
+        // Helmut Jahn twin barrel-vaulted glass concourses
+        add(new THREE.CylinderGeometry(terminalWidth*0.48,terminalWidth*0.48,buildingLength*0.92,16),litGlass,terminalX,height+1.5,apronZ,1,0.45,1);
+      }
+      for(let b=-3;b<=3;b++){
+        const bz=apronZ+b*(buildingLength/7.2);
+        box(white,terminalWidth+10,1.2,buildingLength/8,terminalX,height+1.8+(3-Math.abs(b))*0.55,bz);
+      }
+      add(new THREE.CylinderGeometry(4.4,5.6,64,16),white,tX,32,tZ);
+      add(new THREE.CylinderGeometry(10.8,7.8,6.2,16),litGlass,tX,66,tZ);
+      if(code==='YSSY'){
+        add(new THREE.TorusGeometry(6.8,0.8,8,20),frame,tX,26,tZ,1,3.2,1);
+      }
+      stats.landmark=code+' Signature International Hub Architecture & ATCT';
+    }else if(code==='RCYU'||code==='RCQC'||code==='RCFN'||code==='RCLY'||code==='RCGI'){
+      // Taiwan East Coast & Offshore Island Cultural Terminals (Lanyu Tao Plank-Boat / Penghu Wave / Hualien Pitched Roof)
+      const capMat=code==='RCLY'?red:(code==='RCYU'?blue:white);
+      box(capMat,terminalWidth+6,2.2,buildingLength*0.85,terminalX,height+1.5,apronZ);
+      if(code==='RCLY'){
+        for(const end of [-1,1])box(red,terminalWidth*0.6,4.8,4,terminalX,height+3.6,apronZ+end*(buildingLength*0.4));
+      }
+      add(new THREE.CylinderGeometry(3.8,4.6,34,12),white,tX,17,tZ);
+      add(new THREE.CylinderGeometry(7.2,6.2,4.4,12),litGlass,tX,36,tZ);
+      stats.landmark=code+' Taiwan Cultural Coastal Terminal & ATCT';
     }else{
-      // All other international & regional airports (KORD, KSEA, CYYZ, CYVR, PHNL, PANC, YSSY, YMML, NZAA, SBGR, MMMX, SCEL, HECA, FAOR, etc.)
+      // All other international & regional airports (CYVR, PHNL, PANC, YMML, NZAA, SBGR, SCEL, HECA, FAOR, etc.)
       for(let b=-2;b<=2;b++){
         const bz=apronZ+b*(buildingLength/5.2);
         box(white,terminalWidth+8,1.1,buildingLength/6,terminalX,height+1.6+(2-Math.abs(b))*0.7,bz);
@@ -241,6 +294,19 @@ function createAirportSurroundings(parent,airport,layout){
       add(new THREE.CylinderGeometry(4.2,5.4,48,14),white,tX,24,tZ);
       add(new THREE.CylinderGeometry(9.6,7.2,5.4,14),litGlass,tX,50,tZ);
       stats.landmark=code+' Custom Multi-Bay Skylight Terminal & Regional ATCT';
+    }
+    // Automatic Blender .glb Airport Loader when exported via blender-pipeline/run_all_blender_exports.py
+    if(typeof THREE.GLTFLoader==='function'){
+      getSkyboundGlbManifest().then(manifest=>{
+        if(manifest&&Array.isArray(manifest.airports)&&manifest.airports.includes(code)){
+          new THREE.GLTFLoader().load('models/airports/'+code+'.glb',gltf=>{
+            if(!gltf||!gltf.scene)return;
+            gltf.scene.name='BlenderAirport_'+code;
+            gltf.scene.position.set(terminalX,0,apronZ);
+            root.add(gltf.scene);
+          });
+        }
+      });
     }
   })();
   // Separate curtain-wall panes, mullions, recessed entrance doors and roof fascia.
