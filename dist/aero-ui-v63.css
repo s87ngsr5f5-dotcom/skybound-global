@@ -2061,7 +2061,10 @@ body.title-hub-open>header{padding-top:calc(8px + var(--menu-safe-top));padding-
 }
 body.flight-ui:not(.mobile-mode) #flightGuide,
 body.flight-ui:not(.mobile-mode) #gateGuide {
-  bottom: calc(var(--flight-bottom) + 56px);
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 82px) !important;
+}
+.desktop-deck button {
+  white-space: nowrap;
 }
 .ap-mcp-wrap {
   position: absolute;
