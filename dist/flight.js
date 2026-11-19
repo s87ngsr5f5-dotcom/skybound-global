@@ -222,6 +222,11 @@ function initialize(){
   const taipeiImage={value:landTexture}, taipeiImageReady={value:0};
   const atlasImage={value:landTexture},atlasReady={value:0};
   const atlasBounds={value:new THREE.Vector4(...taiwanSatelliteData.overview)};
+  const isLowMemFlight=typeof navigator!=='undefined'&&(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent||'')||(navigator.deviceMemory&&navigator.deviceMemory<=4));
+  if(renderer.domElement&&typeof renderer.domElement.addEventListener==='function'){
+    renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();},false);
+  }
+  const detailImage={value:landTexture}, detailImageReady={value:0}, detailBounds={value:new THREE.Vector4(0,0,2400,2400)};
   const seaRayUniforms={rtEnabled:{value:1},sunDir:{value:new THREE.Vector3(0,1,0)},dayRatio:{value:1},skyTime:{value:0}};
   function terrainPhoto(shader,tile){
     shader.uniforms.taipeiImage=taipeiImage;
@@ -229,6 +234,9 @@ function initialize(){
     shader.uniforms.regionalImage=tile?.image??{value:landTexture};
     shader.uniforms.regionalImageReady=tile?.ready??{value:0};
     shader.uniforms.regionalImageOrigin=tile?.origin??{value:new THREE.Vector2()};
+    shader.uniforms.detailImage=detailImage;
+    shader.uniforms.detailImageReady=detailImageReady;
+    shader.uniforms.detailBounds=detailBounds;
     shader.uniforms.atlasImage=atlasImage;
     shader.uniforms.atlasReady=atlasReady;
     shader.uniforms.atlasBounds=atlasBounds;
@@ -238,8 +246,8 @@ function initialize(){
     shader.uniforms.seaSkyTime=seaRayUniforms.skyTime;
     shader.vertexShader='varying vec2 terrainXZ;\nvarying vec3 terrainWorldPos;\n'+shader.vertexShader.replace('#include <begin_vertex>',
       '#include <begin_vertex>\n terrainWorldPos=(modelMatrix * vec4(transformed,1.0)).xyz;\n terrainXZ=terrainWorldPos.xz;');
-    shader.fragmentShader='varying vec2 terrainXZ;\nvarying vec3 terrainWorldPos;\nuniform sampler2D taipeiImage,regionalImage,atlasImage;\n'+
-      'uniform float taipeiImageReady,regionalImageReady,atlasReady,seaRtEnabled,seaDayRatio,seaSkyTime;\nuniform vec2 regionalImageOrigin;\nuniform vec3 seaSunDir;\nuniform vec4 atlasBounds;\n'+
+    shader.fragmentShader='varying vec2 terrainXZ;\nvarying vec3 terrainWorldPos;\nuniform sampler2D taipeiImage,regionalImage,detailImage,atlasImage;\n'+
+      'uniform float taipeiImageReady,regionalImageReady,detailImageReady,atlasReady,seaRtEnabled,seaDayRatio,seaSkyTime;\nuniform vec2 regionalImageOrigin;\nuniform vec3 seaSunDir;\nuniform vec4 atlasBounds,detailBounds;\n'+
       shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
         vec2 atlasUV=(terrainXZ-atlasBounds.xy)/atlasBounds.zw;
         if(atlasReady>0.5&&all(greaterThanEqual(atlasUV,vec2(0.0)))&&all(lessThanEqual(atlasUV,vec2(1.0)))){
@@ -253,6 +261,15 @@ function initialize(){
           float visiblePhoto=regional.a*smoothstep(.0006,.002,max(regional.r,max(regional.g,regional.b)))*mix(0.35,1.0,landMask);
           diffuseColor.rgb=mix(diffuseColor.rgb,regional.rgb*1.12,visiblePhoto);
         }
+        if(detailImageReady>0.5){
+          vec2 dUV=(terrainXZ-detailBounds.xy)/detailBounds.zw;
+          float dEdge=min(min(dUV.x,dUV.y),1.0-max(dUV.x,dUV.y));
+          if(dEdge>0.0){
+            vec4 det=texture2D(detailImage,vec2(dUV.x,1.0-dUV.y));
+            float dMask=smoothstep(0.0,0.09,dEdge)*det.a*smoothstep(.0006,.002,max(det.r,max(det.g,det.b)))*mix(0.42,1.0,smoothstep(-0.35,0.45,terrainWorldPos.y));
+            diffuseColor.rgb=mix(diffuseColor.rgb,det.rgb*1.12,dMask);
+          }
+        }
         vec2 imageUV=(terrainXZ-vec2(-20000.0,-18000.0))/vec2(39000.0,33500.0);
         float imageEdge=min(min(imageUV.x,imageUV.y),1.0-max(imageUV.x,imageUV.y));
         if(taipeiImageReady>0.5 && imageEdge>0.0){
@@ -261,7 +278,7 @@ function initialize(){
         }
         float closeFade=1.0-smoothstep(2800.0,28500.0,length(vViewPosition));
         if(closeFade>0.005){
-          float hasRealPhoto=max(step(0.5,regionalImageReady),step(0.5,taipeiImageReady));
+          float hasRealPhoto=max(step(0.5,detailImageReady),max(step(0.5,regionalImageReady),step(0.5,taipeiImageReady)));
           vec2 parcel=abs(fract(terrainXZ*0.0075)-0.5)*2.0;
           vec2 blockGrid=abs(fract(terrainXZ*0.022)-0.5)*2.0;
           float parcelEdge=smoothstep(0.84,0.98,max(parcel.x,parcel.y))*(1.0-hasRealPhoto);
@@ -335,6 +352,7 @@ function initialize(){
         }
       `);
   }
+  terrainMaterial.customProgramCacheKey=()=>'terrainPhotoV3';
   terrainMaterial.onBeforeCompile=shader=>terrainPhoto(shader);
   const satelliteCredit=byId('satelliteCredit');
   if(!renderer.instrumentOnly) loadTaiwanAtlas().then(texture=>{
@@ -344,10 +362,16 @@ function initialize(){
   }).catch(()=>{});
   const taiwanSatellite=renderer.instrumentOnly?null:createTaiwanSatellite(tile=>{
     const material=terrainMaterial.clone();
+    material.customProgramCacheKey=()=>'terrainPhotoV3';
     tile.image.value=landTexture;
     material.onBeforeCompile=shader=>terrainPhoto(shader,tile);
     return material;
   },renderer,()=>{satelliteCredit.hidden=false;});
+  if(taiwanSatellite?.detailUniforms){
+    taiwanSatellite.detailUniforms.image=detailImage;
+    taiwanSatellite.detailUniforms.ready=detailImageReady;
+    taiwanSatellite.detailUniforms.bounds=detailBounds;
+  }
   const terrainChunks=new Map();
   const span=11520;
   const terrainHeights=new Map();
@@ -355,12 +379,12 @@ function initialize(){
   let demRefreshTimer=0, lastDemPrefetchKey='';
   if(typeof WorldAtlas!=='undefined'&&typeof WorldAtlas.onDemLoad==='function'){
     WorldAtlas.onDemLoad(()=>{
-      if(demRefreshTimer) return;
+      if(demRefreshTimer) clearTimeout(demRefreshTimer);
       demRefreshTimer=setTimeout(()=>{
         demRefreshTimer=0;
         terrainHeights.clear();
         terrainColorRevision++;
-      },850);
+      },2400);
     });
   }
   const terrainStep=(col,row)=>col>=-1&&col<=0&&row>=-1&&row<=0?120:240;
@@ -438,6 +462,7 @@ function initialize(){
       }
     }
     taiwanSatellite.update(cx,cz,byId('quality').value,lx,lz);
+    taiwanSatellite.updateDetailClipmap?.(x,z,byId('quality').value);
     for(const [k,patch] of terrainChunks){
       const [pc,pr]=k.split(':').map(Number);
       const satMat=taiwanSatellite.material(pc,pr)??terrainMaterial;
@@ -449,8 +474,8 @@ function initialize(){
       const visible=new Set();
       terrainQueue=[];
       const q=byId('quality').value;
-      // Full horizon streaming: +-10 chunks (~120 km radius / 240 km across) on balanced/high/ultra, +-6 (~75 km) on low!
-      const hRad=q==='low'?6:10;
+      // Memory-safe horizon streaming: +-8 chunks (~95 km radius) on desktop, +-5 (~60 km) on mobile/low-mem so zero OOM crashes!
+      const hRad=isLowMemFlight?(q==='low'?4:5):(q==='low'?5:8);
       for(let row=cz-hRad;row<=cz+hRad;row++){
         for(let col=cx-hRad;col<=cx+hRad;col++){
           const dx=col-cx, dz=row-cz;
@@ -3412,6 +3437,70 @@ function initialize(){
   let hangarSearchQ='';
   function ensureHangarQuickPanel(){
     if(!hangarOptions||byId('hangarQuickPanel')) return;
+    // Always-visible compact top dock above #hangarOptions (works even when collapsed on mobile!)
+    if(!byId('hangarTopDock')&&hangarControls){
+      const dock=document.createElement('div');
+      dock.id='hangarTopDock';
+      dock.className='hangar-top-dock';
+      dock.innerHTML=`
+        <div class="hangar-dock-nav">
+          <button type="button" id="hangarDockPrev" title="上一架飛機">◀ 上架</button>
+          <strong id="hangarActiveName">—</strong>
+          <button type="button" id="hangarDockNext" title="下一架飛機">下架 ▶</button>
+        </div>
+        <div class="hangar-dock-views" id="hangarDockViews">
+          <button type="button" data-hview="orbit">環視</button>
+          <button type="button" data-hview="side">側面</button>
+          <button type="button" data-hview="nose">機首</button>
+          <button type="button" data-hview="tail">機尾</button>
+          <button type="button" data-hview="panel">座艙</button>
+          <button type="button" data-hview="night">夜景</button>
+          <button type="button" data-hview="mechanism">機構</button>
+          <button type="button" id="hangarZoomIn" title="放大">＋</button>
+          <button type="button" id="hangarZoomOut" title="縮小">－</button>
+          <button type="button" id="hangarZoomReset" title="重置視角">⌖</button>
+        </div>
+      `;
+      hangarOptions.before(dock);
+      byId('hangarDockPrev')?.addEventListener('click',()=>byId('hangarPrev')?.click());
+      byId('hangarDockNext')?.addEventListener('click',()=>byId('hangarNext')?.click());
+      byId('hangarZoomIn')?.addEventListener('click',()=>{hangarZoom=clamp(hangarZoom*0.82,.65,1.8);});
+      byId('hangarZoomOut')?.addEventListener('click',()=>{hangarZoom=clamp(hangarZoom*1.22,.65,1.8);});
+      byId('hangarZoomReset')?.addEventListener('click',()=>{hangarZoom=1;hangarYaw=null;hangarElevation=.59;hangarView.value='orbit';});
+      byId('hangarDockViews')?.addEventListener('click',e=>{
+        const vb=e.target.closest('[data-hview]');
+        if(!vb) return;
+        const opt=[...hangarView.options].find(o=>o.value===vb.dataset.hview);
+        if(opt&&!opt.disabled){
+          hangarView.value=vb.dataset.hview;
+          hangarView.onchange();
+          updateHangarInfo();
+        }
+      });
+    }
+    // Add direct "✈ 立即起飛" button right next to "用這架飛機" so players don't need 3 extra clicks!
+    const flyBtn=byId('hangarFly');
+    if(flyBtn&&!byId('hangarDirectFly')){
+      const launchNow=document.createElement('button');
+      launchNow.type='button';
+      launchNow.id='hangarDirectFly';
+      launchNow.className='primary';
+      launchNow.textContent='✈ 立即起飛 →';
+      flyBtn.textContent='✓ 僅選用此機';
+      flyBtn.classList.remove('primary');
+      flyBtn.after(launchNow);
+      launchNow.addEventListener('click',()=>{
+        const plane=displayedAircraft();
+        if(!plane||!aircraftUnlocked(plane)) return;
+        byId('aircraft').value=plane.id;
+        byId('lesson').value='free';
+        if(byId('startType').value==='cold') byId('startType').value='runway';
+        closeInspection();
+        window.SkyboundCampaign?.closeHub?.();
+        drawPlan();
+        start(false);
+      });
+    }
     const qp=document.createElement('div');
     qp.id='hangarQuickPanel';
     qp.className='hangar-quick-panel';
@@ -3422,7 +3511,7 @@ function initialize(){
     ];
     qp.innerHTML=`
       <div class="hangar-cat-chips" id="hangarCatChips">${quickCats.map(([k,lbl])=>`<button type="button" class="mp-chip" data-hangar-cat="${k}">${lbl}</button>`).join('')}</div>
-      <input type="search" id="hangarSearchInput" placeholder="🔍 搜尋機型名稱（如 F-16、777、A350、黑鷹）" style="width:100%;margin:4px 0;padding:5px 9px;font-size:12px;">
+      <input type="search" id="hangarSearchInput" placeholder="🔍 搜尋機型名稱（如 F-18、F-16、777、A350、黑鷹）" style="width:100%;margin:4px 0;padding:5px 9px;font-size:12px;">
       <div class="hangar-plane-pills" id="hangarPlanePills"></div>
     `;
     hangarFilter.closest('label')?.before(qp);
@@ -3474,6 +3563,15 @@ function initialize(){
     byId('hangarInfo').textContent=plane.type+' · 機長 '+(plane.geometry[0]*2).toFixed(1)+
       ' m · 翼展 '+(plane.geometry[2]*2).toFixed(1)+' m · '+aircraftLockText(plane)+' ｜ '+parts.join(' · ');
     byId('hangarFly').disabled=!aircraftUnlocked(plane);
+    const directFly=byId('hangarDirectFly');
+    if(directFly) directFly.disabled=!aircraftUnlocked(plane);
+    const activeNameEl=byId('hangarActiveName');
+    if(activeNameEl) activeNameEl.textContent=plane.name.split(' · ')[0]+(aircraftUnlocked(plane)?'':' 🔒');
+    byId('hangarDockViews')?.querySelectorAll('[data-hview]')?.forEach(vb=>{
+      const opt=[...hangarView.options].find(o=>o.value===vb.dataset.hview);
+      vb.disabled=Boolean(opt?.disabled);
+      vb.classList.toggle('active',hangarView.value===vb.dataset.hview);
+    });
     byId('hangarUnlock').hidden=!plane.unlock||aircraftUnlocked(plane);
     byId('hangarUnlock').textContent=plane.unlock?'前往 '+plane.unlock.label:'';
     if(typeof FleetCommerce!=='undefined')renderHangarCommerce(plane);
@@ -4905,7 +5003,7 @@ function initialize(){
     }
     const stepZoom=factor=>{
       const base=radarCustomRange>0?radarCustomRange:(typeof radarZoomModes[radarZoomIdx]==='number'?radarZoomModes[radarZoomIdx]:30000);
-      radarCustomRange=clamp(Math.round(base*factor),2500,2800000);
+      radarCustomRange=clamp(Math.round(base*factor),800,2800000);
     };
     byId('radarZoomInBtn')?.addEventListener('click',()=>stepZoom(0.62));
     byId('radarZoomOutBtn')?.addEventListener('click',()=>stepZoom(1.6));
@@ -4932,7 +5030,7 @@ function initialize(){
     radar.canvas.addEventListener('wheel',e=>{
       e.preventDefault();
       const base=radarCustomRange>0?radarCustomRange:(typeof radarZoomModes[radarZoomIdx]==='number'?radarZoomModes[radarZoomIdx]:30000);
-      radarCustomRange=clamp(Math.round(base*(e.deltaY>0?1.32:0.75)),2500,2800000);
+      radarCustomRange=clamp(Math.round(base*(e.deltaY>0?1.32:0.75)),800,2800000);
     },{passive:false});
     radar.canvas.addEventListener('pointerdown',e=>{
       radarDragStart={x:e.clientX,y:e.clientY,panX:radarPanX,panZ:radarPanZ};

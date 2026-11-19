@@ -309,10 +309,11 @@ const WorldAtlas = (() => {
     const ty = Math.max(0, Math.min(n - 1, Math.floor(fy)));
     return { tx, ty, u: fx - Math.floor(fx), v: fy - Math.floor(fy) };
   }
+  const isLowMemDevice = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '') || (navigator.deviceMemory && navigator.deviceMemory <= 4));
   function requestDEMTile(tx, ty) {
     if (typeof Image === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
     const key = `10:${tx}:${ty}`;
-    if (demCache.has(key) || demLoading >= 8) return;
+    if (demCache.has(key) || demLoading >= (isLowMemDevice ? 4 : 6)) return;
     demCache.set(key, { state: 'loading', data: null });
     demLoading++;
     const img = new Image();
@@ -336,7 +337,8 @@ const WorldAtlas = (() => {
             elev[i] = h > 0.2 ? h : 0;
           }
           demCache.set(key, { state: 'ready', data: elev });
-          while (demCache.size > 140) {
+          const maxDem = isLowMemDevice ? 36 : 84;
+          while (demCache.size > maxDem) {
             const oldest = demCache.keys().next().value;
             demCache.delete(oldest);
           }
@@ -355,11 +357,12 @@ const WorldAtlas = (() => {
   function prefetchDEM(lon, lat) {
     const { tx, ty } = demLonLatToTileFrac(lon, lat, 10);
     const n = 1024;
+    const r = isLowMemDevice ? 1 : 2;
     const list = [];
-    for (let dy = -2; dy <= 2; dy++) {
+    for (let dy = -r; dy <= r; dy++) {
       const ny = ty + dy;
       if (ny < 0 || ny >= n) continue;
-      for (let dx = -2; dx <= 2; dx++) {
+      for (let dx = -r; dx <= r; dx++) {
         list.push({ tx: ((tx + dx) % n + n) % n, ty: ny, d: dx * dx + dy * dy });
       }
     }

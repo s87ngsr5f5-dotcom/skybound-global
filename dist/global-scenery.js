@@ -8,6 +8,16 @@ function createGlobalScenery(scene, ground, airports = []) {
   const TILE = 1600;
   const loaded = new Map();
   const hubLandmarksAdded = new Set();
+  const isLowMem = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '') || (navigator.deviceMemory && navigator.deviceMemory <= 4));
+  const liveOsmBoxes = [];
+  let liveOsmRevision = 0;
+  function inLiveOsmArea(x, z) {
+    for (let i = 0; i < liveOsmBoxes.length; i++) {
+      const b = liveOsmBoxes[i];
+      if (x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ) return true;
+    }
+    return false;
+  }
 
   function makeCanvasTex(w, h, drawFn, repeatX = 1, repeatY = 1) {
     if (typeof document === 'undefined' || !document.createElement) return null;
@@ -356,7 +366,8 @@ function createGlobalScenery(scene, ground, airports = []) {
     const hasSatPhoto = Boolean(sampler && sampler(cx, cz));
 
     const group = new THREE.Group();
-    group.userData.satRev = typeof window !== 'undefined' ? (window.__SKYBOUND_SAT_REVISION || 0) : 0;
+    group.userData.hadSat = hasSatPhoto;
+    group.userData.osmRev = liveOsmRevision;
     const posArr = [], linePosArr = [];
     const houses = [], apts = [], glassTowers = [], warehouses = [], lamps = [], beacons = [], trees = [];
     const x0 = col * TILE, z0 = row * TILE;
@@ -402,6 +413,7 @@ function createGlobalScenery(scene, ground, airports = []) {
         const bx0 = x0 + bc * blockSize, bz0 = z0 + br * blockSize;
         const bcx = bx0 + blockSize * 0.5, bcz = bz0 + blockSize * 0.5;
         if (osmCity && typeof osmCity.blocked === 'function' && osmCity.blocked(bcx, bcz)) continue;
+        if (inLiveOsmArea(bcx, bcz)) continue;
         const bGround = ground(bcx, bcz);
         if (bGround < 1.1 || bGround > 2450) continue;
 
@@ -1100,20 +1112,68 @@ function createGlobalScenery(scene, ground, airports = []) {
     }
   }
 
-  // Live OpenStreetMap Real Building Footprint Streamer (non-blocking Overpass API enhancement outside pre-baked cities)
+  // Fast ear-clipping / convex-fan XZ polygon triangulator for exact 1:1 real-map OSM building roofs
+  function triangulatePolyXZ(pts) {
+    const n = pts.length;
+    if (n < 3) return [];
+    if (n === 3) return [0, 1, 2];
+    if (n === 4) return [0, 1, 2, 0, 2, 3];
+    // Signed area in XZ plane; ensure CCW
+    let area = 0;
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], b = pts[(i + 1) % n];
+      area += a.x * b.z - b.x * a.z;
+    }
+    const idx = [];
+    for (let i = 0; i < n; i++) idx.push(area >= 0 ? i : n - 1 - i);
+    const tris = [];
+    const cross = (a, b, c) => (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x);
+    const inTri = (p, a, b, c) => {
+      const c1 = cross(a, b, p), c2 = cross(b, c, p), c3 = cross(c, a, p);
+      return (c1 >= -1e-6 && c2 >= -1e-6 && c3 >= -1e-6);
+    };
+    let guard = n * n;
+    while (idx.length > 3 && guard-- > 0) {
+      let clipped = false;
+      const m = idx.length;
+      for (let i = 0; i < m; i++) {
+        const i0 = idx[(i + m - 1) % m], i1 = idx[i], i2 = idx[(i + 1) % m];
+        const a = pts[i0], b = pts[i1], c = pts[i2];
+        if (cross(a, b, c) <= 1e-6) continue;
+        let contains = false;
+        for (let k = 0; k < m; k++) {
+          const ik = idx[k];
+          if (ik === i0 || ik === i1 || ik === i2) continue;
+          if (inTri(pts[ik], a, b, c)) { contains = true; break; }
+        }
+        if (!contains) {
+          tris.push(i0, i1, i2);
+          idx.splice(i, 1);
+          clipped = true;
+          break;
+        }
+      }
+      if (!clipped) break;
+    }
+    if (idx.length === 3) tris.push(idx[0], idx[1], idx[2]);
+    return tris;
+  }
+
+  // Exact 1:1 Real OpenStreetMap Polygon Extruded Building Streamer (merged into 2 GPU draw calls per cell!)
   const liveOsmCells = new Map();
   let liveOsmBusy = false;
   let lastOsmCheck = 0;
   function streamLiveOsmBuildings(px, pz) {
     if (typeof fetch !== 'function' || typeof window === 'undefined' || typeof latLon !== 'function' || typeof geoPoint !== 'function') return;
     const now = performance.now ? performance.now() : Date.now();
-    if (liveOsmBusy || now - lastOsmCheck < 3500) return;
+    if (liveOsmBusy || now - lastOsmCheck < (isLowMem ? 4500 : 2800)) return;
     const { lat, lon } = latLon(px, pz);
     if (insideTaiwanDetailed(lat, lon)) return;
-    // Only query near populated hubs/airports/landmarks within 24km so open wilderness stays instant
-    const nearHub = nearestHubInfo(px, pz).dist < 45000;
+    const osmCity = window.__SKYBOUND_WORLD_CITY;
+    if (osmCity && typeof osmCity.blocked === 'function' && osmCity.blocked(px, pz)) return;
+    const nearHub = nearestHubInfo(px, pz).dist < 52000;
     if (!nearHub) return;
-    const step = 0.015;
+    const step = isLowMem ? 0.014 : 0.018;
     const clat = Math.floor(lat / step) * step;
     const clon = Math.floor(lon / step) * step;
     const cellKey = clat.toFixed(3) + ',' + clon.toFixed(3);
@@ -1123,7 +1183,8 @@ function createGlobalScenery(scene, ground, airports = []) {
     lastOsmCheck = now;
 
     const bbox = `${clat.toFixed(4)},${clon.toFixed(4)},${(clat + step).toFixed(4)},${(clon + step).toFixed(4)}`;
-    const query = `[out:json][timeout:6];way["building"](${bbox});out body 340;>;out skel qt;`;
+    const maxWays = isLowMem ? 260 : 480;
+    const query = `[out:json][timeout:7];way["building"](${bbox});out body ${maxWays};>;out skel qt;`;
     const fetchOsm = url => fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1142,71 +1203,110 @@ function createGlobalScenery(scene, ground, airports = []) {
         else if (el.type === 'way' && Array.isArray(el.nodes) && el.nodes.length >= 4) ways.push(el);
       }
       if (!ways.length) { liveOsmCells.set(cellKey, 'empty'); return; }
-      const dummy = new THREE.Object3D();
-      const boxes = [];
+
+      // Extrude EVERY real OSM building polygon 1:1 into single merged wall + roof BufferGeometries (2 GPU draw calls!)
+      const wPos = [], wNrm = [], wUv = [];
+      const gPos = [], gNrm = [], gUv = [];
+      const rPos = [], rNrm = [], rUv = [];
+      let bldgCount = 0;
+      let cellMinX = 1e12, cellMaxX = -1e12, cellMinZ = 1e12, cellMaxZ = -1e12;
+
       for (const w of ways) {
-        if (boxes.length >= 220) break;
+        if (bldgCount >= maxWays) break;
         const pts = [];
-        for (const nid of w.nodes) {
-          const nd = nodes.get(nid);
+        const rawIds = w.nodes;
+        const endIdx = rawIds[0] === rawIds[rawIds.length - 1] ? rawIds.length - 1 : rawIds.length;
+        for (let i = 0; i < endIdx; i++) {
+          const nd = nodes.get(rawIds[i]);
           if (nd) pts.push(geoPoint(nd[0], nd[1]));
         }
-        if (pts.length < 3) continue;
-        // Find dominant longest-wall street orientation so real OSM buildings align 1:1 with satellite streets
-        let bestLen = 0, streetAngle = 0, cx = 0, cz = 0;
-        for (let i = 0; i < pts.length; i++) {
-          cx += pts[i].x; cz += pts[i].z;
-          if (i > 0) {
-            const dx = pts[i].x - pts[i - 1].x, dz = pts[i].z - pts[i - 1].z;
-            const l = dx * dx + dz * dz;
-            if (l > bestLen) { bestLen = l; streetAngle = Math.atan2(dz, dx); }
-          }
-        }
+        if (pts.length < 3 || pts.length > 48) continue;
+        let cx = 0, cz = 0;
+        for (const p of pts) { cx += p.x; cz += p.z; }
         cx /= pts.length; cz /= pts.length;
-        const cosA = Math.cos(-streetAngle), sinA = Math.sin(-streetAngle);
-        let minU = 1e12, maxU = -1e12, minV = 1e12, maxV = -1e12;
-        for (const p of pts) {
-          const lx = p.x - cx, lz = p.z - cz;
-          const u = lx * cosA - lz * sinA, v = lx * sinA + lz * cosA;
-          if (u < minU) minU = u; if (u > maxU) maxU = u;
-          if (v < minV) minV = v; if (v > maxV) maxV = v;
-        }
-        const bw = Math.min(140, Math.max(8, maxU - minU));
-        const bd = Math.min(140, Math.max(8, maxV - minV));
-        const bx = cx, bz = cz;
-        if (inAirportClearance(bx, bz, 150)) continue;
-        const gy = ground(bx, bz);
-        if (gy < 0.6) continue;
+        if (inAirportClearance(cx, cz, 140)) continue;
+        const gy = ground(cx, cz);
+        if (gy < 0.5) continue;
+
         const tags = w.tags || {};
-        const parsedH = parseFloat(tags.height) || (parseFloat(tags['building:levels']) ? parseFloat(tags['building:levels']) * 3.6 : 0);
-        const bh = parsedH > 3 ? Math.min(340, parsedH) : (bw * bd > 1200 ? 22 : 12);
-        boxes.push({ x: bx, y: gy + bh * 0.5 - 1, z: bz, w: bw, h: bh, d: bd, rotY: -streetAngle, glass: bh > 42 });
+        const parsedH = parseFloat(tags.height) || (parseFloat(tags['building:levels']) ? parseFloat(tags['building:levels']) * 3.5 : 0);
+        const bh = parsedH > 2.5 ? Math.min(420, parsedH) : (tags.building === 'apartments' || tags.building === 'commercial' ? 18 : tags.building === 'office' ? 28 : 10.5);
+        const y0 = gy - 1.5, y1 = gy + bh;
+        const isGlass = bh > 36 || tags.building === 'office' || tags.building === 'skyscraper';
+
+        // Signed area to ensure consistent outward wall normals
+        let sArea = 0;
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[i], b = pts[(i + 1) % pts.length];
+          sArea += a.x * b.z - b.x * a.z;
+        }
+        if (Math.abs(sArea) < 12) continue;
+        if (sArea < 0) pts.reverse();
+
+        const tPos = isGlass ? gPos : wPos;
+        const tNrm = isGlass ? gNrm : wNrm;
+        const tUv = isGlass ? gUv : wUv;
+        const vRepeat = Math.max(1, bh / 12);
+
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[i], b = pts[(i + 1) % pts.length];
+          if (a.x < cellMinX) cellMinX = a.x; if (a.x > cellMaxX) cellMaxX = a.x;
+          if (a.z < cellMinZ) cellMinZ = a.z; if (a.z > cellMaxZ) cellMaxZ = a.z;
+          const dx = b.x - a.x, dz = b.z - a.z;
+          const len = Math.hypot(dx, dz);
+          if (len < 0.4) continue;
+          const nx = dz / len, nz = -dx / len;
+          const uLen = Math.max(0.5, len / 14);
+          tPos.push(a.x, y0, a.z, b.x, y0, b.z, b.x, y1, b.z, a.x, y0, a.z, b.x, y1, b.z, a.x, y1, a.z);
+          for (let k = 0; k < 6; k++) tNrm.push(nx, 0, nz);
+          tUv.push(0, 0, uLen, 0, uLen, vRepeat, 0, 0, uLen, vRepeat, 0, vRepeat);
+        }
+
+        // Exact triangulated roof polygon
+        const tris = triangulatePolyXZ(pts);
+        for (let t = 0; t < tris.length; t += 3) {
+          const p0 = pts[tris[t]], p1 = pts[tris[t + 1]], p2 = pts[tris[t + 2]];
+          rPos.push(p0.x, y1, p0.z, p2.x, y1, p2.z, p1.x, y1, p1.z);
+          rNrm.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+          rUv.push(p0.x * 0.04, p0.z * 0.04, p2.x * 0.04, p2.z * 0.04, p1.x * 0.04, p1.z * 0.04);
+        }
+        bldgCount++;
       }
-      if (!boxes.length) { liveOsmCells.set(cellKey, 'empty'); return; }
+      if (!bldgCount) { liveOsmCells.set(cellKey, 'empty'); return; }
+
       const g = new THREE.Group();
-      g.name = 'LiveOSM_' + cellKey;
-      const tall = boxes.filter(b => b.glass);
-      const low = boxes.filter(b => !b.glass);
-      if (low.length) {
-        const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), [bldgWallMat, bldgWallMat, roofMat, roofMat, bldgWallMat, bldgWallMat], low.length);
-        low.forEach((b, i) => {
-          dummy.position.set(b.x, b.y, b.z); dummy.rotation.set(0, b.rotY || 0, 0); dummy.scale.set(b.w, b.h, b.d); dummy.updateMatrix();
-          inst.setMatrixAt(i, dummy.matrix);
-        });
-        inst.castShadow = inst.receiveShadow = true;
-        g.add(inst);
-      }
-      if (tall.length) {
-        const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), [landmarkGlassMat, landmarkGlassMat, roofMat, roofMat, landmarkGlassMat, landmarkGlassMat], tall.length);
-        tall.forEach((b, i) => {
-          dummy.position.set(b.x, b.y, b.z); dummy.rotation.set(0, b.rotY || 0, 0); dummy.scale.set(b.w, b.h, b.d); dummy.updateMatrix();
-          inst.setMatrixAt(i, dummy.matrix);
-        });
-        inst.castShadow = inst.receiveShadow = true;
-        g.add(inst);
-      }
+      g.name = 'LiveOSM_RealPoly_' + cellKey;
+      const makeMerged = (pos, nrm, uv, mat) => {
+        if (!pos.length) return;
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+        geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        const m = new THREE.Mesh(geo, mat);
+        m.castShadow = m.receiveShadow = true;
+        g.add(m);
+      };
+      makeMerged(wPos, wNrm, wUv, bldgWallMat);
+      makeMerged(gPos, gNrm, gUv, landmarkGlassMat);
+      makeMerged(rPos, rNrm, rUv, roofMat);
+
       root.add(g);
       liveOsmCells.set(cellKey, g);
+      liveOsmBoxes.push({ key: cellKey, minX: cellMinX - 35, maxX: cellMaxX + 35, minZ: cellMinZ - 35, maxZ: cellMaxZ + 35 });
+      liveOsmRevision++;
+      // LRU cap to prevent RAM bloat on long flights
+      const maxOsmCells = isLowMem ? 10 : 24;
+      while (liveOsmCells.size > maxOsmCells) {
+        const oldKey = liveOsmCells.keys().next().value;
+        const oldVal = liveOsmCells.get(oldKey);
+        if (oldVal && typeof oldVal === 'object' && oldVal.isObject3D) {
+          root.remove(oldVal);
+          oldVal.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+        }
+        liveOsmCells.delete(oldKey);
+        const bi = liveOsmBoxes.findIndex(b => b.key === oldKey);
+        if (bi >= 0) liveOsmBoxes.splice(bi, 1);
+      }
     }).catch(() => {
       liveOsmBusy = false;
       liveOsmCells.set(cellKey, 'error');
@@ -1401,23 +1501,27 @@ function createGlobalScenery(scene, ground, airports = []) {
     if (quality === 'ultra' || quality === 'high' || quality === 'balanced') streamLiveOsmBuildings(px, pz);
 
     const cx = Math.floor(px / TILE), cz = Math.floor(pz / TILE);
-    const rad = quality === 'ultra' || quality === 'high' ? 7 : 5;
+    const rad = isLowMem ? 3 : (quality === 'ultra' || quality === 'high' ? 5 : 4);
     const keep = new Set();
     const candidates = [];
-    const curSatRev = typeof window !== 'undefined' ? (window.__SKYBOUND_SAT_REVISION || 0) : 0;
+    const sampler = typeof window !== 'undefined' ? window.__SKYBOUND_SAT_SAMPLER : null;
     for (let r = cz - rad; r <= cz + rad; r++) {
       for (let c = cx - rad; c <= cx + rad; c++) {
         const key = c + ':' + r;
         keep.add(key);
         const existing = loaded.get(key);
-        const staleSat = existing && (existing.userData?.satRev || 0) < curSatRev && curSatRev > 0;
-        if (!loaded.has(key) || staleSat) {
-          candidates.push({ c, r, key, stale: Boolean(staleSat), d: Math.hypot(c - cx, r - cz) });
+        const tx = (c + 0.5) * TILE, tz = (r + 0.5) * TILE;
+        const nowHasSat = Boolean(sampler && sampler(tx, tz));
+        // Only rebuild ONCE when this specific tile transitions no-sat -> has-sat, or when a live OSM cell covers it!
+        const staleSat = existing && !existing.userData?.hadSat && nowHasSat;
+        const staleOsm = existing && (existing.userData?.osmRev || 0) < liveOsmRevision && inLiveOsmArea(tx, tz);
+        if (!loaded.has(key) || staleSat || staleOsm) {
+          candidates.push({ c, r, key, stale: Boolean(staleSat || staleOsm), d: Math.hypot(c - cx, r - cz) });
         }
       }
     }
     candidates.sort((a, b) => a.d - b.d);
-    const maxBuild = loaded.size < 16 ? 16 : 5;
+    const maxBuild = loaded.size < 9 ? 9 : 2;
     for (let i = 0; i < candidates.length && i < maxBuild; i++) {
       const { c, r, key, stale } = candidates[i];
       if (stale) {

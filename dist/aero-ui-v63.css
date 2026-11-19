@@ -2181,4 +2181,171 @@ body.title-hub-open>header{padding-top:calc(8px + var(--menu-safe-top));padding-
   gap: 4px;
 }
 
+/* Effortless 3-Step Visual Free Flight Deck & Compact 3D Hangar Quick Dock */
+.ff-deck-panel {
+  display: grid;
+  gap: 10px;
+}
+.ff-step-card {
+  background: rgba(9, 24, 38, 0.88);
+  border: 1px solid rgba(115, 205, 245, 0.28);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+.ff-step-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ff-step-head strong {
+  color: #fde68a;
+  font-size: 13px;
+}
+.ff-step-head small {
+  color: #93c5fd;
+  font-size: 11px;
+}
+.ff-mini-search {
+  width: min(210px, 52vw);
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+}
+.ff-mini-btn {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  border-radius: 999px;
+  background: rgba(24, 64, 96, 0.88);
+  border: 1px solid rgba(101, 220, 255, 0.45);
+}
+.ff-scroll-row {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  padding-bottom: 3px;
+  -webkit-overflow-scrolling: touch;
+}
+.ff-scroll-row .mp-chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.ff-plane-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  padding: 2px 0 4px;
+  -webkit-overflow-scrolling: touch;
+}
+.ff-plane-pill {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 6px 11px;
+}
+.ff-route-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.ff-route-pair label {
+  margin: 0;
+  gap: 4px;
+  font-size: 12px;
+  color: #bae6fd;
+}
+.ff-route-pair select {
+  width: 100%;
+  font-size: 12.5px;
+  padding: 7px 9px;
+}
+.ff-preset-bars {
+  display: grid;
+  gap: 6px;
+}
+.ff-pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ff-hidden-sync {
+  display: none;
+}
+.ff-launch-bar {
+  position: sticky;
+  bottom: 0;
+  background: rgba(8, 20, 32, 0.94);
+  border: 1px solid rgba(248, 199, 81, 0.4);
+  border-radius: 12px;
+  padding: 10px 12px;
+  backdrop-filter: blur(12px);
+}
+@media (max-width: 640px) {
+  .ff-route-pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hangar-top-dock {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  background: rgba(8, 22, 35, 0.88);
+  border: 1px solid rgba(112, 205, 245, 0.34);
+}
+.hangar-dock-nav {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+.hangar-dock-nav strong {
+  text-align: center;
+  font-size: 13px;
+  color: #fde68a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hangar-dock-nav button {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.hangar-dock-views {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 4px;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+.hangar-dock-views button {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+.hangar-dock-views button.active {
+  background: linear-gradient(135deg, #0ea5e9, #10b981);
+  border-color: #a7f3d0;
+  color: #041d24;
+  font-weight: 800;
+}
+.mobile-mode .hangar-plane-pills {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-height: none;
+}
+.mobile-mode .hangar-plane-pills .mp-chip {
+  flex: 0 0 auto;
+}
+
+
 

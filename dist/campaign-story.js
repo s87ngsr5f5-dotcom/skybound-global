@@ -2494,25 +2494,19 @@
 
     if (tab === 'freeflight') {
       const worldQuickHubs = [
-        { dep: 'RCSS', dst: 'RCTP', ac: 'a223', label: '🇹🇼 台灣台北 (RCSS)' },
-        { dep: 'RJTT', dst: 'RJAA', ac: 'a223', label: '🇯🇵 日本東京 (RJTT)' },
-        { dep: 'RJBB', dst: 'RJTT', ac: 'b38m', label: '🇯🇵 日本大阪 (RJBB)' },
-        { dep: 'ROAH', dst: 'RCYU', ac: 'sf16', label: '🇯🇵 沖繩那霸 (ROAH)' },
-        { dep: 'VHHH', dst: 'RCKH', ac: 'b38m', label: '🇭🇰 香港維港 (VHHH)' },
-        { dep: 'RKSI', dst: 'RCTP', ac: 'sf748', label: '🇰🇷 韓國首爾 (RKSI)' },
-        { dep: 'WSSS', dst: 'RPLL', ac: 'a223', label: '🇸🇬 新加坡 (WSSS)' },
-        { dep: 'RPLL', dst: 'RCKH', ac: 'm2000', label: '🇵🇭 馬尼拉 (RPLL)' },
-        { dep: 'VTBS', dst: 'WSSS', ac: 'a320neo', label: '🇹🇭 泰國曼谷 (VTBS)' },
-        { dep: 'OMDB', dst: 'OTHH', ac: 'sa380', label: '🏜 杜拜哈里發 (OMDB)' },
-        { dep: 'LFPG', dst: 'EGLL', ac: 'a320neo', label: '🏰 巴黎戴高樂 (LFPG)' },
-        { dep: 'EGLL', dst: 'EDDF', ac: 'b773', label: '🏰 倫敦希斯洛 (EGLL)' },
-        { dep: 'LSZH', dst: 'LIRF', ac: 'a223', label: '🏔 蘇黎世阿爾卑斯 (LSZH)' },
-        { dep: 'KJFK', dst: 'CYYZ', ac: 'b773', label: '🗽 紐約甘迺迪 (KJFK)' },
-        { dep: 'KSFO', dst: 'KLAX', ac: 'b38m', label: '🌉 舊金山灣區 (KSFO)' },
-        { dep: 'YSSY', dst: 'NZAA', ac: 'b789', label: '🦘 澳洲雪梨 (YSSY)' },
-        { dep: 'HECA', dst: 'OMDB', ac: 'an124', label: '🐪 開羅金字塔 (HECA)' },
-        { dep: 'SBGR', dst: 'SCEL', ac: 'b773', label: '🌎 聖保羅南美 (SBGR)' }
-      ].map(h => `<button type="button" class="mp-chip" data-world-hub="${h.dep}" data-world-dst="${h.dst}" data-world-ac="${h.ac}">${h.label}</button>`).join('');
+        { dep: 'KSFO', dst: 'KLAX', ac: 'fa18c', start: 'air', weather: 'clouds', time: '14:00', quick: 'goldenGatePass', label: '🌉 舊金山金門大橋 F/A-18' },
+        { dep: 'RCSS', dst: 'RCTP', ac: 'a223', start: 'runway', weather: '0', time: '13:00', label: '🇹🇼 台北松山 101' },
+        { dep: 'RJTT', dst: 'RJAA', ac: 'a223', start: 'runway', weather: 'clouds', time: '06:30', label: '🇯🇵 東京羽田晴空塔' },
+        { dep: 'LFPG', dst: 'EGLL', ac: 'a320neo', start: 'runway', weather: 'clouds', time: '15:00', label: '🏰 巴黎艾菲爾鐵塔' },
+        { dep: 'OMDB', dst: 'OTHH', ac: 'sa380', start: 'runway', weather: '0', time: '17:30', label: '🏜 杜拜哈里發塔' },
+        { dep: 'KJFK', dst: 'CYYZ', ac: 'b773', start: 'runway', weather: 'clouds', time: '16:30', label: '🗽 紐約曼哈頓' },
+        { dep: 'EGLL', dst: 'EDDF', ac: 'b773', start: 'runway', weather: 'clouds', time: '14:00', label: '🏰 倫敦碎片大廈' },
+        { dep: 'VHHH', dst: 'RCKH', ac: 'b38m', start: 'runway', weather: 'clouds', time: '18:30', label: '🇭🇰 香港維多利亞港' },
+        { dep: 'WSSS', dst: 'RPLL', ac: 'a223', start: 'runway', weather: '0', time: '19:30', label: '🇸🇬 新加坡濱海灣' },
+        { dep: 'YSSY', dst: 'NZAA', ac: 'b789', start: 'runway', weather: '0', time: '14:00', label: '🦘 雪梨歌劇院' },
+        { dep: 'LSZH', dst: 'LIRF', ac: 'a223', start: 'runway', weather: 'clouds', time: '11:00', label: '🏔 阿爾卑斯蘇黎世' },
+        { dep: 'RKSI', dst: 'RCTP', ac: 'sf748', start: 'runway', weather: '0', time: '15:00', label: '🇰🇷 首爾樂天世界塔' }
+      ].map(h => `<button type="button" class="mp-chip ff-scenic-chip" data-world-hub="${h.dep}" data-world-dst="${h.dst}" data-world-ac="${h.ac}"${h.quick ? ` data-ff-quick="${h.quick}"` : ''}>${h.label}</button>`).join('');
       const apList = typeof allAirports !== 'undefined' ? allAirports : [];
       const apRegions = typeof AIRPORT_REGIONS !== 'undefined' ? AIRPORT_REGIONS : [{ id: 'all', label: '🌏 全球機場' }];
       const buildGroupedAirportOptions = (defaultCode) => {
@@ -2530,38 +2524,147 @@
         if (!list.length) return '';
         return `<optgroup label="${fleetCategories[key]} (${list.length})">${list.map(p => `<option value="${p.id}" ${aircraftUnlocked(p) ? '' : 'disabled'}>${p.name}${aircraftUnlocked(p) ? '' : ' 🔒'}</option>`).join('')}</optgroup>`;
       }).join('');
+      const ffCatTabs = [
+        ['all', '🌟 全部'], ['tw_fleet', '🇹🇼 台灣'], ['airliner_wide', '✈️ 廣體'], ['airliner_narrow', '🛫 窄體'],
+        ['fighter_stealth', '🦅 隱形戰機'], ['fighter_multi', '⚔️ 戰機'], ['cargo', '📦 貨機'], ['helicopter', '🚁 直升機']
+      ];
+      const curAcId = document.getElementById('aircraft')?.value || 'a223';
+      const curStart = document.getElementById('startType')?.value || 'runway';
+      const curWeather = document.getElementById('weather')?.value || 'clouds';
+      const curTime = document.getElementById('time')?.value || '14:00';
       stage.innerHTML = `
-        <div class="hub-section-panel">
-          <div class="hub-online-banner">
-            <img src="assets/campaign/ch2.jpg" alt="自由飛行與 3D 機庫">
-            <div class="hub-online-banner-body">
-              <span class="hub-mode-pill gold">✈ FREE FLIGHT · GLOBAL SATELLITE & 100 AIRCRAFT</span>
-              <h2>跨國自由飛行與 3D 機庫</h2>
-              <p>一鍵切換全球七大洲 62 座國際機場與 15 大機型分類，自由探索各國 3D 城市、跨海大橋與地標</p>
+        <div class="hub-section-panel ff-deck-panel">
+          <div class="ff-step-card">
+            <div class="ff-step-head"><strong>🌍 熱門實景一鍵起飛</strong><small>點選即自動帶入對應機場與機型</small></div>
+            <div class="mp-room-chips ff-scroll-row">${worldQuickHubs}</div>
+          </div>
+
+          <div class="ff-step-card">
+            <div class="ff-step-head"><strong>① 選擇執飛機型</strong><input type="search" id="hubFfAcSearch" class="ff-mini-search" placeholder="🔍 搜 F/A-18、F-16、777、A350…"></div>
+            <div class="mp-room-chips ff-scroll-row" id="hubFfCatPills">${ffCatTabs.map(([id, lbl]) => `<button type="button" class="mp-chip${id === 'all' ? ' active' : ''}" data-ff-cat="${id}">${lbl}</button>`).join('')}</div>
+            <div class="ff-plane-strip" id="hubFfPlanePills"></div>
+            <div class="ff-hidden-sync">
+              <select id="hubFfCategory">${Object.entries(fleetCategories).map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select>
+              <select id="hubFfAircraft">${acOptHtml}</select>
             </div>
           </div>
-          <div class="hub-panel-card">
-            <div style="margin-bottom:10px;">
-              <small style="color:#9ec4dc;display:block;margin-bottom:6px;">🌍 點擊快速帶入全球代表性起降航線：</small>
-              <div class="mp-room-chips">${worldQuickHubs}</div>
+
+          <div class="ff-step-card">
+            <div class="ff-step-head"><strong>② 選擇起降機場（全球 62 座）</strong><button type="button" id="hubFfSwapBtn" class="ff-mini-btn">⇄ 互換起降</button></div>
+            <div class="mp-room-chips ff-scroll-row" id="hubFfRegionPills">${apRegions.map(r => `<button type="button" class="mp-chip${r.id === 'all' ? ' active' : ''}" data-ff-region="${r.id}">${r.label}</button>`).join('')}</div>
+            <div class="ff-route-pair">
+              <label><span>🛫 出發機場</span><select id="hubFfDeparture">${buildGroupedAirportOptions('departure')}</select></label>
+              <label><span>🛬 目的機場</span><select id="hubFfDestination">${buildGroupedAirportOptions('destination')}</select></label>
             </div>
-            <div class="hub-form-grid">
-              <label>機型細分篩選 (15類)<select id="hubFfCategory">${Object.entries(fleetCategories).map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label>
-              <label>執飛機型<select id="hubFfAircraft">${acOptHtml}</select></label>
-              <label>機場洲別分類<select id="hubFfRegion">${apRegions.map(r => `<option value="${r.id}">${r.label}</option>`).join('')}</select></label>
-              <label>起始狀態<select id="hubFfStartType">${cloneOptionsHtml('startType')}</select></label>
-              <label>出發機場<select id="hubFfDeparture">${buildGroupedAirportOptions('departure')}</select></label>
-              <label>目的機場<select id="hubFfDestination">${buildGroupedAirportOptions('destination')}</select></label>
-              <label>天候環境<select id="hubFfWeather">${cloneOptionsHtml('weather')}</select></label>
-              <label>當地時刻<input type="time" id="hubFfTime" value="${document.getElementById('time')?.value || '13:00'}"></label>
+            <select id="hubFfRegion" hidden>${apRegions.map(r => `<option value="${r.id}">${r.label}</option>`).join('')}</select>
+          </div>
+
+          <div class="ff-step-card">
+            <div class="ff-step-head"><strong>③ 起飛狀態 & 天氣時段</strong></div>
+            <div class="ff-preset-bars">
+              <div class="ff-pill-group" id="hubFfStartPills">
+                <button type="button" class="mp-chip${curStart === 'runway' ? ' active' : ''}" data-ff-start="runway">🛫 跑道起飛</button>
+                <button type="button" class="mp-chip${curStart === 'air' ? ' active' : ''}" data-ff-start="air">☁ 空中直飛</button>
+                <button type="button" class="mp-chip${curStart === 'cold' ? ' active' : ''}" data-ff-start="cold">🔋 冷艙啟動</button>
+              </div>
+              <div class="ff-pill-group" id="hubFfWeatherPills">
+                <button type="button" class="mp-chip${curWeather === '0' ? ' active' : ''}" data-ff-wx="0" data-ff-tm="13:00">☀ 晴朗午後</button>
+                <button type="button" class="mp-chip${curWeather === 'clouds' ? ' active' : ''}" data-ff-wx="clouds" data-ff-tm="14:30">⛅ 蓬鬆白雲</button>
+                <button type="button" class="mp-chip" data-ff-wx="clouds" data-ff-tm="17:45">🌅 黃金夕陽</button>
+                <button type="button" class="mp-chip" data-ff-wx="0" data-ff-tm="21:30">🌃 城市夜景</button>
+                <button type="button" class="mp-chip${curWeather === 'storm' ? ' active' : ''}" data-ff-wx="storm" data-ff-tm="17:15">⚡ 動態雷暴</button>
+              </div>
             </div>
-            <div class="actions" style="margin-top:14px">
-              <p id="hubSpeedSummary" aria-live="polite"></p><button type="button" id="hubFreeFlyBtn" class="campaign-launch-btn">✈ 立即起飛 →</button>
-              <button type="button" id="hubOpenHangarBtn" class="hub-back-btn">🏛️ 開啟 3D 機庫與塗裝工坊</button>
-              <button type="button" id="hubOpenAdvancedPlanBtn" class="hub-back-btn">📋 進階載客／貨運／航點編輯</button>
+            <div class="ff-hidden-sync">
+              <select id="hubFfStartType">${cloneOptionsHtml('startType')}</select>
+              <select id="hubFfWeather">${cloneOptionsHtml('weather')}</select>
+              <input type="time" id="hubFfTime" value="${curTime}">
+            </div>
+          </div>
+
+          <div class="ff-launch-bar">
+            <p id="hubSpeedSummary" aria-live="polite"></p>
+            <div class="actions">
+              <button type="button" id="hubFreeFlyBtn" class="campaign-launch-btn">✈ 立即起飛 →</button>
+              <button type="button" id="hubOpenHangarBtn" class="hub-back-btn">🏛️ 3D 機庫賞機</button>
+              <button type="button" id="hubOpenAdvancedPlanBtn" class="hub-back-btn">📋 進階航點／載客</button>
             </div>
           </div>
         </div>`;
+
+      const acSel = document.getElementById('hubFfAircraft');
+      if (acSel && [...acSel.options].some(o => o.value === curAcId && !o.disabled)) acSel.value = curAcId;
+      const stSel = document.getElementById('hubFfStartType');
+      if (stSel) stSel.value = curStart;
+      const wxSel = document.getElementById('hubFfWeather');
+      if (wxSel) wxSel.value = curWeather;
+
+      const renderFfPlanePills = (cat = 'all', q = '') => {
+        const box = document.getElementById('hubFfPlanePills');
+        if (!box) return;
+        const ql = q.trim().toLowerCase();
+        const matches = fleet.filter(p => fleetMatches(p, cat) && (!ql || p.name.toLowerCase().includes(ql) || p.id.toLowerCase().includes(ql)));
+        const selId = acSel?.value || curAcId;
+        box.innerHTML = matches.slice(0, 32).map(p => {
+          const ok = aircraftUnlocked(p);
+          return `<button type="button" class="mp-chip ff-plane-pill${p.id === selId ? ' active' : ''}" data-ff-plane="${p.id}"${ok ? '' : ' disabled'}>${p.name.split(' · ')[0]}${ok ? '' : ' 🔒'}</button>`;
+        }).join('') || '<small class="muted">找不到符合機型</small>';
+      };
+      renderFfPlanePills('all', '');
+
+      stage.addEventListener('click', ev => {
+        const qk = ev.target.closest('[data-ff-quick]');
+        if (qk && qk.dataset.ffQuick === 'goldenGatePass') {
+          const btn = document.querySelector('[data-quick="goldenGatePass"]');
+          if (btn) { closeHub(); btn.click(); return; }
+        }
+        const catBtn = ev.target.closest('[data-ff-cat]');
+        if (catBtn) {
+          const cid = catBtn.dataset.ffCat;
+          document.querySelectorAll('#hubFfCatPills .mp-chip').forEach(b => b.classList.toggle('active', b === catBtn));
+          const cSel = document.getElementById('hubFfCategory');
+          if (cSel) { cSel.value = cid; cSel.dispatchEvent(new Event('change', { bubbles: true })); }
+          renderFfPlanePills(cid, document.getElementById('hubFfAcSearch')?.value || '');
+          return;
+        }
+        const plBtn = ev.target.closest('[data-ff-plane]');
+        if (plBtn && acSel) {
+          acSel.value = plBtn.dataset.ffPlane;
+          acSel.dispatchEvent(new Event('change', { bubbles: true }));
+          document.querySelectorAll('#hubFfPlanePills .mp-chip').forEach(b => b.classList.toggle('active', b === plBtn));
+          document.getElementById('hubFreeFlyBtn').disabled = false;
+          return;
+        }
+        const rgBtn = ev.target.closest('[data-ff-region]');
+        if (rgBtn) {
+          document.querySelectorAll('#hubFfRegionPills .mp-chip').forEach(b => b.classList.toggle('active', b === rgBtn));
+          const rSel = document.getElementById('hubFfRegion');
+          if (rSel) { rSel.value = rgBtn.dataset.ffRegion; rSel.dispatchEvent(new Event('change', { bubbles: true })); }
+          return;
+        }
+        if (ev.target.closest('#hubFfSwapBtn')) {
+          const d1 = document.getElementById('hubFfDeparture'), d2 = document.getElementById('hubFfDestination');
+          if (d1 && d2) { const tmp = d1.value; d1.value = d2.value; d2.value = tmp; }
+          return;
+        }
+        const stBtn = ev.target.closest('[data-ff-start]');
+        if (stBtn && stSel) {
+          stSel.value = stBtn.dataset.ffStart;
+          document.querySelectorAll('#hubFfStartPills .mp-chip').forEach(b => b.classList.toggle('active', b === stBtn));
+          return;
+        }
+        const wxBtn = ev.target.closest('[data-ff-wx]');
+        if (wxBtn) {
+          if (wxSel) wxSel.value = wxBtn.dataset.ffWx;
+          const tmEl = document.getElementById('hubFfTime');
+          if (tmEl && wxBtn.dataset.ffTm) tmEl.value = wxBtn.dataset.ffTm;
+          document.querySelectorAll('#hubFfWeatherPills .mp-chip').forEach(b => b.classList.toggle('active', b === wxBtn));
+        }
+      });
+      document.getElementById('hubFfAcSearch')?.addEventListener('input', e => {
+        const activeCat = document.querySelector('#hubFfCatPills .mp-chip.active')?.dataset.ffCat || 'all';
+        renderFfPlanePills(activeCat, e.target.value || '');
+      });
       globalScope.skyLauncher?.enhance?.(stage);
       return;
     }
