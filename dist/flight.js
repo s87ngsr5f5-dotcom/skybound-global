@@ -249,7 +249,8 @@ function initialize(){
         if(regionalImageReady>0.5){
           vec2 tileUV=clamp((terrainXZ-regionalImageOrigin)/11520.0,0.0,1.0);
           vec4 regional=texture2D(regionalImage,vec2(tileUV.x,1.0-tileUV.y));
-          float visiblePhoto=regional.a*smoothstep(.0006,.002,max(regional.r,max(regional.g,regional.b)));
+          float landMask=smoothstep(-0.35,0.45,terrainWorldPos.y);
+          float visiblePhoto=regional.a*smoothstep(.0006,.002,max(regional.r,max(regional.g,regional.b)))*mix(0.35,1.0,landMask);
           diffuseColor.rgb=mix(diffuseColor.rgb,regional.rgb*1.12,visiblePhoto);
         }
         vec2 imageUV=(terrainXZ-vec2(-20000.0,-18000.0))/vec2(39000.0,33500.0);
@@ -303,9 +304,10 @@ function initialize(){
               sin(waveCoord.y*2.1+seaSkyTime*0.6)*0.075+sin(waveCoord.y*5.1-seaSkyTime*0.9)*0.045+cos(waveCoord.y*12.2-seaSkyTime*1.4)*0.02
             ));
             vec3 reflDir=reflect(-viewVec,waveN);
-            float fresnel=pow(1.0-max(0.0,viewVec.y),3.2);
-            vec3 skyRefl=mix(vec3(0.95,0.62,0.42),vec3(0.46,0.78,0.98),smoothstep(0.15,0.55,seaDayRatio));
-            diffuseColor.rgb=mix(diffuseColor.rgb,skyRefl*max(0.16,seaDayRatio),fresnel*0.52);
+            float fresnel=pow(1.0-max(0.0,viewVec.y),2.6);
+            vec3 skyRefl=mix(vec3(0.95,0.62,0.42),vec3(0.56,0.82,0.98),smoothstep(0.15,0.55,seaDayRatio));
+            float cloudRefl=smoothstep(0.55,0.88,sin(terrainXZ.x*0.00045+seaSkyTime*0.08)*cos(terrainXZ.y*0.00042-seaSkyTime*0.06)*0.5+0.5)*0.34*seaDayRatio;
+            diffuseColor.rgb=mix(diffuseColor.rgb,(skyRefl+vec3(cloudRefl))*max(0.18,seaDayRatio),clamp(fresnel*0.66+0.12,0.0,0.78));
             float glintDot=max(0.0,dot(reflDir,normalize(seaSunDir)));
             float sunTrail=pow(glintDot,28.0)*0.85+pow(glintDot,140.0)*2.35;
             diffuseColor.rgb+=vec3(1.0,0.93,0.76)*sunTrail*seaDayRatio;
@@ -410,6 +412,11 @@ function initialize(){
     loadTaipeiImagery(x,z);
     const cx=Math.floor(x/span),cz=Math.floor(z/span),id=cx+':'+cz+':'+terrainColorRevision;
     taiwanSatellite.update(cx,cz,byId('quality').value);
+    for(const [k,patch] of terrainChunks){
+      const [pc,pr]=k.split(':').map(Number);
+      const satMat=taiwanSatellite.material(pc,pr)??terrainMaterial;
+      if(patch.material!==satMat) patch.material=satMat;
+    }
     loadMountainTerrain(cx,cz);
     if(id!==previousChunk){
       previousChunk=id;
@@ -1022,6 +1029,7 @@ function initialize(){
       if(profile.jet&&typeof AeroCraft!=='undefined'){
         const nac=AeroCraft.buildTurbofanNacelle(THREE,radius*.52,.78,{surface:accent,metal:chrome,dark:trimDark},{chevron:false});
         nac.group.scale.setScalar(.85);nac.group.position.set(x,y,z);group.add(nac.group);
+        if(nac.fanGroup) blades.push(nac.fanGroup);
         if(Math.abs(x)>radius*.55){
           const pLen=Math.abs(x)-radius*.42;
           const pylon=new THREE.Mesh(new THREE.BoxGeometry(pLen,radius*.16,length*.14),accent);
@@ -3074,6 +3082,18 @@ function initialize(){
           vz:-Math.cos(airRefueling.tanker.heading)*targetSpeed,
           power:0.65,fuel:2200,gear:false,flaps:0,tailhook:false,ground:false
         });
+      }else if(preset==='goldenGatePass'&&typeof geoPoint==='function'){
+        const gg=geoPoint(37.8199,-122.4783);
+        const hdg=-0.22; // North-northwest parallel along Golden Gate Bridge
+        const spd=195;
+        Object.assign(flight,{
+          x:gg.x-Math.sin(hdg)*1850-55,
+          y:135,
+          z:gg.z+Math.cos(hdg)*1850,
+          heading:hdg,speed:spd,
+          vx:Math.sin(hdg)*spd,vy:0,vz:-Math.cos(hdg)*spd,
+          power:0.78,gear:false,flaps:0,tailhook:false,ground:false,parkingBrake:false
+        });
       }
       flight.missionLoaner=loaner;
       beginFlight();
@@ -3650,6 +3670,20 @@ function initialize(){
       byId('waypoints').value='';
       drawPlan();
       start(false,false,'refueling');
+      button.blur();
+      return;
+    }
+    if(preset==='goldenGatePass'){
+      byId('lesson').value='free';
+      byId('aircraft').value=fleet.some(a=>a.id==='fa18c')?'fa18c':'f16v';
+      byId('departure').value='KSFO';
+      byId('destination').value='KSFO';
+      byId('startType').value='air';
+      byId('time').value='14:00';
+      byId('weather').value='clouds';
+      byId('waypoints').value='';
+      drawPlan();
+      start(false,false,'goldenGatePass');
       button.blur();
       return;
     }
@@ -5111,6 +5145,32 @@ function initialize(){
         if(vSlot){
           radar.fillStyle='#a8ecff';
           radar.fillText(vor.id,vSlot.x,vSlot.y);
+        }
+      }
+      radar.restore();
+    }
+    // Real-World 3D Iconic Landmarks overlay on #radar (synchronized with 3D GPS landmarks)
+    if(!f.ground&&typeof GlobalScenery!=='undefined'&&typeof GlobalScenery.getLandmarks==='function'&&typeof geoPoint==='function'){
+      radar.save();
+      radar.font='bold 10px system-ui';
+      radar.textAlign='left';
+      radar.textBaseline='middle';
+      for(const lm of GlobalScenery.getLandmarks()){
+        const pt=geoPoint(lm.lat,lm.lon);
+        const [lx,ly]=project(pt);
+        if(lx<10||lx>width-10||ly<10||ly>height-14) continue;
+        radar.fillStyle='#fbbf24';
+        radar.strokeStyle='#091926';
+        radar.lineWidth=1.5;
+        radar.beginPath();radar.arc(lx,ly,3.6,0,Math.PI*2);radar.fill();radar.stroke();
+        const tag='★ '+lm.name;
+        const lw=radar.measureText(tag).width+4;
+        const slot=placeCanvasLabel(placedRadarBoxes,lx,ly,lw,13,width,height,3);
+        if(slot){
+          radar.strokeStyle='#091926';radar.lineWidth=2.8;
+          radar.strokeText(tag,slot.x,slot.y);
+          radar.fillStyle='#fde68a';
+          radar.fillText(tag,slot.x,slot.y);
         }
       }
       radar.restore();

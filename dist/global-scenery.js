@@ -607,6 +607,481 @@ function createGlobalScenery(scene, ground, airports = []) {
     return group;
   }
 
+  // Real-World GPS-Accurate Iconic Landmarks (aligned 1:1 with Google Satellite 3D terrain & #radar map pins)
+  const REAL_WORLD_LANDMARKS = [
+    { id: 'golden_gate', name: '金門大橋 Golden Gate', lat: 37.8199, lon: -122.4783, type: 'golden_gate', h: 227 },
+    { id: 'sf_transamerica', name: '泛美金字塔', lat: 37.7952, lon: -122.4028, type: 'pyramid_tower', h: 260 },
+    { id: 'sf_salesforce', name: 'Salesforce 大樓', lat: 37.7897, lon: -122.3969, type: 'glass_obelisk', h: 326 },
+    { id: 'nyc_owtc', name: '世界貿易中心一號大樓', lat: 40.7127, lon: -74.0134, type: 'owtc', h: 541 },
+    { id: 'nyc_empire', name: '帝國大廈 Empire State', lat: 40.7484, lon: -73.9857, type: 'empire', h: 443 },
+    { id: 'nyc_liberty', name: '自由女神像', lat: 40.6892, lon: -74.0445, type: 'liberty', h: 93 },
+    { id: 'paris_eiffel', name: '艾菲爾鐵塔 Eiffel', lat: 48.8584, lon: 2.2945, type: 'eiffel', h: 330 },
+    { id: 'london_shard', name: '碎片大廈 The Shard', lat: 51.5045, lon: -0.0865, type: 'shard', h: 310 },
+    { id: 'london_towerbridge', name: '倫敦塔橋 Tower Bridge', lat: 51.5055, lon: -0.0754, type: 'tower_bridge', h: 65 },
+    { id: 'london_bigben', name: '大笨鐘 Big Ben', lat: 51.5007, lon: -0.1246, type: 'clock_tower', h: 96 },
+    { id: 'dubai_burj', name: '哈里發塔 Burj Khalifa', lat: 25.1972, lon: 55.2744, type: 'burj', h: 620 },
+    { id: 'tokyo_skytree', name: '東京晴空塔 Skytree', lat: 35.7101, lon: 139.8107, type: 'skytree', h: 540 },
+    { id: 'tokyo_tower', name: '東京鐵塔 Tokyo Tower', lat: 35.6586, lon: 139.7454, type: 'tokyo_tower', h: 333 },
+    { id: 'sg_mbs', name: '濱海灣金沙 Marina Bay', lat: 1.2834, lon: 103.8607, type: 'mbs', h: 207 },
+    { id: 'kl_petronas', name: '雙峰塔 Petronas', lat: 3.1579, lon: 101.7116, type: 'petronas', h: 452 },
+    { id: 'seoul_lotte', name: '樂天世界塔 Lotte', lat: 37.5125, lon: 127.1025, type: 'lotte', h: 520 },
+    { id: 'shanghai_pearl', name: '東方明珠塔', lat: 31.2397, lon: 121.4998, type: 'needle', h: 468 },
+    { id: 'shanghai_tower', name: '上海中心大廈', lat: 31.2335, lon: 121.5055, type: 'glass_obelisk', h: 560 },
+    { id: 'gz_canton', name: '廣州塔 Canton Tower', lat: 23.1064, lon: 113.3245, type: 'needle', h: 454 },
+    { id: 'hk_icc', name: '香港環球貿易廣場 ICC', lat: 22.3034, lon: 114.1602, type: 'glass_obelisk', h: 484 },
+    { id: 'sydney_opera', name: '雪梨歌劇院 Opera House', lat: -33.8568, lon: 151.2153, type: 'opera_house', h: 65 },
+    { id: 'sydney_bridge', name: '雪梨港灣大橋', lat: -33.8523, lon: 151.2108, type: 'harbour_bridge', h: 134 },
+    { id: 'cairo_giza', name: '吉薩金字塔群', lat: 29.9792, lon: 31.1342, type: 'pyramids', h: 146 },
+    { id: 'toronto_cn', name: '加拿大國家電視塔 CN', lat: 43.6426, lon: -79.3871, type: 'needle', h: 453 },
+    { id: 'seattle_needle', name: '太空針塔 Space Needle', lat: 47.6205, lon: -122.3493, type: 'needle', h: 184 },
+    { id: 'rome_colosseum', name: '羅馬競技場 Colosseum', lat: 41.8902, lon: 12.4922, type: 'colosseum', h: 48 },
+    { id: 'berlin_tv', name: '柏林電視塔', lat: 52.5208, lon: 13.4094, type: 'needle', h: 368 },
+    { id: 'rio_christ', name: '里約救世基督像', lat: -22.9519, lon: -43.2105, type: 'christ', h: 40 },
+    { id: 'taipei_101', name: '台北 101', lat: 25.0339, lon: 121.5645, type: 'pin_only', h: 508 }
+  ];
+
+  const bridgeOrangeMat = new THREE.MeshStandardMaterial({
+    color: 0xc43c2b,
+    roughness: 0.44,
+    metalness: 0.34
+  });
+  const bridgeCableMat = new THREE.MeshStandardMaterial({
+    color: 0xb63526,
+    roughness: 0.48,
+    metalness: 0.42
+  });
+  const bridgeDeckTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#383d44';
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = '#8b9096';
+    g.fillRect(0, 0, 14, h);
+    g.fillRect(w - 14, 0, 14, h);
+    g.fillStyle = '#e8b944';
+    g.fillRect(w * 0.5 - 3, 0, 2, h);
+    g.fillRect(w * 0.5 + 1, 0, 2, h);
+    g.fillStyle = 'rgba(245,248,252,0.85)';
+    for (const lx of [0.22, 0.36, 0.64, 0.78]) {
+      for (let y = 8; y < h; y += 36) g.fillRect(w * lx - 1, y, 2, 18);
+    }
+  }, 1, 45);
+  const bridgeDeckMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: bridgeDeckTex,
+    roughness: 0.82,
+    metalness: 0.08
+  });
+  const whiteShellMat = new THREE.MeshStandardMaterial({
+    color: 0xf4f1e8,
+    roughness: 0.32,
+    metalness: 0.12
+  });
+  const copperGreenMat = new THREE.MeshStandardMaterial({
+    color: 0x5ba38e,
+    roughness: 0.46,
+    metalness: 0.38
+  });
+  const steelArchMat = new THREE.MeshStandardMaterial({
+    color: 0x6c7680,
+    roughness: 0.45,
+    metalness: 0.55
+  });
+
+  // Hero-Detail Golden Gate Bridge (227m twin Art Deco open-portal towers, catenary main cables, vertical suspenders, 6-lane deck)
+  function buildGoldenGateBridge(cx, cz) {
+    const g = new THREE.Group();
+    g.name = 'Landmark_GoldenGateBridge';
+    g.position.set(cx, 0, cz);
+    g.rotation.y = -0.175; // Real-world Golden Gate Strait axis (~350 deg)
+
+    const deckY = 67;
+    const deckW = 28;
+    const halfMain = 640; // 1,280m main span
+    const halfTotal = 1140; // 2,280m total suspended span
+    const towerTopY = 227;
+    const legHalfX = 14.2;
+
+    const addPart = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      if (rx || ry || rz) m.rotation.set(rx, ry, rz);
+      m.castShadow = m.receiveShadow = true;
+      g.add(m);
+      return m;
+    };
+
+    // 1. 6-Lane Asphalt Roadway Deck + Steel Under-Truss + Side Guardrails
+    addPart(new THREE.BoxGeometry(deckW, 2.2, halfTotal * 2), bridgeDeckMat, 0, deckY, 0);
+    addPart(new THREE.BoxGeometry(deckW + 1.4, 7.6, halfTotal * 2), bridgeOrangeMat, 0, deckY - 4.9, 0);
+    for (const s of [-1, 1]) {
+      addPart(new THREE.BoxGeometry(0.9, 2.4, halfTotal * 2), bridgeOrangeMat, s * (deckW * 0.5 + 0.5), deckY + 1.8, 0);
+    }
+
+    // 2. Twin Iconic International-Orange Art Deco Towers (Open Rectangular Portals!)
+    for (const tz of [-halfMain, halfMain]) {
+      // Concrete water piers
+      addPart(new THREE.BoxGeometry(44, 16, 22), roofMat, 0, 4, tz);
+      // Stepped Art Deco twin vertical legs (wider at base, stepping inward as they climb)
+      const tiers = [
+        { y0: 10, y1: 72, w: 6.8, d: 11.5 },
+        { y0: 72, y1: 128, w: 5.8, d: 9.8 },
+        { y0: 128, y1: 180, w: 4.9, d: 8.2 },
+        { y0: 180, y1: towerTopY, w: 4.1, d: 6.8 }
+      ];
+      for (const side of [-1, 1]) {
+        for (const t of tiers) {
+          const h = t.y1 - t.y0;
+          addPart(new THREE.BoxGeometry(t.w, h, t.d), bridgeOrangeMat, side * legHalfX, t.y0 + h * 0.5, tz);
+        }
+        // Top cable saddle cap + aviation beacon
+        addPart(new THREE.BoxGeometry(5.2, 4.2, 7.8), bridgeOrangeMat, side * legHalfX, towerTopY + 1.5, tz);
+        addPart(new THREE.SphereGeometry(1.5, 8, 6), beaconMat, side * legHalfX, towerTopY + 5.2, tz);
+      }
+      // 4 Horizontal Art Deco Cross-Struts above deck (forming the 3 unmistakable open sky portals!)
+      for (const [sy, sh, sd] of [[104, 7.5, 7.2], [142, 7.0, 6.4], [178, 6.5, 5.6], [214, 7.2, 5.2]]) {
+        addPart(new THREE.BoxGeometry(legHalfX * 2 - 3.6, sh, sd), bridgeOrangeMat, 0, sy, tz);
+      }
+      // Under-deck horizontal cross-struts
+      for (const sy of [24, 46, 60]) {
+        addPart(new THREE.BoxGeometry(legHalfX * 2 - 4, 4.2, 6.2), bridgeOrangeMat, 0, sy, tz);
+      }
+    }
+
+    // 3. Sweeping Catenary Main Suspension Cables + Instanced Vertical Suspender Cables
+    const catenaryY = z => {
+      const az = Math.abs(z);
+      if (az <= halfMain) {
+        const u = z / halfMain;
+        return deckY + 6 + (towerTopY - deckY - 6) * u * u;
+      }
+      const u = Math.min(1, (az - halfMain) / (halfTotal - halfMain));
+      return towerTopY - (towerTopY - deckY - 12) * Math.pow(u, 1.38);
+    };
+    const cablePts = [];
+    for (let z = -halfTotal; z <= halfTotal; z += 30) cablePts.push([z, catenaryY(z)]);
+    const segDummy = new THREE.Object3D();
+    const suspenderMatrices = [];
+    const mainSegMatrices = [];
+    const upVec = new THREE.Vector3(0, 1, 0);
+    const vA = new THREE.Vector3(), vB = new THREE.Vector3(), dir = new THREE.Vector3();
+
+    for (const side of [-1, 1]) {
+      const cxOff = side * legHalfX;
+      for (let i = 0; i < cablePts.length - 1; i++) {
+        vA.set(cxOff, cablePts[i][1], cablePts[i][0]);
+        vB.set(cxOff, cablePts[i + 1][1], cablePts[i + 1][0]);
+        dir.subVectors(vB, vA);
+        const len = dir.length();
+        segDummy.position.copy(vA).addScaledVector(dir, 0.5);
+        segDummy.quaternion.setFromUnitVectors(upVec, dir.clone().normalize());
+        segDummy.scale.set(1.05, len + 0.4, 1.05);
+        segDummy.updateMatrix();
+        mainSegMatrices.push(segDummy.matrix.clone());
+      }
+      // Vertical suspender cables every 26m
+      for (let z = -halfTotal + 36; z <= halfTotal - 36; z += 26) {
+        if (Math.abs(Math.abs(z) - halfMain) < 18) continue;
+        const topY = catenaryY(z);
+        const h = Math.max(2, topY - deckY);
+        segDummy.position.set(cxOff, deckY + h * 0.5, z);
+        segDummy.quaternion.identity();
+        segDummy.scale.set(0.24, h, 0.24);
+        segDummy.updateMatrix();
+        suspenderMatrices.push(segDummy.matrix.clone());
+      }
+    }
+    if (mainSegMatrices.length) {
+      const mainCableInst = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.55, 0.55, 1, 8), bridgeCableMat, mainSegMatrices.length);
+      mainSegMatrices.forEach((mat, i) => mainCableInst.setMatrixAt(i, mat));
+      g.add(mainCableInst);
+    }
+    if (suspenderMatrices.length) {
+      const suspInst = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 6), steelArchMat, suspenderMatrices.length);
+      suspenderMatrices.forEach((mat, i) => suspInst.setMatrixAt(i, mat));
+      g.add(suspInst);
+    }
+    // Concrete shore anchorages + deck streetlights
+    for (const az of [-halfTotal, halfTotal]) {
+      addPart(new THREE.BoxGeometry(38, 76, 36), roofMat, 0, 38, az);
+    }
+    const lampPts = [];
+    for (let z = -halfTotal + 60; z <= halfTotal - 60; z += 75) {
+      for (const side of [-1, 1]) lampPts.push({ x: side * (deckW * 0.47), y: deckY + 7.5, z });
+    }
+    const lampInst = new THREE.InstancedMesh(new THREE.SphereGeometry(0.95, 6, 5), lampMat, lampPts.length);
+    lampPts.forEach((lp, i) => {
+      segDummy.position.set(lp.x, lp.y, lp.z);
+      segDummy.quaternion.identity();
+      segDummy.scale.set(1, 1, 1);
+      segDummy.updateMatrix();
+      lampInst.setMatrixAt(i, segDummy.matrix);
+    });
+    g.add(lampInst);
+    return g;
+  }
+
+  const realLandmarksBuilt = new Set();
+  function buildRealLandmarkAtGPS(lm) {
+    if (lm.type === 'pin_only' || typeof geoPoint !== 'function') return null;
+    const pt = geoPoint(lm.lat, lm.lon);
+    if (!pt) return null;
+    const cx = pt.x, cz = pt.z;
+    if (lm.type === 'golden_gate') return buildGoldenGateBridge(cx, cz);
+    const gy = Math.max(0.5, ground(cx, cz));
+    const g = new THREE.Group();
+    g.name = 'RealLandmark_' + lm.id;
+    const beacons = [];
+    const addBox = (mat, w, h, d, x, y, z, ry = 0) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      m.position.set(x, y, z); if (ry) m.rotation.y = ry;
+      m.castShadow = m.receiveShadow = true; g.add(m); return m;
+    };
+    const addCyl = (mat, rt, rb, h, segs, x, y, z, ry = 0) => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, segs), mat);
+      m.position.set(x, y, z); if (ry) m.rotation.y = ry;
+      m.castShadow = m.receiveShadow = true; g.add(m); return m;
+    };
+
+    if (lm.type === 'burj') {
+      const tiers = [[46, 95], [36, 195], [27, 295], [20, 390], [14, 475], [8, 550], [2.4, 620]];
+      let prev = 0;
+      for (const [r, top] of tiers) {
+        addCyl(landmarkGlassMat, r * 0.78, r, top - prev, 9, cx, gy + prev + (top - prev) * 0.5 - 1, cz);
+        prev = top;
+      }
+      beacons.push({ x: cx, y: gy + 622, z: cz });
+    } else if (lm.type === 'eiffel' || lm.type === 'tokyo_tower') {
+      const mat = lm.type === 'tokyo_tower' ? bridgeOrangeMat : monumentGoldMat;
+      // 4 angled lattice corner legs meeting at 1st & 2nd decks
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        const leg = addBox(mat, 9.5, 92, 9.5, cx + sx * 24, gy + 44, cz + sz * 24);
+        leg.rotation.z = sx * 0.24; leg.rotation.x = -sz * 0.24;
+      }
+      addBox(mat, 66, 7, 66, cx, gy + 84, cz);
+      addCyl(mat, 14, 24, 72, 4, cx, gy + 123, cz, Math.PI / 4);
+      addBox(lm.type === 'tokyo_tower' ? whiteShellMat : mat, 36, 6, 36, cx, gy + 160, cz);
+      addCyl(mat, 4.2, 13, 130, 4, cx, gy + 226, cz, Math.PI / 4);
+      addCyl(whiteShellMat, 0.9, 3.0, 42, 8, cx, gy + 310, cz);
+      beacons.push({ x: cx, y: gy + 333, z: cz });
+    } else if (lm.type === 'skytree') {
+      addCyl(whiteShellMat, 16, 34, 290, 3, cx, gy + 145, cz);
+      addCyl(landmarkGlassMat, 26, 22, 24, 24, cx, gy + 298, cz);
+      addCyl(whiteShellMat, 10, 15, 110, 12, cx, gy + 365, cz);
+      addCyl(landmarkGlassMat, 17, 16, 16, 20, cx, gy + 422, cz);
+      addCyl(whiteShellMat, 1.2, 6.5, 115, 10, cx, gy + 485, cz);
+      beacons.push({ x: cx, y: gy + 544, z: cz });
+    } else if (lm.type === 'mbs') {
+      for (const ox of [-58, 0, 58]) {
+        const tw = addBox(landmarkGlassMat, 26, 194, 42, cx + ox, gy + 96, cz);
+        tw.rotation.z = 0.06;
+      }
+      addBox(monumentGoldMat, 210, 12, 46, cx + 14, gy + 198, cz);
+      beacons.push({ x: cx + 115, y: gy + 206, z: cz }, { x: cx - 88, y: gy + 206, z: cz });
+    } else if (lm.type === 'petronas') {
+      for (const ox of [-42, 42]) {
+        addCyl(landmarkGlassMat, 20, 24, 340, 16, cx + ox, gy + 170, cz);
+        addCyl(whiteShellMat, 10, 19, 55, 16, cx + ox, gy + 365, cz);
+        addCyl(monumentGoldMat, 1.2, 4.5, 62, 10, cx + ox, gy + 422, cz);
+        beacons.push({ x: cx + ox, y: gy + 455, z: cz });
+      }
+      addBox(whiteShellMat, 62, 10, 12, cx, gy + 172, cz);
+    } else if (lm.type === 'lotte') {
+      addCyl(landmarkGlassMat, 9, 34, 520, 16, cx, gy + 260, cz);
+      beacons.push({ x: cx, y: gy + 523, z: cz });
+    } else if (lm.type === 'opera_house') {
+      addBox(roofMat, 150, 12, 110, cx, gy + 5, cz);
+      for (const [ox, oz, s] of [[-38, -14, 1.0], [-14, -8, 1.18], [16, -2, 0.95], [40, 10, 0.78], [-22, 24, 0.85], [14, 28, 0.72]]) {
+        const sail = new THREE.Mesh(new THREE.ConeGeometry(22 * s, 54 * s, 6), whiteShellMat);
+        sail.position.set(cx + ox, gy + 10 + 24 * s, cz + oz);
+        sail.rotation.z = -0.26; sail.scale.set(0.72, 1.0, 1.28);
+        sail.castShadow = true; g.add(sail);
+      }
+    } else if (lm.type === 'harbour_bridge') {
+      const deckY = 54;
+      addBox(bridgeDeckMat, 36, 3.5, 580, cx, deckY, cz);
+      for (const az of [-250, 250]) {
+        for (const sx of [-1, 1]) addBox(roofMat, 16, 89, 26, cx + sx * 22, 44, cz + az);
+      }
+      for (let i = -10; i <= 10; i++) {
+        const z = i * 24, u = z / 250;
+        const archY = 132 - 78 * u * u;
+        for (const sx of [-1, 1]) {
+          addBox(steelArchMat, 4.5, 9, 26, cx + sx * 19, archY, cz + z);
+          if (archY > deckY + 6) addBox(steelArchMat, 1.2, archY - deckY, 1.2, cx + sx * 19, (archY + deckY) * 0.5, cz + z);
+        }
+      }
+    } else if (lm.type === 'tower_bridge') {
+      addBox(bridgeDeckMat, 22, 3, 240, cx, 16, cz);
+      for (const tz of [-52, 52]) {
+        addBox(bldgWallMat, 24, 65, 18, cx, 32, cz + tz);
+        addCyl(monumentGoldMat, 1, 8, 18, 4, cx, 72, cz + tz, Math.PI / 4);
+      }
+      addBox(landmarkGlassMat, 16, 6, 104, cx, 46, cz);
+    } else if (lm.type === 'owtc') {
+      addBox(landmarkGlassMat, 46, 417, 46, cx, gy + 208, cz, Math.PI / 8);
+      addCyl(whiteShellMat, 1.2, 4.8, 124, 12, cx, gy + 478, cz);
+      beacons.push({ x: cx, y: gy + 543, z: cz });
+    } else if (lm.type === 'empire') {
+      addBox(bldgWallMat, 52, 265, 36, cx, gy + 132, cz);
+      addBox(bldgWallMat, 34, 88, 24, cx, gy + 308, cz);
+      addCyl(whiteShellMat, 1.1, 6, 90, 12, cx, gy + 397, cz);
+      beacons.push({ x: cx, y: gy + 444, z: cz });
+    } else if (lm.type === 'liberty') {
+      addBox(roofMat, 34, 46, 34, cx, gy + 23, cz);
+      addCyl(copperGreenMat, 5, 9, 34, 12, cx, gy + 63, cz);
+      addCyl(monumentGoldMat, 2.2, 1.5, 14, 10, cx + 5, gy + 86, cz);
+    } else if (lm.type === 'shard') {
+      addCyl(landmarkGlassMat, 3.2, 35, 310, 4, cx, gy + 154, cz, Math.PI / 4);
+      beacons.push({ x: cx, y: gy + 312, z: cz });
+    } else if (lm.type === 'clock_tower') {
+      addBox(monumentGoldMat, 14, 72, 14, cx, gy + 36, cz);
+      addCyl(steelArchMat, 1.2, 10, 26, 4, cx, gy + 85, cz, Math.PI / 4);
+    } else if (lm.type === 'pyramid_tower') {
+      addCyl(whiteShellMat, 2.8, 34, 260, 4, cx, gy + 130, cz, Math.PI / 4);
+      beacons.push({ x: cx, y: gy + 262, z: cz });
+    } else if (lm.type === 'glass_obelisk') {
+      addCyl(landmarkGlassMat, 18, 28, lm.h, 16, cx, gy + lm.h * 0.5, cz);
+      beacons.push({ x: cx, y: gy + lm.h + 2, z: cz });
+    } else if (lm.type === 'needle') {
+      const h = lm.h || 350;
+      addCyl(bldgWallMat, 7, 22, h * 0.72, 16, cx, gy + h * 0.36 - 1, cz);
+      addCyl(monumentGoldMat, 26, 22, 18, 20, cx, gy + h * 0.68, cz);
+      addCyl(landmarkGlassMat, 28, 28, 12, 20, cx, gy + h * 0.72, cz);
+      addCyl(monumentGoldMat, 1.0, 5.0, h * 0.28, 10, cx, gy + h * 0.86, cz);
+      beacons.push({ x: cx, y: gy + h + 2, z: cz });
+    } else if (lm.type === 'pyramids') {
+      addCyl(monumentGoldMat, 2, 115, 146, 4, cx, gy + 72, cz, Math.PI / 4);
+      addCyl(monumentGoldMat, 2, 105, 136, 4, cx - 280, gy + 67, cz + 220, Math.PI / 4);
+      addCyl(monumentGoldMat, 2, 58, 68, 4, cx - 510, gy + 33, cz + 420, Math.PI / 4);
+    } else if (lm.type === 'colosseum') {
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(86, 88, 46, 28, 1, true), bldgWallMat);
+      ring.material = bldgWallMat.clone(); ring.material.side = THREE.DoubleSide;
+      ring.position.set(cx, gy + 23, cz); ring.scale.set(1.18, 1, 0.96); g.add(ring);
+    } else if (lm.type === 'christ') {
+      addBox(roofMat, 12, 10, 12, cx, gy + 5, cz);
+      addCyl(whiteShellMat, 3.2, 4.5, 30, 10, cx, gy + 25, cz);
+      addBox(whiteShellMat, 28, 4, 4, cx, gy + 32, cz);
+    }
+    if (beacons.length) {
+      const dummy = new THREE.Object3D();
+      const bInst = new THREE.InstancedMesh(new THREE.SphereGeometry(1.4, 8, 6), beaconMat, beacons.length);
+      beacons.forEach((b, idx) => {
+        dummy.position.set(b.x, b.y, b.z);
+        dummy.updateMatrix();
+        bInst.setMatrixAt(idx, dummy.matrix);
+      });
+      g.add(bInst);
+    }
+    return g;
+  }
+
+  function ensureRealGPSLandmarks(px, pz) {
+    if (typeof geoPoint !== 'function') return;
+    for (let i = 0; i < REAL_WORLD_LANDMARKS.length; i++) {
+      const lm = REAL_WORLD_LANDMARKS[i];
+      if (realLandmarksBuilt.has(lm.id)) continue;
+      const pt = geoPoint(lm.lat, lm.lon);
+      if (!pt) continue;
+      if (Math.hypot(px - pt.x, pz - pt.z) > 42000) continue;
+      realLandmarksBuilt.add(lm.id);
+      const grp = buildRealLandmarkAtGPS(lm);
+      if (grp) root.add(grp);
+    }
+  }
+
+  // Live OpenStreetMap Real Building Footprint Streamer (non-blocking Overpass API enhancement outside pre-baked cities)
+  const liveOsmCells = new Map();
+  let liveOsmBusy = false;
+  let lastOsmCheck = 0;
+  function streamLiveOsmBuildings(px, pz) {
+    if (typeof fetch !== 'function' || typeof window === 'undefined' || typeof latLon !== 'function' || typeof geoPoint !== 'function') return;
+    const now = performance.now ? performance.now() : Date.now();
+    if (liveOsmBusy || now - lastOsmCheck < 3500) return;
+    const { lat, lon } = latLon(px, pz);
+    if (insideTaiwanDetailed(lat, lon)) return;
+    // Only query near populated hubs/airports/landmarks within 24km so open wilderness stays instant
+    const nearHub = nearestHubInfo(px, pz).dist < 24000;
+    if (!nearHub) return;
+    const step = 0.015;
+    const clat = Math.floor(lat / step) * step;
+    const clon = Math.floor(lon / step) * step;
+    const cellKey = clat.toFixed(3) + ',' + clon.toFixed(3);
+    if (liveOsmCells.has(cellKey)) return;
+    liveOsmCells.set(cellKey, 'loading');
+    liveOsmBusy = true;
+    lastOsmCheck = now;
+
+    const bbox = `${clat.toFixed(4)},${clon.toFixed(4)},${(clat + step).toFixed(4)},${(clon + step).toFixed(4)}`;
+    const query = `[out:json][timeout:6];way["building"](${bbox});out body 220;>;out skel qt;`;
+    fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'data=' + encodeURIComponent(query)
+    }).then(r => (r.ok ? r.json() : null)).then(data => {
+      liveOsmBusy = false;
+      if (!data || !Array.isArray(data.elements)) { liveOsmCells.set(cellKey, 'empty'); return; }
+      const nodes = new Map();
+      const ways = [];
+      for (const el of data.elements) {
+        if (el.type === 'node') nodes.set(el.id, [el.lat, el.lon]);
+        else if (el.type === 'way' && Array.isArray(el.nodes) && el.nodes.length >= 4) ways.push(el);
+      }
+      if (!ways.length) { liveOsmCells.set(cellKey, 'empty'); return; }
+      const dummy = new THREE.Object3D();
+      const boxes = [];
+      for (const w of ways) {
+        if (boxes.length >= 220) break;
+        let minX = 1e12, maxX = -1e12, minZ = 1e12, maxZ = -1e12, valid = 0;
+        for (const nid of w.nodes) {
+          const nd = nodes.get(nid);
+          if (!nd) continue;
+          const p = geoPoint(nd[0], nd[1]);
+          if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+          if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
+          valid++;
+        }
+        if (valid < 3) continue;
+        const bw = Math.min(140, Math.max(8, maxX - minX));
+        const bd = Math.min(140, Math.max(8, maxZ - minZ));
+        const bx = (minX + maxX) * 0.5, bz = (minZ + maxZ) * 0.5;
+        if (inAirportClearance(bx, bz, 150)) continue;
+        const gy = ground(bx, bz);
+        if (gy < 0.6) continue;
+        const tags = w.tags || {};
+        const parsedH = parseFloat(tags.height) || (parseFloat(tags['building:levels']) ? parseFloat(tags['building:levels']) * 3.6 : 0);
+        const bh = parsedH > 3 ? Math.min(340, parsedH) : (bw * bd > 1200 ? 22 : 12);
+        boxes.push({ x: bx, y: gy + bh * 0.5 - 1, z: bz, w: bw, h: bh, d: bd, glass: bh > 42 });
+      }
+      if (!boxes.length) { liveOsmCells.set(cellKey, 'empty'); return; }
+      const g = new THREE.Group();
+      g.name = 'LiveOSM_' + cellKey;
+      const tall = boxes.filter(b => b.glass);
+      const low = boxes.filter(b => !b.glass);
+      if (low.length) {
+        const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), [bldgWallMat, bldgWallMat, roofMat, roofMat, bldgWallMat, bldgWallMat], low.length);
+        low.forEach((b, i) => {
+          dummy.position.set(b.x, b.y, b.z); dummy.scale.set(b.w, b.h, b.d); dummy.updateMatrix();
+          inst.setMatrixAt(i, dummy.matrix);
+        });
+        inst.castShadow = inst.receiveShadow = true;
+        g.add(inst);
+      }
+      if (tall.length) {
+        const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), [landmarkGlassMat, landmarkGlassMat, roofMat, roofMat, landmarkGlassMat, landmarkGlassMat], tall.length);
+        tall.forEach((b, i) => {
+          dummy.position.set(b.x, b.y, b.z); dummy.scale.set(b.w, b.h, b.d); dummy.updateMatrix();
+          inst.setMatrixAt(i, dummy.matrix);
+        });
+        inst.castShadow = inst.receiveShadow = true;
+        g.add(inst);
+      }
+      root.add(g);
+      liveOsmCells.set(cellKey, g);
+    }).catch(() => {
+      liveOsmBusy = false;
+      liveOsmCells.set(cellKey, 'error');
+    });
+  }
+
   // Bespoke 3D Iconic World Landmarks + 40-Tower Metropolitan CBD Skylines
   function buildBespokeLandmark(g, code, cx, gy, cz, beacons) {
     const addBox = (mat, w, h, d, x, y, z) => {
@@ -788,6 +1263,8 @@ function createGlobalScenery(scene, ground, airports = []) {
     landmarkGlassMat.emissiveIntensity = 0.10 + nightAmt * 0.90;
     monumentGoldMat.emissiveIntensity = 0.14 + nightAmt * 0.75;
     ensureHubSkyline(px, pz);
+    ensureRealGPSLandmarks(px, pz);
+    if (quality === 'ultra' || quality === 'high' || quality === 'balanced') streamLiveOsmBuildings(px, pz);
 
     const cx = Math.floor(px / TILE), cz = Math.floor(pz / TILE);
     const rad = quality === 'ultra' || quality === 'high' ? 4 : 3;
@@ -819,8 +1296,30 @@ function createGlobalScenery(scene, ground, airports = []) {
     }
   }
 
-  return { root, update };
+  return { root, update, getLandmarks: () => REAL_WORLD_LANDMARKS };
 }
-const GlobalScenery = { createGlobalScenery };
+const GlobalScenery = { createGlobalScenery, getLandmarks: () => [
+  { id: 'golden_gate', name: '金門大橋', lat: 37.8199, lon: -122.4783 },
+  { id: 'nyc_owtc', name: '世貿一號樓', lat: 40.7127, lon: -74.0134 },
+  { id: 'nyc_empire', name: '帝國大廈', lat: 40.7484, lon: -73.9857 },
+  { id: 'nyc_liberty', name: '自由女神', lat: 40.6892, lon: -74.0445 },
+  { id: 'paris_eiffel', name: '艾菲爾鐵塔', lat: 48.8584, lon: 2.2945 },
+  { id: 'london_shard', name: '碎片大廈', lat: 51.5045, lon: -0.0865 },
+  { id: 'london_bigben', name: '大笨鐘', lat: 51.5007, lon: -0.1246 },
+  { id: 'dubai_burj', name: '哈里發塔', lat: 25.1972, lon: 55.2744 },
+  { id: 'tokyo_skytree', name: '東京晴空塔', lat: 35.7101, lon: 139.8107 },
+  { id: 'tokyo_tower', name: '東京鐵塔', lat: 35.6586, lon: 139.7454 },
+  { id: 'sg_mbs', name: '金沙酒店', lat: 1.2834, lon: 103.8607 },
+  { id: 'kl_petronas', name: '雙峰塔', lat: 3.1579, lon: 101.7116 },
+  { id: 'seoul_lotte', name: '樂天世界塔', lat: 37.5125, lon: 127.1025 },
+  { id: 'shanghai_pearl', name: '東方明珠', lat: 31.2397, lon: 121.4998 },
+  { id: 'hk_icc', name: '環球貿易廣場', lat: 22.3034, lon: 114.1602 },
+  { id: 'sydney_opera', name: '雪梨歌劇院', lat: -33.8568, lon: 151.2153 },
+  { id: 'cairo_giza', name: '吉薩金字塔', lat: 29.9792, lon: 31.1342 },
+  { id: 'toronto_cn', name: 'CN 塔', lat: 43.6426, lon: -79.3871 },
+  { id: 'seattle_needle', name: '太空針塔', lat: 47.6205, lon: -122.3493 },
+  { id: 'rome_colosseum', name: '羅馬競技場', lat: 41.8902, lon: 12.4922 },
+  { id: 'taipei_101', name: '台北 101', lat: 25.0339, lon: 121.5645 }
+] };
 if (typeof window !== 'undefined') window.GlobalScenery = GlobalScenery;
 if (typeof globalThis !== 'undefined') Object.assign(globalThis, { createGlobalScenery, GlobalScenery });

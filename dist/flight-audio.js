@@ -1,11 +1,12 @@
 'use strict';
 function makeFlightAudio(){
-  let context, master, noiseBuffer;
-  let fan, fanHarmonic, core, whine, subBass, tailRotor, stall;
-  let roar, abRoar, air;
-  let roarFilter, abFilter, windFilter, buzzFilter;
+  let context, master, compressor, noiseBuffer, pinkNoiseBuffer;
+  let fan, fanDetune, fanHarmonic, core, whine, n2Whine, subBass, tailRotor, stall;
+  let roar, jetWash, abRoar, air, groundRoll;
+  let roarFilter, washFilter, abFilter, windFilter, buzzFilter, rollFilter;
   let rotorPulse, rotorDepth, syncLfo, syncDepth;
-  let level=.85, speaking=false, wasAfterburner=false, currentProfileId='';
+  let level=.85, speaking=false, wasAfterburner=false, wasSupersonic=false, wasRunning=0, currentProfileId='';
+  let spoolN1=0, lastUpdateTime=0;
 
   const ACOUSTIC_PROFILES={
     // 1. Lycoming IO-360 4-Cylinder Boxer Piston Prop (Cessna 172S)
@@ -233,6 +234,59 @@ function makeFlightAudio(){
       subRatio:0.5, subGain:0.150,
       roarBaseHz:460, roarRangeHz:1320, roarGain:0.52,
       buzzCenterHz:610, buzzQ:2.9
+    },
+    // 8. Twin-Engine Navy/Stealth Fighters (F/A-18C F404, F-14B F110, F-22 F119, F-35 F135, Su-57)
+    fa18c:{
+      kind:'fighter',
+      baseHz:128, rangeHz:295,
+      harmonicRatio:1.85, harmonicType:'sawtooth', harmonicGain:0.098,
+      coreRatio:2.92, coreGain:0.064,
+      whineHz:1540, whineGain:0.042,
+      subRatio:0.5, subGain:0.145,
+      roarBaseHz:490, roarRangeHz:1480, roarGain:0.54,
+      buzzCenterHz:670, buzzQ:3.0
+    },
+    f14b:{
+      kind:'fighter',
+      baseHz:112, rangeHz:255,
+      harmonicRatio:1.72, harmonicType:'sawtooth', harmonicGain:0.102,
+      coreRatio:2.60, coreGain:0.060,
+      whineHz:1240, whineGain:0.034,
+      subRatio:0.5, subGain:0.165,
+      roarBaseHz:430, roarRangeHz:1360, roarGain:0.56,
+      buzzCenterHz:570, buzzQ:2.8
+    },
+    f22:{
+      kind:'fighter',
+      baseHz:122, rangeHz:290,
+      harmonicRatio:1.82, harmonicType:'sawtooth', harmonicGain:0.095,
+      coreRatio:2.88, coreGain:0.062,
+      whineHz:1460, whineGain:0.038,
+      subRatio:0.5, subGain:0.160,
+      roarBaseHz:470, roarRangeHz:1500, roarGain:0.55,
+      buzzCenterHz:640, buzzQ:3.1
+    },
+    // 9. Modern Composite Widebodies & Turboprops (A350 Trent XWB, 787 GEnx, ATR/C-130 Turboprop)
+    a359:{
+      kind:'widebody',
+      baseHz:74, rangeHz:158,
+      harmonicRatio:1.5, harmonicType:'sawtooth', harmonicGain:0.088,
+      coreRatio:2.22, coreGain:0.042,
+      whineHz:940, whineGain:0.018,
+      subRatio:0.5, subGain:0.138,
+      roarBaseHz:305, roarRangeHz:790, roarGain:0.43,
+      buzzCenterHz:355, buzzQ:3.9
+    },
+    turboprop:{
+      kind:'turboprop',
+      baseHz:46, rangeHz:84,
+      harmonicRatio:2.0, harmonicType:'sawtooth', harmonicGain:0.088,
+      coreRatio:3.4, coreGain:0.036,
+      whineHz:1860, whineGain:0.034,
+      subRatio:0.5, subGain:0.120,
+      pulseRateBase:19, pulseRateRange:28, pulseDepth:0.068,
+      roarBaseHz:250, roarRangeHz:580, roarGain:0.24,
+      buzzCenterHz:240, buzzQ:2.5
     }
   };
 
@@ -240,9 +294,12 @@ function makeFlightAudio(){
     const id=f?.aircraft?.id||'c172s';
     if(ACOUSTIC_PROFILES[id]) return ACOUSTIC_PROFILES[id];
     if(f?.aircraft?.helicopter) return ACOUSTIC_PROFILES.uh60;
-    if(f?.aircraft?.role==='fighter') return ACOUSTIC_PROFILES.f16v;
-    if(f?.aircraft?.role==='cargo') return ACOUSTIC_PROFILES.sf748;
+    if(f?.aircraft?.role==='fighter') return (f?.aircraft?.geometry?.[4]===2)?ACOUSTIC_PROFILES.fa18c:ACOUSTIC_PROFILES.f16v;
+    if(f?.aircraft?.role==='cargo') return (f?.aircraft?.jet===false)?ACOUSTIC_PROFILES.turboprop:ACOUSTIC_PROFILES.sf748;
+    if(f?.aircraft?.jet&&(f?.aircraft?.geometry?.[4]===4)) return ACOUSTIC_PROFILES.b744;
+    if(f?.aircraft?.jet&&(f?.aircraft?.geometry?.[1]||0)>2.2) return ACOUSTIC_PROFILES.b773;
     if(f?.aircraft?.jet) return ACOUSTIC_PROFILES.a320neo;
+    if((f?.aircraft?.geometry?.[4]||1)>=2) return ACOUSTIC_PROFILES.turboprop;
     return ACOUSTIC_PROFILES.c172s;
   }
 
@@ -265,24 +322,63 @@ function makeFlightAudio(){
     const now=context.currentTime;
     const thump=context.createOscillator(),tGain=context.createGain();
     thump.type='sine';
-    thump.frequency.setValueAtTime(125,now);
-    thump.frequency.exponentialRampToValueAtTime(34,now+0.28);
-    tGain.gain.setValueAtTime(Math.min(0.65,0.48*level),now);
-    tGain.gain.exponentialRampToValueAtTime(0.0001,now+0.32);
+    thump.frequency.setValueAtTime(128,now);
+    thump.frequency.exponentialRampToValueAtTime(32,now+0.30);
+    tGain.gain.setValueAtTime(Math.min(0.72,0.54*level),now);
+    tGain.gain.exponentialRampToValueAtTime(0.0001,now+0.36);
     thump.connect(tGain).connect(master);
-    thump.start(now);thump.stop(now+0.34);
-    if(noiseBuffer){
+    thump.start(now);thump.stop(now+0.38);
+    if(pinkNoiseBuffer||noiseBuffer){
       const whoosh=context.createBufferSource(),wFilter=context.createBiquadFilter(),wGain=context.createGain();
-      whoosh.buffer=noiseBuffer;
+      whoosh.buffer=pinkNoiseBuffer||noiseBuffer;
       wFilter.type='bandpass';
-      wFilter.frequency.setValueAtTime(920,now);
-      wFilter.frequency.exponentialRampToValueAtTime(360,now+0.35);
-      wFilter.Q.value=1.1;
-      wGain.gain.setValueAtTime(Math.min(0.55,0.38*level),now);
-      wGain.gain.exponentialRampToValueAtTime(0.0001,now+0.38);
+      wFilter.frequency.setValueAtTime(980,now);
+      wFilter.frequency.exponentialRampToValueAtTime(320,now+0.38);
+      wFilter.Q.value=1.0;
+      wGain.gain.setValueAtTime(Math.min(0.62,0.44*level),now);
+      wGain.gain.exponentialRampToValueAtTime(0.0001,now+0.42);
       whoosh.connect(wFilter).connect(wGain).connect(master);
-      whoosh.start(now);whoosh.stop(now+0.40);
+      whoosh.start(now);whoosh.stop(now+0.44);
     }
+  }
+  function triggerSonicBoom(){
+    if(!context||context.state!=='running') return;
+    const now=context.currentTime;
+    // Double N-wave pressure shock thump + crack
+    for(const offset of [0, 0.085]){
+      const boom=context.createOscillator(),bGain=context.createGain();
+      boom.type='sine';
+      boom.frequency.setValueAtTime(110,now+offset);
+      boom.frequency.exponentialRampToValueAtTime(24,now+offset+0.42);
+      bGain.gain.setValueAtTime(Math.min(0.85,0.68*level),now+offset);
+      bGain.gain.exponentialRampToValueAtTime(0.0001,now+offset+0.48);
+      boom.connect(bGain).connect(master);
+      boom.start(now+offset);boom.stop(now+offset+0.50);
+    }
+    if(pinkNoiseBuffer||noiseBuffer){
+      const crack=context.createBufferSource(),cFilt=context.createBiquadFilter(),cGain=context.createGain();
+      crack.buffer=pinkNoiseBuffer||noiseBuffer;
+      cFilt.type='lowpass';
+      cFilt.frequency.setValueAtTime(1900,now);
+      cFilt.frequency.exponentialRampToValueAtTime(110,now+0.55);
+      cGain.gain.setValueAtTime(Math.min(0.75,0.58*level),now);
+      cGain.gain.exponentialRampToValueAtTime(0.0001,now+0.60);
+      crack.connect(cFilt).connect(cGain).connect(master);
+      crack.start(now);crack.stop(now+0.62);
+    }
+  }
+  function triggerEngineStart(isJet){
+    if(!context||context.state!=='running') return;
+    const now=context.currentTime;
+    const spool=context.createOscillator(),sGain=context.createGain();
+    spool.type=isJet?'sine':'sawtooth';
+    spool.frequency.setValueAtTime(isJet?180:42,now);
+    spool.frequency.exponentialRampToValueAtTime(isJet?1420:108,now+(isJet?1.6:0.7));
+    sGain.gain.setValueAtTime(0.001,now);
+    sGain.gain.linearRampToValueAtTime(Math.min(0.18,0.12*level),now+(isJet?0.75:0.25));
+    sGain.gain.exponentialRampToValueAtTime(0.0001,now+(isJet?1.85:0.85));
+    spool.connect(sGain).connect(master);
+    spool.start(now);spool.stop(now+(isJet?1.9:0.9));
   }
   function start(){
     if(!context){
@@ -291,7 +387,17 @@ function makeFlightAudio(){
       try{context=new Audio();}catch{return false;}
       master=context.createGain();
       master.gain.value=level;
-      master.connect(context.destination);
+      if(typeof context.createDynamicsCompressor==='function'){
+        compressor=context.createDynamicsCompressor();
+        compressor.threshold.value=-14;
+        compressor.knee.value=18;
+        compressor.ratio.value=4.5;
+        compressor.attack.value=0.004;
+        compressor.release.value=0.16;
+        master.connect(compressor).connect(context.destination);
+      }else{
+        master.connect(context.destination);
+      }
 
       buzzFilter=context.createBiquadFilter();
       buzzFilter.type='bandpass';
@@ -299,9 +405,11 @@ function makeFlightAudio(){
       buzzFilter.Q.value=3.0;
 
       fan=tone('triangle');
+      fanDetune=tone('triangle');
       fanHarmonic=tone('sawtooth',buzzFilter);
       core=tone('sine');
       whine=tone('sine');
+      n2Whine=tone('sine');
       subBass=tone('sine');
       tailRotor=tone('sawtooth');
 
@@ -322,31 +430,62 @@ function makeFlightAudio(){
       stall=tone('triangle');
       stall.frequency.value=830;
 
-      const buffer=context.createBuffer(1,context.sampleRate*2,context.sampleRate);
+      const len=context.sampleRate*2;
+      const buffer=context.createBuffer(1,len,context.sampleRate);
       noiseBuffer=buffer;
       const sample=buffer.getChannelData(0);
-      for(let i=0;i<sample.length;i++) sample[i]=Math.random()*2-1;
-      function noise(filter,offset){
+      for(let i=0;i<len;i++) sample[i]=Math.random()*2-1;
+
+      // Paul Kellet warm pink-weighted noise for visceral deep jet exhaust & afterburner roar
+      const pBuf=context.createBuffer(1,len,context.sampleRate);
+      pinkNoiseBuffer=pBuf;
+      const ps=pBuf.getChannelData(0);
+      let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+      for(let i=0;i<len;i++){
+        const w=sample[i];
+        b0=0.99886*b0+w*0.0555179;
+        b1=0.99332*b1+w*0.0750759;
+        b2=0.96900*b2+w*0.1538520;
+        b3=0.86650*b3+w*0.3104856;
+        b4=0.55000*b4+w*0.5329522;
+        b5=-0.7616*b5-w*0.0168980;
+        ps[i]=Math.max(-1,Math.min(1,(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.14));
+        b6=w*0.115926;
+      }
+
+      function noise(buf,filter,offset){
         const source=context.createBufferSource();
-        source.buffer=buffer;source.loop=true;
+        source.buffer=buf;source.loop=true;
         source.loopStart=offset;
         return layer(source,filter);
       }
       roarFilter=context.createBiquadFilter();
       roarFilter.type='lowpass';
-      roarFilter.Q.value=.75;
-      roar=noise(roarFilter,0);
+      roarFilter.Q.value=.85;
+      roar=noise(pinkNoiseBuffer,roarFilter,0);
+
+      washFilter=context.createBiquadFilter();
+      washFilter.type='bandpass';
+      washFilter.frequency.value=180;
+      washFilter.Q.value=.75;
+      jetWash=noise(pinkNoiseBuffer,washFilter,.41);
 
       abFilter=context.createBiquadFilter();
       abFilter.type='bandpass';
       abFilter.frequency.value=640;
-      abFilter.Q.value=.85;
-      abRoar=noise(abFilter,.19);
+      abFilter.Q.value=.80;
+      abRoar=noise(pinkNoiseBuffer,abFilter,.19);
 
       windFilter=context.createBiquadFilter();
       windFilter.type='bandpass';
       windFilter.Q.value=.65;
-      air=noise(windFilter,.37);
+      air=noise(noiseBuffer,windFilter,.37);
+
+      rollFilter=context.createBiquadFilter();
+      rollFilter.type='lowpass';
+      rollFilter.frequency.value=135;
+      rollFilter.Q.value=1.4;
+      groundRoll=noise(pinkNoiseBuffer,rollFilter,.63);
     }
     if(context.state!=='running') context.resume().catch(()=>{});
     return true;
@@ -355,66 +494,108 @@ function makeFlightAudio(){
     if(!enabled) stopSpeech();
     if(!context) return;
     const engines=f?.engines??[];
-    const running=engines.length?engines.filter(Boolean).length/engines.length:0;
-    const power=f?.power||0;
+    const runningCount=engines.filter(Boolean).length;
+    const running=engines.length?runningCount/engines.length:0;
+    const rawPower=f?.power||0;
     const t=context.currentTime;
+    const dt=lastUpdateTime?Math.min(0.25,Math.max(0.008,t-lastUpdateTime)):0.033;
+    lastUpdateTime=t;
     const prof=getProfile(f);
     const acId=f?.aircraft?.id||'c172s';
     if(acId!==currentProfileId){
       currentProfileId=acId;
+      spoolN1=rawPower;
+      wasRunning=runningCount;
+      wasSupersonic=false;
       try{fanHarmonic.node.type=prof.harmonicType||'sawtooth';}catch{}
     }
     const helicopter=prof.kind==='heli'||Boolean(f?.aircraft?.helicopter);
     const piston=prof.kind==='piston';
+    const turboprop=prof.kind==='turboprop';
     const fighter=prof.kind==='fighter';
     const gtf=prof.kind==='gtf';
     const quad=prof.kind==='quad';
-    const afterburner=Boolean((f?.boost||fighter)&&power>.88&&running>0);
+    const multiEngine=(engines.length||f?.aircraft?.geometry?.[4]||1)>=2;
+
+    if(runningCount>wasRunning&&enabled){
+      triggerEngineStart(Boolean(f?.aircraft?.jet||fighter||turboprop));
+    }
+    wasRunning=runningCount;
+
+    // Asymmetric turbine N1 spool inertia (realistic spool-up lag vs fighter quick snap)
+    const targetN1=running>0?rawPower:0;
+    const spoolRate=fighter?2.6:(piston||helicopter)?3.4:(quad||prof.kind==='widebody')?0.95:1.45;
+    spoolN1+=(targetN1-spoolN1)*Math.min(1,dt*(targetN1>spoolN1?spoolRate:spoolRate*0.72));
+    const power=Math.max(0,Math.min(1,spoolN1));
+
+    const afterburner=Boolean((f?.boost||fighter)&&rawPower>.88&&running>0);
     if(afterburner&&!wasAfterburner&&enabled){
       triggerAfterburnerIgnition();
     }
     wasAfterburner=afterburner;
 
-    const cockpitAtten=cockpit?0.58:1.0;
+    const supersonic=Boolean(!f?.ground&&((f?.speed||0)>342));
+    if(supersonic&&!wasSupersonic&&enabled&&fighter){
+      triggerSonicBoom();
+    }
+    wasSupersonic=supersonic;
+
+    const cockpitAtten=cockpit?0.56:1.0;
     const strength=enabled&&f?.fuel!==0?Math.sqrt(running)*cockpitAtten:0;
     const rpmFactor=helicopter?Math.max(0.05,f?.rotorRPM??1):power;
 
-    // 1. Primary Fan / Prop Blade-Pass Frequency
+    // 1. Primary Fan / Prop Blade-Pass Frequency + Detuned Multi-Engine Acoustic Beating
     const fanHz=prof.baseHz+prof.rangeHz*rpmFactor;
-    fan.frequency.setTargetAtTime(fanHz,t,.22);
-    fan.gain.setTargetAtTime(strength*(helicopter?.18:piston?.11+.09*power:.068+.088*power),t,.20);
+    fan.frequency.setTargetAtTime(fanHz,t,.18);
+    fan.gain.setTargetAtTime(strength*(helicopter?.18:(piston||turboprop)?.11+.09*power:.068+.092*power),t,.18);
+    if(multiEngine&&!helicopter){
+      const detuneOffset=quad?1.75:fighter?3.1:2.15;
+      fanDetune.frequency.setTargetAtTime(fanHz+detuneOffset,t,.20);
+      fanDetune.gain.setTargetAtTime(strength*(.038+.048*power),t,.20);
+    }else{
+      fanDetune.gain.setTargetAtTime(0,t,.20);
+    }
 
-    // 2. Harmonic Layer (Turbofan Buzz-Saw / Piston Exhaust Bark / Rotor Slap Harmonic)
-    const buzzSpool=piston?(.35+.65*power):helicopter?(.3+.7*rpmFactor):Math.max(0,(power-.52)/.48);
-    buzzFilter.frequency.setTargetAtTime(prof.buzzCenterHz*(0.75+0.65*power),t,.22);
-    buzzFilter.Q.setTargetAtTime(prof.buzzQ||2.8,t,.25);
-    fanHarmonic.frequency.setTargetAtTime(fanHz*(prof.harmonicRatio||1.5),t,.22);
-    fanHarmonic.gain.setTargetAtTime(strength*(prof.harmonicGain||.07)*buzzSpool,t,.22);
+    // 2. Harmonic Layer (Turbofan Supersonic Buzz-Saw / Piston Exhaust Bark / Rotor Slap Harmonic)
+    const buzzSpool=(piston||turboprop)?(.38+.62*power):helicopter?(.3+.7*rpmFactor):Math.pow(Math.max(0,(power-.46)/.54),1.25);
+    buzzFilter.frequency.setTargetAtTime(prof.buzzCenterHz*(0.75+0.72*power),t,.18);
+    buzzFilter.Q.setTargetAtTime(prof.buzzQ||2.8,t,.22);
+    fanHarmonic.frequency.setTargetAtTime(fanHz*(prof.harmonicRatio||1.5),t,.18);
+    fanHarmonic.gain.setTargetAtTime(strength*(prof.harmonicGain||.075)*buzzSpool*1.15,t,.18);
 
-    // 3. Core Compressor & Characteristic Whine (A220 Whale Song / Fighter Intake Scream / Turboshaft Whine)
-    core.frequency.setTargetAtTime(fanHz*(prof.coreRatio||2.5),t,.28);
-    core.gain.setTargetAtTime(strength*(cockpit?.48:1)*((prof.coreGain||.035)*(.28+.72*power)),t,.25);
+    // 3. Core Compressor & Characteristic Whine (A220 Whale Song / Fighter Intake Scream / N2 Ramp Turbine Whine)
+    core.frequency.setTargetAtTime(fanHz*(prof.coreRatio||2.5),t,.24);
+    core.gain.setTargetAtTime(strength*(cockpit?.48:1)*((prof.coreGain||.038)*(.28+.72*power)),t,.22);
+
+    if(!piston&&!helicopter){
+      const n2Hz=(fighter?2250:1880)+power*(fighter?1650:1280);
+      const n2Env=(0.45+0.55*Math.exp(-Math.pow((power-0.35)/0.38,2)));
+      n2Whine.frequency.setTargetAtTime(n2Hz,t,.20);
+      n2Whine.gain.setTargetAtTime(strength*(cockpit?.28:.75)*(fighter?0.022:0.014)*n2Env,t,.22);
+    }else{
+      n2Whine.gain.setTargetAtTime(0,t,.20);
+    }
 
     if(gtf){
       // Famous A220 PW1500G hollow whale-song howl peaking between 25% and 68% throttle
       const whaleBell=Math.exp(-Math.pow((power-0.47)/0.16,2));
       whine.frequency.setTargetAtTime(275+165*power,t,.18);
-      whine.gain.setTargetAtTime(strength*0.078*whaleBell,t,.18);
+      whine.gain.setTargetAtTime(strength*0.082*whaleBell,t,.18);
     }else if(prof.whineGain>0){
       const wHz=prof.whineHz*(0.68+0.55*rpmFactor);
-      whine.frequency.setTargetAtTime(wHz,t,.24);
-      whine.gain.setTargetAtTime(strength*(cockpit?.45:1)*prof.whineGain*(0.25+0.75*rpmFactor),t,.24);
+      whine.frequency.setTargetAtTime(wHz,t,.22);
+      whine.gain.setTargetAtTime(strength*(cockpit?.45:1)*prof.whineGain*(0.25+0.75*rpmFactor),t,.22);
     }else{
       whine.gain.setTargetAtTime(0,t,.20);
     }
 
-    // 4. Sub-Bass Chest Rumble (Heavy Widebody GE90/GEnx, Afterburner Sub-Thrum, Piston Firing Thump)
-    const subHz=Math.max(24,fanHz*(prof.subRatio||0.5));
-    subBass.frequency.setTargetAtTime(subHz,t,.25);
-    const abSubBoost=afterburner?1.65:1.0;
-    subBass.gain.setTargetAtTime(strength*(prof.subGain||.08)*(0.22+0.78*power)*abSubBoost,t,.24);
+    // 4. Sub-Bass Chest Rumble (Heavy Widebody GE90/GEnx, Twin F404/F110 Afterburner Sub-Thrum)
+    const subHz=Math.max(26,fanHz*(prof.subRatio||0.5));
+    subBass.frequency.setTargetAtTime(subHz,t,.22);
+    const abSubBoost=afterburner?1.75:1.0;
+    subBass.gain.setTargetAtTime(strength*(prof.subGain||.09)*(0.24+0.76*power)*abSubBoost,t,.20);
 
-    // 5. Rotor Blade-Slap (Helicopter BVI load) / Piston Cylinder Pulse / Quad Engine Synchrophasing
+    // 5. Rotor Blade-Slap (Helicopter BVI load) / Prop Cylinder Pulse / Quad Engine Synchrophasing
     if(helicopter){
       const bankLoad=1+Math.min(1.2,Math.abs(f?.bank||0)*1.4+Math.abs(f?.pitch||0)*0.9);
       const pulseHz=Math.max(2,(prof.pulseRateBase||18)+(prof.pulseRateRange||6)*(f?.rotorRPM??1));
@@ -422,39 +603,50 @@ function makeFlightAudio(){
       rotorDepth.gain.setTargetAtTime(strength*(prof.pulseDepth||.08)*bankLoad,t,.15);
       tailRotor.frequency.setTargetAtTime(fanHz*(prof.tailRatio||4.7),t,.18);
       tailRotor.gain.setTargetAtTime(strength*(prof.tailGain||.03)*(0.4+0.6*Math.abs(f?.yawRate||0)*3+0.5*rpmFactor),t,.18);
-    }else if(piston){
+    }else if(piston||turboprop){
       const cylHz=Math.max(8,(prof.pulseRateBase||14)+(prof.pulseRateRange||34)*power);
       rotorPulse.frequency.setTargetAtTime(cylHz,t,.15);
-      rotorDepth.gain.setTargetAtTime(strength*(prof.pulseDepth||.055),t,.15);
+      rotorDepth.gain.setTargetAtTime(strength*(prof.pulseDepth||.058),t,.15);
       tailRotor.gain.setTargetAtTime(0,t,.15);
     }else{
       rotorDepth.gain.setTargetAtTime(0,t,.20);
       tailRotor.gain.setTargetAtTime(0,t,.20);
     }
-    syncLfo.frequency.setTargetAtTime(quad?1.75:fighter&&f?.aircraft?.geometry?.[4]===2?2.4:1.1,t,.3);
-    syncDepth.gain.setTargetAtTime(strength*(quad?.022:0),t,.25);
+    syncLfo.frequency.setTargetAtTime(quad?1.75:fighter&&multiEngine?2.6:1.2,t,.28);
+    syncDepth.gain.setTargetAtTime(strength*(quad?.024:multiEngine?.012:0),t,.24);
 
-    // 6. Combustion & Jet Exhaust Roar + Afterburner / Reverse Thrust Tear
-    const reverseActive=Boolean(f?.ground&&f?.aircraft?.reverse&&f?.manualControls?.brake&&(f?.speed||0)>18);
-    const roarCutoff=(cockpit?prof.roarBaseHz*.68:prof.roarBaseHz)+power*(afterburner?prof.roarRangeHz*1.55:prof.roarRangeHz);
-    roarFilter.frequency.setTargetAtTime(roarCutoff,t,.25);
-    roar.setTargetAtTime(strength*((prof.roarGain||.35)*(.16+.84*power)*(afterburner?1.38:1)),t,.24);
+    // 6. Dual-Band Pink Jet Exhaust Roar + Deep Exhaust Wash + Afterburner / Reverse Thrust Tear
+    const reverseActive=Boolean(f?.reverse||(f?.ground&&f?.aircraft?.reverse&&f?.manualControls?.brake&&(f?.speed||0)>18));
+    const roarCutoff=(cockpit?prof.roarBaseHz*.68:prof.roarBaseHz)+power*(afterburner?prof.roarRangeHz*1.62:prof.roarRangeHz);
+    roarFilter.frequency.setTargetAtTime(roarCutoff,t,.20);
+    roar.setTargetAtTime(strength*((prof.roarGain||.38)*(.18+.82*power)*(afterburner?1.45:1)),t,.20);
+
+    // Deep jet exhaust wash (chest-thumping 110..360Hz turbulent jet core)
+    washFilter.frequency.setTargetAtTime((fighter?195:135)+power*(afterburner?240:155),t,.22);
+    jetWash.setTargetAtTime(strength*(piston?0.06:helicopter?0.12:(fighter?0.36:0.30)*(.12+.88*power)*(afterburner?1.42:1)),t,.22);
 
     if(afterburner||reverseActive){
-      const abIntensity=afterburner?Math.min(1,(power-.86)/.14):0.55;
-      abFilter.frequency.setTargetAtTime(afterburner?580+420*abIntensity:390,t,.16);
-      abRoar.setTargetAtTime(strength*(afterburner?0.42*abIntensity:0.26),t,.16);
+      const abIntensity=afterburner?Math.min(1,(rawPower-.86)/.14):0.72;
+      abFilter.frequency.setTargetAtTime(afterburner?640+460*abIntensity:320,t,.14);
+      abRoar.setTargetAtTime(strength*(afterburner?0.48*abIntensity:0.36),t,.14);
     }else{
-      abRoar.setTargetAtTime(0,t,.20);
+      abRoar.setTargetAtTime(0,t,.18);
     }
 
-    // 7. Dynamic Airframe Boundary-Layer Wind & High-G Buffet
+    // 7. Dynamic Airframe Boundary-Layer Wind, Spoiler/Gear Buffet & High-G Buffet
     const gLoad=Math.max(0,Math.abs(f?.gForce||1)-1.35);
-    const speedRatio=Math.min(1.4,(f?.speed||0)/180);
-    windFilter.frequency.setTargetAtTime((cockpit?390:720)+speedRatio*340+gLoad*140,t,.18);
-    air.setTargetAtTime(enabled&&f?(cockpit?.52:1)*Math.min(.11,(f.speed||0)*.00055+gLoad*.018):0,t,.18);
+    const spd=f?.speed||0;
+    const speedRatio=Math.min(1.5,spd/180);
+    const dragBuffet=(!f?.ground&&spd>45)?((f?.spoilers||f?.airBrake?0.042:0)+(f?.gear?0.022:0))*Math.min(1,spd/120):0;
+    windFilter.frequency.setTargetAtTime((cockpit?390:720)+speedRatio*360+gLoad*150-(f?.spoilers?180:0),t,.16);
+    air.setTargetAtTime(enabled&&f?(cockpit?.54:1)*Math.min(.16,spd*.00055+gLoad*.022+dragBuffet):0,t,.16);
 
-    // 8. Stall Warning Horn
+    // 8. Runway Ground-Roll Vibration
+    const rollSpeed=f?.ground&&enabled?Math.min(1,spd/65):0;
+    rollFilter.frequency.setTargetAtTime(85+rollSpeed*140,t,.12);
+    groundRoll.setTargetAtTime(rollSpeed>0.04?(cockpit?.78:.52)*rollSpeed*0.18:0,t,.12);
+
+    // 9. Stall Warning Horn
     const warning=enabled&&f?.stall&&!f.ground&&!f.ended;
     stall.gain.setTargetAtTime(warning&&Math.floor(t*6)%2===0?.095:0,t,.025);
   }

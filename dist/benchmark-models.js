@@ -18,9 +18,9 @@ function buildBenchmarkAirframe(profile,scene){
   const detailed=profile.role==='passenger'&&engineCount===2;
   const color=fighter?0x778798:freight?0xd9e2e4:0xf2f5f7;
   const panelBump=typeof AeroCraft!=='undefined'?AeroCraft.getPanelBumpTexture(THREE):null;
-  const surface=new THREE.MeshPhysicalMaterial({color,roughness:detailed?.30:.44,metalness:fighter?.22:.08,clearcoat:.62,clearcoatRoughness:.24,bumpMap:panelBump,bumpScale:.014});
+  const surface=new THREE.MeshPhysicalMaterial({color,roughness:detailed?.26:fighter?.38:.40,metalness:fighter?.26:.10,clearcoat:fighter?.36:.76,clearcoatRoughness:fighter?.30:.16,bumpMap:panelBump,bumpScale:.016});
   const stockColor=profile.trimColor??(fighter?0x556571:freight?0x173d5d:0x146a80);
-  const paint=new THREE.MeshPhysicalMaterial({color:stockColor,roughness:.32,clearcoat:.62,clearcoatRoughness:.24,bumpMap:panelBump,bumpScale:.012});
+  const paint=new THREE.MeshPhysicalMaterial({color:stockColor,roughness:.28,clearcoat:.74,clearcoatRoughness:.18,bumpMap:panelBump,bumpScale:.014});
   const rubber=new THREE.MeshStandardMaterial({color:0x151a1e,roughness:.94});
   const metal=new THREE.MeshStandardMaterial({color:0x667886,roughness:.28,metalness:.68});
   const dark=new THREE.MeshStandardMaterial({color:0x14212b,roughness:.66});
@@ -346,17 +346,22 @@ function buildBenchmarkAirframe(profile,scene){
     const twin=engineCount===2;
     const nozzleZ=half*(twin?1.01:1)+.035;
     for(const x of twin?[-1,1].map(side=>side*(profile.wideIntakes?.46:.38)):[0]){
+      const nozzle=twin?.28:.44;
+      if(typeof AeroCraft!=='undefined'&&typeof AeroCraft.buildTurkeyFeatherNozzle==='function'){
+        const tf=AeroCraft.buildTurkeyFeatherNozzle(THREE,nozzle,twin?.74:.90);
+        tf.group.position.set(x,twin?-.12:0,nozzleZ-.34);
+        group.add(tf.group);
+      }
       const plume=new THREE.Group();
       plume.position.set(x,twin?-.12:0,nozzleZ);
-      const nozzle=twin?.25:.43;
       const layers=[
-        [nozzle,3.8,0xff3122,.54],
-        [nozzle*.67,2.8,0xff7025,.79],
-        [nozzle*.37,1.35,0xffd28c,.92]
+        [nozzle,3.8,0xff3b1f,.58],
+        [nozzle*.67,2.8,0xff7a25,.82],
+        [nozzle*.37,1.45,0xffe49e,.94]
       ];
       for(const [width,length,color,opacity] of layers){
         const fire=new THREE.Mesh(new THREE.ConeGeometry(width,length,22,true),new THREE.MeshBasicMaterial({
-          color,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false,toneMapped:false
+          color,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending
         }));
         fire.rotation.x=Math.PI/2;
         fire.position.z=length/2;
@@ -364,7 +369,7 @@ function buildBenchmarkAirframe(profile,scene){
       }
       for(let d=1;d<=4;d++){
         const ring=new THREE.Mesh(new THREE.TorusGeometry(nozzle*.32*(1-d*.12),.028,8,20),new THREE.MeshBasicMaterial({
-          color:0xa5f3fc,transparent:true,opacity:.88,toneMapped:false
+          color:0x99f6ff,transparent:true,opacity:.88,toneMapped:false,blending:THREE.AdditiveBlending
         }));
         ring.position.z=d*.55;
         plume.add(ring);

@@ -606,6 +606,74 @@
     return _propBlurTex;
   }
 
+  // Photorealistic Convergent-Divergent Titanium "Turkey Feather" Fighter Exhaust Nozzle (F404 / F110 / F119 style)
+  function buildTurkeyFeatherNozzle(THREE, radius, length = 0.86, mats = {}) {
+    const g = new THREE.Group();
+    g.name = 'turkey feather exhaust nozzle';
+    const titaniumMat = mats.titanium || new THREE.MeshStandardMaterial({
+      color: 0x8b7b65, roughness: 0.28, metalness: 0.86
+    });
+    const petalMat = mats.petal || new THREE.MeshStandardMaterial({
+      color: 0x3b3835, roughness: 0.34, metalness: 0.84
+    });
+    const sootMat = mats.soot || new THREE.MeshStandardMaterial({
+      color: 0x111316, roughness: 0.92, metalness: 0.15, side: THREE.BackSide
+    });
+    const flameholderMat = mats.flameholder || new THREE.MeshStandardMaterial({
+      color: 0x4a3b2e, emissive: 0xff6218, emissiveIntensity: 0.32, roughness: 0.52, metalness: 0.72
+    });
+
+    // 1. Brushed bronze-titanium forward shroud collar
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.03, radius * 1.06, length * 0.34, 24), titaniumMat);
+    collar.rotation.x = Math.PI / 2;
+    collar.position.z = -length * 0.30;
+    g.add(collar);
+
+    // 2. 16 Articulated Convergent-Divergent Turkey-Feather Petals
+    const petalCount = 16;
+    const petalW = (Math.PI * 2 * radius * 0.96) / petalCount * 0.86;
+    const petalLen = length * 0.74;
+    const petalGeo = new THREE.BoxGeometry(petalW, radius * 0.095, petalLen);
+    const petals = new THREE.InstancedMesh(petalGeo, petalMat, petalCount);
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < petalCount; i++) {
+      const a = (i / petalCount) * Math.PI * 2;
+      const rMid = radius * 0.91;
+      dummy.position.set(Math.cos(a) * rMid, Math.sin(a) * rMid, length * 0.14);
+      dummy.rotation.set(0, 0, a - Math.PI / 2);
+      dummy.rotateX(0.14); // Convergent taper toward exit lip
+      dummy.updateMatrix();
+      petals.setMatrixAt(i, dummy.matrix);
+    }
+    g.add(petals);
+
+    // 3. Recessed Deep Carbon-Soot Inner Exhaust Duct + Exit Rim Lip
+    const liner = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.78, radius * 0.90, length * 0.94, 22, 1, true), sootMat);
+    liner.rotation.x = Math.PI / 2;
+    liner.position.z = length * 0.02;
+    g.add(liner);
+
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.79, radius * 0.045, 8, 24), titaniumMat);
+    lip.position.z = length * 0.49;
+    g.add(lip);
+
+    // 4. Recessed Turbine Flameholder Ring & Center Cone
+    const backplate = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.86, 20), new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.95 }));
+    backplate.position.z = -length * 0.38;
+    g.add(backplate);
+
+    const fhRing = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.48, radius * 0.055, 8, 20), flameholderMat);
+    fhRing.position.z = -length * 0.30;
+    g.add(fhRing);
+
+    const coreCone = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.24, length * 0.34, 14), flameholderMat);
+    coreCone.rotation.x = Math.PI / 2;
+    coreCone.position.z = -length * 0.22;
+    g.add(coreCone);
+
+    return { group: g, flameholderMat };
+  }
+
   globalScope.AeroCraft = {
     nacaSection,
     buildWingLoft,
@@ -616,6 +684,7 @@
     buildWheelPantGeometry,
     buildAeroPylonGeometry,
     buildTurbofanNacelle,
+    buildTurkeyFeatherNozzle,
     buildBlendedWinglet,
     buildTwistedBlade,
     buildAeroMissile,

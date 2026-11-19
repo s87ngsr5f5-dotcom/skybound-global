@@ -114,11 +114,11 @@ function createAtmosphericSky(scene){
               opacity+=weight;
             }
           }
-          vec3 cloudColor=mix(vec3(.052,.072,.115),vec3(.45,.55,.68),daylight)*opacity;
-          cloudColor+=vec3(.78,.75,.69)*light*daylight;
-          cloudColor+=vec3(.82,.31,.11)*light*twilight;
-          float silver=pow(glare,5.2)*light*(1.-opacity*.48);
-          cloudColor+=vec3(1.22,1.08,.86)*silver*(daylight+twilight*.6)*(.52+.40*raytrace);
+          vec3 cloudColor=mix(vec3(.052,.072,.115),vec3(.52,.61,.73),daylight)*opacity;
+          cloudColor+=vec3(.92,.91,.88)*light*daylight;
+          cloudColor+=vec3(.86,.34,.12)*light*twilight;
+          float silver=pow(glare,4.6)*light*(1.-opacity*.42);
+          cloudColor+=vec3(1.26,1.14,.94)*silver*(daylight+twilight*.6)*(.58+.42*raytrace);
           float distanceFade=exp(-start/30000.)*smoothstep(.024,.15,abs(d.y));
           sky=mix(sky,cloudColor+sky*(1.-opacity),distanceFade);
         }

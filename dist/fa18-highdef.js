@@ -111,18 +111,24 @@
     if (scene && scene.add) scene.add(cabin);
 
     const tex = buildHornetPanelTextures();
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: 0xb6c0c8,
+    const bodyMat = new THREE.MeshPhysicalMaterial({
+      color: 0xc8d1d8,
       map: tex.colorMap,
       bumpMap: tex.bumpMap,
-      bumpScale: 0.015,
-      roughness: 0.50,
-      metalness: 0.24
+      bumpScale: 0.018,
+      roughness: 0.40,
+      metalness: 0.24,
+      clearcoat: 0.38,
+      clearcoatRoughness: 0.30
     });
-    const darkTPSMat = new THREE.MeshStandardMaterial({
-      color: 0x87929c,
-      roughness: 0.56,
-      metalness: 0.22
+    const darkTPSMat = new THREE.MeshPhysicalMaterial({
+      color: 0x9aa5af,
+      bumpMap: tex.bumpMap,
+      bumpScale: 0.014,
+      roughness: 0.46,
+      metalness: 0.24,
+      clearcoat: 0.30,
+      clearcoatRoughness: 0.34
     });
     const radomeMat = new THREE.MeshStandardMaterial({
       color: 0x6f7882,
@@ -249,6 +255,8 @@
     // 4. Twin Rounded Side Intakes (under LEX) + Rotating F404 Fans + Twin Exhaust Nozzles
     const blades = [];
     const exhaustPlumes = [];
+    const extraPlumeMeshes = [];
+    const abGroups = [];
     for (const s of [-1, 1]) {
       const intake = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.38, 2.25, 18), darkTPSMat);
       intake.rotation.x = Math.PI / 2;
@@ -275,27 +283,72 @@
       group.add(fanGroup);
       blades.push(fanGroup);
 
-      // Engine nacelle & F404 turkey-feather nozzle
-      const nac = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.38, 6.2, 18), bodyMat);
+      // Engine nacelle & Photorealistic F404 Titanium Turkey-Feather Nozzle
+      const nac = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.39, 6.2, 22), bodyMat);
       nac.rotation.x = Math.PI / 2;
       nac.position.set(s * 0.46, -0.06, 4.15);
       group.add(nac);
 
-      const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.37, 0.78, 18), nozzleMat);
-      nozzle.rotation.x = Math.PI / 2;
-      nozzle.position.set(s * 0.46, -0.06, 7.55);
-      group.add(nozzle);
+      // Iconic F/A-18 Dorsal Engine-Bay Cooling Louver Grille (5 dark recessed vents visible in chase view!)
+      const louverMat = new THREE.MeshStandardMaterial({ color: 0x1a1e24, roughness: 0.85, metalness: 0.35 });
+      for (let lv = 0; lv < 5; lv++) {
+        const slot = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.024, 0.26), louverMat);
+        slot.position.set(s * (0.28 + lv * 0.068), 0.385, 4.85);
+        group.add(slot);
+      }
 
-      const abCone = new THREE.Mesh(
-        new THREE.ConeGeometry(0.28, 3.1, 16),
-        new THREE.MeshBasicMaterial({ color: 0xffaa44, transparent: true, opacity: 0.78, depthWrite: false })
+      if (typeof AeroCraft !== 'undefined' && typeof AeroCraft.buildTurkeyFeatherNozzle === 'function') {
+        const tfNoz = AeroCraft.buildTurkeyFeatherNozzle(THREE, 0.37, 0.88);
+        tfNoz.group.position.set(s * 0.46, -0.06, 7.56);
+        group.add(tfNoz.group);
+      } else {
+        const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.37, 0.78, 18), nozzleMat);
+        nozzle.rotation.x = Math.PI / 2;
+        nozzle.position.set(s * 0.46, -0.06, 7.55);
+        group.add(nozzle);
+      }
+
+      const abGroup = new THREE.Group();
+      abGroup.position.set(s * 0.46, -0.06, 8.02);
+      const engIdx = s < 0 ? 0 : 1;
+      const abOuter = new THREE.Mesh(
+        new THREE.ConeGeometry(0.29, 3.4, 20, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xff6220, transparent: true, opacity: 0.62, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })
       );
-      abCone.rotation.x = -Math.PI / 2;
-      abCone.position.set(s * 0.46, -0.06, 9.40);
-      abCone.visible = false;
-      group.add(abCone);
-      exhaustPlumes.push(abCone);
+      abOuter.rotation.x = Math.PI / 2;
+      abOuter.position.z = 1.7;
+      abOuter.visible = false;
+      abOuter.userData.engineIdx = engIdx;
+      abGroup.add(abOuter);
+      exhaustPlumes.push(abOuter);
+
+      const abInner = new THREE.Mesh(
+        new THREE.ConeGeometry(0.18, 2.2, 16, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xffe49c, transparent: true, opacity: 0.86, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })
+      );
+      abInner.rotation.x = Math.PI / 2;
+      abInner.position.z = 1.1;
+      abInner.visible = false;
+      abInner.userData.engineIdx = engIdx;
+      abGroup.add(abInner);
+      extraPlumeMeshes.push(abInner);
+
+      for (let md = 1; md <= 4; md++) {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.15 * (1 - md * 0.14), 0.025, 8, 18),
+          new THREE.MeshBasicMaterial({ color: 0x99f6ff, transparent: true, opacity: 0.82, depthWrite: false, blending: THREE.AdditiveBlending })
+        );
+        ring.position.z = md * 0.56;
+        ring.visible = false;
+        ring.userData.engineIdx = engIdx;
+        abGroup.add(ring);
+        extraPlumeMeshes.push(ring);
+      }
+      abGroup.userData.engineIdx = engIdx;
+      group.add(abGroup);
+      abGroups.push(abGroup);
     }
+    exhaustPlumes.push(...extraPlumeMeshes);
 
     // 5. Twin Outward-Canted (20°) Vertical Tails + Rudders
     const rudders = [];
@@ -596,9 +649,14 @@
       // Twin F404 Afterburner Plumes
       const abOn = Boolean(f?.engines?.some(Boolean) && f?.fuel !== 0 && f?.power > 0.85 && (f?.boost || f?.fastCruise));
       const pulse = 0.82 + 0.18 * Math.sin((now || 0) * 0.044);
-      exhaustPlumes.forEach((p, idx) => {
-        p.visible = Boolean(f?.engines?.[idx] ?? true) && abOn;
-        p.scale.set(1, clampVal(0.75 + (f?.power || 0.9) * 0.45, 0.5, 1.35) * pulse, 1);
+      const zScale = clampVal(0.75 + (f?.power || 0.9) * 0.45, 0.5, 1.35) * pulse;
+      abGroups.forEach(ag => {
+        const vis = Boolean(f?.engines?.[ag.userData.engineIdx] ?? true) && abOn;
+        ag.visible = vis;
+        ag.scale.set(1, 1, zScale);
+      });
+      exhaustPlumes.forEach(p => {
+        p.visible = Boolean(f?.engines?.[p.userData.engineIdx ?? 0] ?? true) && abOn;
       });
     };
 
