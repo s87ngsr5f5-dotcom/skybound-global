@@ -29,19 +29,19 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
   const isLowMem=typeof navigator!=='undefined'&&(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent||'')||(navigator.deviceMemory&&navigator.deviceMemory<=4));
   let location='',queue=[],loading=0;
 
-  // Single Floating Ultra-HD z=15 Close-Up Clipmap Satellite Patch (2,400m x 2,400m, ~2.3m/px, ONLY 1 GPU texture!)
-  const detailSpan=2400;
+  // Single Floating Ultra-HD z=16 Close-Up Clipmap Satellite Patch (1,800m x 1,800m, ~1.1m/px desktop / ~2.3m/px mobile, ONLY 1 GPU texture!)
+  const detailSpan=1800;
   const detailUniforms={
     image:{value:null},
     ready:{value:0},
     bounds:{value:new THREE.Vector4(0,0,detailSpan,detailSpan)}
   };
   let detailCenterX=1e12, detailCenterZ=1e12, detailLoading=false, detailTexture=null;
+  let detailPixelMap=null, detailPixelBounds=null;
+  let satSampleCanvas=null, satSampleCtx=null;
   function updateDetailClipmap(px,pz,quality){
     if(quality==='low'||typeof document==='undefined'||typeof Image==='undefined'||typeof latLon!=='function') return;
-    // Skip inside Taipei's native 10m Sentinel-2 box
-    if(px>-18000&&px<18000&&pz>-16000&&pz<15000){detailUniforms.ready.value=0;return;}
-    if(detailLoading||Math.hypot(px-detailCenterX,pz-detailCenterZ)<780) return;
+    if(detailLoading||Math.hypot(px-detailCenterX,pz-detailCenterZ)<480) return;
     if(typeof terrainHeight==='function'&&terrainHeight(px,pz)<0.15&&!chunkHasLand(Math.floor(px/span),Math.floor(pz/span))) return;
     detailLoading=true;
     const x0=px-detailSpan*0.5, z0=pz-detailSpan*0.5;
@@ -49,10 +49,10 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     const minLon=Math.min(nw.lon,se.lon), maxLon=Math.max(nw.lon,se.lon);
     const minLat=Math.min(nw.lat,se.lat), maxLat=Math.max(nw.lat,se.lat);
     const lonSpan=Math.max(0.002,maxLon-minLon), latSpan=Math.max(0.002,maxLat-minLat);
-    let tz=isLowMem?14:15;
+    let tz=isLowMem?15:16;
     let tx0=lonToTileX(minLon,tz), tx1=lonToTileX(maxLon,tz);
     let ty0=latToTileY(maxLat,tz), ty1=latToTileY(minLat,tz);
-    while(tz>12&&((tx1-tx0+1)>5||(ty1-ty0+1)>5)){
+    while(tz>12&&((tx1-tx0+1)>6||(ty1-ty0+1)>6)){
       tz--;
       tx0=lonToTileX(minLon,tz); tx1=lonToTileX(maxLon,tz);
       ty0=latToTileY(maxLat,tz); ty1=latToTileY(minLat,tz);
@@ -77,6 +77,21 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
       if(rem>0) return;
       detailLoading=false;
       if(ok===0) return;
+      // Capture crisp 64x64 pixel buffer (~28m/px, 6.4x sharper than regional tiles) for 3D ground clutter & scenery classification
+      try{
+        if(!satSampleCanvas){
+          satSampleCanvas=document.createElement('canvas');
+          satSampleCanvas.width=64; satSampleCanvas.height=64;
+          satSampleCtx=satSampleCanvas.getContext('2d',{willReadFrequently:true});
+        }
+        if(satSampleCtx&&typeof satSampleCtx.getImageData==='function'){
+          satSampleCtx.clearRect(0,0,64,64);
+          satSampleCtx.drawImage(canvas,0,0,64,64);
+          detailPixelMap=satSampleCtx.getImageData(0,0,64,64).data;
+          detailPixelBounds={x0,z0,span:detailSpan};
+          if(typeof window!=='undefined') window.__SKYBOUND_SAT_REVISION=(window.__SKYBOUND_SAT_REVISION||0)+1;
+        }
+      }catch{}
       const tex=new THREE.CanvasTexture(canvas);
       tex.colorSpace=THREE.SRGBColorSpace;
       tex.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
@@ -121,10 +136,20 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     return (180/Math.PI)*Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));
   }
   const satPixelMaps=new Map();
-  let satSampleCanvas=null, satSampleCtx=null;
   if(typeof window!=='undefined'){
     window.__SKYBOUND_SAT_REVISION=0;
     window.__SKYBOUND_SAT_SAMPLER=(x,z)=>{
+      if(detailPixelMap&&detailPixelBounds){
+        const dx=x-detailPixelBounds.x0, dz=z-detailPixelBounds.z0, ds=detailPixelBounds.span;
+        if(dx>=0&&dx<ds&&dz>=0&&dz<ds){
+          const du=Math.max(0,Math.min(63,Math.floor((dx/ds)*64)));
+          const dv=Math.max(0,Math.min(63,Math.floor((dz/ds)*64)));
+          const didx=(dv*64+du)*4;
+          if(detailPixelMap[didx+3]>32){
+            return {r:detailPixelMap[didx],g:detailPixelMap[didx+1],b:detailPixelMap[didx+2],a:detailPixelMap[didx+3]};
+          }
+        }
+      }
       const col=Math.floor(x/span), row=Math.floor(z/span);
       const pm=satPixelMaps.get(col+'_'+row);
       if(!pm) return null;

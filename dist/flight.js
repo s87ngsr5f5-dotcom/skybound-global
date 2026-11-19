@@ -226,7 +226,8 @@ function initialize(){
   if(renderer.domElement&&typeof renderer.domElement.addEventListener==='function'){
     renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();},false);
   }
-  const detailImage={value:landTexture}, detailImageReady={value:0}, detailBounds={value:new THREE.Vector4(0,0,2400,2400)};
+  const detailImage={value:landTexture}, detailImageReady={value:0}, detailBounds={value:new THREE.Vector4(0,0,1800,1800)};
+  const terrainMicroTextures=(typeof TerrainMicroDetail!=='undefined'&&!renderer.instrumentOnly)?TerrainMicroDetail.createTextures(THREE,renderer):null;
   const seaRayUniforms={rtEnabled:{value:1},sunDir:{value:new THREE.Vector3(0,1,0)},dayRatio:{value:1},skyTime:{value:0}};
   function terrainPhoto(shader,tile){
     shader.uniforms.taipeiImage=taipeiImage;
@@ -351,8 +352,11 @@ function initialize(){
           }
         }
       `);
+    if(terrainMicroTextures&&typeof TerrainMicroDetail!=='undefined'){
+      TerrainMicroDetail.inject(shader,terrainMicroTextures,seaRayUniforms.sunDir);
+    }
   }
-  terrainMaterial.customProgramCacheKey=()=>'terrainPhotoV3';
+  terrainMaterial.customProgramCacheKey=()=>'terrainPhotoV4';
   terrainMaterial.onBeforeCompile=shader=>terrainPhoto(shader);
   const satelliteCredit=byId('satelliteCredit');
   if(!renderer.instrumentOnly) loadTaiwanAtlas().then(texture=>{
@@ -362,7 +366,7 @@ function initialize(){
   }).catch(()=>{});
   const taiwanSatellite=renderer.instrumentOnly?null:createTaiwanSatellite(tile=>{
     const material=terrainMaterial.clone();
-    material.customProgramCacheKey=()=>'terrainPhotoV3';
+    material.customProgramCacheKey=()=>'terrainPhotoV4';
     tile.image.value=landTexture;
     material.onBeforeCompile=shader=>terrainPhoto(shader,tile);
     return material;
@@ -855,6 +859,8 @@ function initialize(){
   const worldCity=typeof createWorldCity==='function'?createWorldCity(scene,renderedGround,airports):
     {root:new THREE.Group(),inside:()=>false,blocked:()=>false,stats:{ready:false,maskRevision:0},update(){}};
   const globalScenery=typeof createGlobalScenery==='function'?createGlobalScenery(scene,renderedGround,airports):
+    {root:new THREE.Group(),update(){}};
+  const groundDetail=typeof createGroundDetailRing==='function'?createGroundDetailRing(scene,renderedGround,airports):
     {root:new THREE.Group(),update(){}};
   const buildingGeo = new THREE.BoxGeometry();
   const windows=document.createElement('canvas');
@@ -7138,6 +7144,8 @@ function initialize(){
     taiwanCity.root.visible=!hangarMode;
     if(!renderer.instrumentOnly&&!hangarMode)taiwanCity.update(dt,camera.position.x,camera.position.z,
       renderingQuality(),activeDay,byId('weather').value==='wet'||byId('weather').value==='storm');
+    groundDetail.root.visible=!hangarMode;
+    if(!renderer.instrumentOnly&&!hangarMode)groundDetail.update(camera.position.x,camera.position.y,camera.position.z,activeDay,renderingQuality());
     worldCity.root.visible=!hangarMode;
     if(!renderer.instrumentOnly&&!hangarMode)worldCity.update(dt,camera.position.x,camera.position.z,
       renderingQuality(),activeDay,byId('weather').value==='wet'||byId('weather').value==='storm');
