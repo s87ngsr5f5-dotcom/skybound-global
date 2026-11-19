@@ -1437,6 +1437,7 @@ function initialize(){
   const crashVFX=createCrashVFX(scene);
   const contrailVFX=createContrailSystem(scene);
   const transonicVFX=typeof visualFX!=='undefined'?visualFX.createTransonicVFX(THREE,scene):{update:()=>{}};
+  const cumulusField=typeof visualFX!=='undefined'&&visualFX.createVolumetricCumulusField?visualFX.createVolumetricCumulusField(THREE,scene):{update:()=>{}};
   let crashShake=0;
   let stormRainMesh=null;
   function createTouchdownSmokeAndVortex(scene){
@@ -6838,7 +6839,7 @@ function initialize(){
     if(!renderer.instrumentOnly&&!hangarMode)worldCity.update(dt,camera.position.x,camera.position.z,
       renderingQuality(),activeDay,byId('weather').value==='wet'||byId('weather').value==='storm');
     globalScenery.root.visible=!hangarMode;
-    if(!renderer.instrumentOnly&&!hangarMode)globalScenery.update(camera.position.x,camera.position.z,renderingQuality(),activeDay);
+    if(!renderer.instrumentOnly&&!hangarMode)globalScenery.update(camera.position.x,camera.position.z,renderingQuality(),activeDay,dt);
     blocks.visible=!(detailedScenery&&sceneryLayers.visible)&&!(taiwanCity.stats?.ready||worldCity.stats?.ready);
     cityWall.emissiveIntensity=(1-activeDay)*.85;
     sunlight.target.position.set(viewerX,model.position.y,viewerZ);
@@ -6894,7 +6895,10 @@ function initialize(){
       camera.position.set(flight.x,flight.y+1.4,flight.z);
       camera.rotation.set(flight.pitch,-flight.heading,-flight.bank,'YXZ');
       renderer.draw(flight,camera,approachGates,activeDay);
-    }else if(!renderer.instrumentOnly) atmosphericSky.update(camera,dt,renderingQuality());
+    }else if(!renderer.instrumentOnly){
+      atmosphericSky.update(camera,dt,renderingQuality());
+      cumulusField.update(camera.position,dt,activeDay,weather,!hangarMode&&!overviewActive&&renderingQuality()!=='low');
+    }
     crashVFX.update(dt,renderedGround);
     aeroFX.update(dt);
     if(flight) contrailVFX.update(flight,dt,now);

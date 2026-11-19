@@ -615,15 +615,16 @@ function makeFlightAudio(){
     syncLfo.frequency.setTargetAtTime(quad?1.75:fighter&&multiEngine?2.6:1.2,t,.28);
     syncDepth.gain.setTargetAtTime(strength*(quad?.024:multiEngine?.012:0),t,.24);
 
-    // 6. Dual-Band Pink Jet Exhaust Roar + Deep Exhaust Wash + Afterburner / Reverse Thrust Tear
+    // 6. Dual-Band Pink Jet Exhaust Roar + Deep Exhaust Wash + Afterburner / Reverse Thrust Tear + Low-Pass Ground/Water Echo
     const reverseActive=Boolean(f?.reverse||(f?.ground&&f?.aircraft?.reverse&&f?.manualControls?.brake&&(f?.speed||0)>18));
+    const lowPassEcho=(!f?.ground&&(f?.y||999)<220&&(f?.speed||0)>105)?1+0.22*(1-Math.min(1,(f?.y||0)/220)):1.0;
     const roarCutoff=(cockpit?prof.roarBaseHz*.68:prof.roarBaseHz)+power*(afterburner?prof.roarRangeHz*1.62:prof.roarRangeHz);
     roarFilter.frequency.setTargetAtTime(roarCutoff,t,.20);
-    roar.setTargetAtTime(strength*((prof.roarGain||.38)*(.18+.82*power)*(afterburner?1.45:1)),t,.20);
+    roar.setTargetAtTime(strength*((prof.roarGain||.38)*(.18+.82*power)*(afterburner?1.45:1)*lowPassEcho),t,.20);
 
     // Deep jet exhaust wash (chest-thumping 110..360Hz turbulent jet core)
     washFilter.frequency.setTargetAtTime((fighter?195:135)+power*(afterburner?240:155),t,.22);
-    jetWash.setTargetAtTime(strength*(piston?0.06:helicopter?0.12:(fighter?0.36:0.30)*(.12+.88*power)*(afterburner?1.42:1)),t,.22);
+    jetWash.setTargetAtTime(strength*(piston?0.06:helicopter?0.12:(fighter?0.36:0.30)*(.12+.88*power)*(afterburner?1.42:1)*lowPassEcho),t,.22);
 
     if(afterburner||reverseActive){
       const abIntensity=afterburner?Math.min(1,(rawPower-.86)/.14):0.72;

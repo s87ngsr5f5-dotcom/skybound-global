@@ -816,8 +816,86 @@ function createGlobalScenery(scene, ground, airports = []) {
       lampInst.setMatrixAt(i, segDummy.matrix);
     });
     g.add(lampInst);
+
+    // 4. Moving 6-Lane Golden Gate Bridge Traffic Vehicles (animated smoothly in update!)
+    const carCount = 44;
+    const carGeo = new THREE.BoxGeometry(2.1, 1.45, 4.6);
+    const carMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42, metalness: 0.35 });
+    const carInst = new THREE.InstancedMesh(carGeo, carMat, carCount);
+    const carSpecs = [];
+    const carColors = [0xe8edf2, 0x2a3138, 0xc83e32, 0x3b6fa0, 0xd4a948, 0x5c6670];
+    const tmpCol = new THREE.Color();
+    for (let i = 0; i < carCount; i++) {
+      const dirSign = i % 2 === 0 ? 1 : -1;
+      const laneIdx = i % 3;
+      const laneX = dirSign * (3.1 + laneIdx * 3.4);
+      const z0 = ((i / carCount) * 2 - 1) * (halfTotal - 50);
+      const spd = (24 + (i % 5) * 3.2) * dirSign;
+      carSpecs.push({ x: laneX, z: z0, spd });
+      tmpCol.setHex(carColors[i % carColors.length]);
+      carInst.setColorAt?.(i, tmpCol);
+    }
+    if (carInst.instanceColor) carInst.instanceColor.needsUpdate = true;
+    g.add(carInst);
+
+    // 5. Coastal Bluff Vista Buildings, Historic Fort Point & Iconic Bay Sea-Stack Rock + Bay Boats!
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x3c3a37, roughness: 0.92, metalness: 0.04 });
+    // Iconic dark sea-stack rock jutting out of the bay west of the bridge (matching lowpass aerial view)
+    const seaStack = addPart(new THREE.DodecahedronGeometry(34, 1), rockMat, -185, 11, 210, 0.2, 0.7, 0.1);
+    seaStack.scale.set(1.1, 1.35, 0.9);
+    const reefRock = addPart(new THREE.DodecahedronGeometry(18, 0), rockMat, -152, 4, 245);
+    reefRock.scale.set(1.4, 0.55, 1.1);
+    // Historic brick Fort Point nestled right under the south anchorage
+    const fortMat = new THREE.MeshStandardMaterial({ color: 0x8b4c3b, roughness: 0.86 });
+    addPart(new THREE.BoxGeometry(58, 20, 44), fortMat, -32, 10, halfTotal - 90);
+    // Coastal Vista Point visitor parking strip & white-roofed buildings on the bluff
+    for (let b = 0; b < 4; b++) {
+      addPart(new THREE.BoxGeometry(14, 7.5, 24), whiteShellMat, -76 - b * 4, 26, halfTotal - 260 + b * 36);
+    }
+    // Cargo ship & sailboats cruising San Francisco Bay
+    const ships = [];
+    const shipGroup = new THREE.Group();
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0x26323d, roughness: 0.65 });
+    const hullMesh = new THREE.Mesh(new THREE.BoxGeometry(24, 9, 138), hullMat);
+    hullMesh.position.y = 4.5;
+    shipGroup.add(hullMesh);
+    const contMat = new THREE.MeshStandardMaterial({ color: 0xb54434, roughness: 0.7 });
+    const containers = new THREE.Mesh(new THREE.BoxGeometry(20, 10, 88), contMat);
+    containers.position.set(0, 13, 8);
+    shipGroup.add(containers);
+    const bridgeHouse = new THREE.Mesh(new THREE.BoxGeometry(19, 16, 16), whiteShellMat);
+    bridgeHouse.position.set(0, 17, -42);
+    shipGroup.add(bridgeHouse);
+    shipGroup.position.set(-480, 0, -140);
+    shipGroup.rotation.y = Math.PI * 0.46;
+    g.add(shipGroup);
+    ships.push({ obj: shipGroup, vx: 6.5, vz: 0.8, minX: -950, maxX: 950 });
+
+    g.userData.animate = (dt) => {
+      const step = Math.min(0.1, dt || 0.016);
+      for (let i = 0; i < carSpecs.length; i++) {
+        const c = carSpecs[i];
+        c.z += c.spd * step;
+        if (c.z > halfTotal - 40) c.z = -(halfTotal - 40);
+        else if (c.z < -(halfTotal - 40)) c.z = halfTotal - 40;
+        segDummy.position.set(c.x, deckY + 1.85, c.z);
+        segDummy.rotation.set(0, c.spd > 0 ? 0 : Math.PI, 0);
+        segDummy.scale.set(1, 1, 1);
+        segDummy.updateMatrix();
+        carInst.setMatrixAt(i, segDummy.matrix);
+      }
+      carInst.instanceMatrix.needsUpdate = true;
+      for (const s of ships) {
+        s.obj.position.x += s.vx * step;
+        s.obj.position.z += s.vz * step;
+        if (s.obj.position.x > s.maxX) s.obj.position.x = s.minX;
+      }
+    };
+    animatedLandmarks.push(g);
     return g;
   }
+
+  const animatedLandmarks = [];
 
   const realLandmarksBuilt = new Set();
   function buildRealLandmarkAtGPS(lm) {
@@ -1030,26 +1108,41 @@ function createGlobalScenery(scene, ground, airports = []) {
       const boxes = [];
       for (const w of ways) {
         if (boxes.length >= 220) break;
-        let minX = 1e12, maxX = -1e12, minZ = 1e12, maxZ = -1e12, valid = 0;
+        const pts = [];
         for (const nid of w.nodes) {
           const nd = nodes.get(nid);
-          if (!nd) continue;
-          const p = geoPoint(nd[0], nd[1]);
-          if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-          if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
-          valid++;
+          if (nd) pts.push(geoPoint(nd[0], nd[1]));
         }
-        if (valid < 3) continue;
-        const bw = Math.min(140, Math.max(8, maxX - minX));
-        const bd = Math.min(140, Math.max(8, maxZ - minZ));
-        const bx = (minX + maxX) * 0.5, bz = (minZ + maxZ) * 0.5;
+        if (pts.length < 3) continue;
+        // Find dominant longest-wall street orientation so real OSM buildings align 1:1 with satellite streets
+        let bestLen = 0, streetAngle = 0, cx = 0, cz = 0;
+        for (let i = 0; i < pts.length; i++) {
+          cx += pts[i].x; cz += pts[i].z;
+          if (i > 0) {
+            const dx = pts[i].x - pts[i - 1].x, dz = pts[i].z - pts[i - 1].z;
+            const l = dx * dx + dz * dz;
+            if (l > bestLen) { bestLen = l; streetAngle = Math.atan2(dz, dx); }
+          }
+        }
+        cx /= pts.length; cz /= pts.length;
+        const cosA = Math.cos(-streetAngle), sinA = Math.sin(-streetAngle);
+        let minU = 1e12, maxU = -1e12, minV = 1e12, maxV = -1e12;
+        for (const p of pts) {
+          const lx = p.x - cx, lz = p.z - cz;
+          const u = lx * cosA - lz * sinA, v = lx * sinA + lz * cosA;
+          if (u < minU) minU = u; if (u > maxU) maxU = u;
+          if (v < minV) minV = v; if (v > maxV) maxV = v;
+        }
+        const bw = Math.min(140, Math.max(8, maxU - minU));
+        const bd = Math.min(140, Math.max(8, maxV - minV));
+        const bx = cx, bz = cz;
         if (inAirportClearance(bx, bz, 150)) continue;
         const gy = ground(bx, bz);
         if (gy < 0.6) continue;
         const tags = w.tags || {};
         const parsedH = parseFloat(tags.height) || (parseFloat(tags['building:levels']) ? parseFloat(tags['building:levels']) * 3.6 : 0);
         const bh = parsedH > 3 ? Math.min(340, parsedH) : (bw * bd > 1200 ? 22 : 12);
-        boxes.push({ x: bx, y: gy + bh * 0.5 - 1, z: bz, w: bw, h: bh, d: bd, glass: bh > 42 });
+        boxes.push({ x: bx, y: gy + bh * 0.5 - 1, z: bz, w: bw, h: bh, d: bd, rotY: -streetAngle, glass: bh > 42 });
       }
       if (!boxes.length) { liveOsmCells.set(cellKey, 'empty'); return; }
       const g = new THREE.Group();
@@ -1059,7 +1152,7 @@ function createGlobalScenery(scene, ground, airports = []) {
       if (low.length) {
         const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), [bldgWallMat, bldgWallMat, roofMat, roofMat, bldgWallMat, bldgWallMat], low.length);
         low.forEach((b, i) => {
-          dummy.position.set(b.x, b.y, b.z); dummy.scale.set(b.w, b.h, b.d); dummy.updateMatrix();
+          dummy.position.set(b.x, b.y, b.z); dummy.rotation.set(0, b.rotY || 0, 0); dummy.scale.set(b.w, b.h, b.d); dummy.updateMatrix();
           inst.setMatrixAt(i, dummy.matrix);
         });
         inst.castShadow = inst.receiveShadow = true;
@@ -1068,7 +1161,7 @@ function createGlobalScenery(scene, ground, airports = []) {
       if (tall.length) {
         const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), [landmarkGlassMat, landmarkGlassMat, roofMat, roofMat, landmarkGlassMat, landmarkGlassMat], tall.length);
         tall.forEach((b, i) => {
-          dummy.position.set(b.x, b.y, b.z); dummy.scale.set(b.w, b.h, b.d); dummy.updateMatrix();
+          dummy.position.set(b.x, b.y, b.z); dummy.rotation.set(0, b.rotY || 0, 0); dummy.scale.set(b.w, b.h, b.d); dummy.updateMatrix();
           inst.setMatrixAt(i, dummy.matrix);
         });
         inst.castShadow = inst.receiveShadow = true;
@@ -1250,7 +1343,7 @@ function createGlobalScenery(scene, ground, airports = []) {
     }
   }
 
-  function update(px, pz, quality, dayRatio) {
+  function update(px, pz, quality, dayRatio, dt = 0.016) {
     if (quality === 'low') {
       root.visible = false;
       return;
@@ -1264,6 +1357,9 @@ function createGlobalScenery(scene, ground, airports = []) {
     monumentGoldMat.emissiveIntensity = 0.14 + nightAmt * 0.75;
     ensureHubSkyline(px, pz);
     ensureRealGPSLandmarks(px, pz);
+    for (let i = 0; i < animatedLandmarks.length; i++) {
+      animatedLandmarks[i].userData.animate?.(dt);
+    }
     if (quality === 'ultra' || quality === 'high' || quality === 'balanced') streamLiveOsmBuildings(px, pz);
 
     const cx = Math.floor(px / TILE), cz = Math.floor(pz / TILE);
