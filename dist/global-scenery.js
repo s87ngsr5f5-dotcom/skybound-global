@@ -683,7 +683,30 @@ function createGlobalScenery(scene, ground, airports = []) {
     { id: 'rome_colosseum', name: '羅馬競技場 Colosseum', lat: 41.8902, lon: 12.4922, type: 'colosseum', h: 48 },
     { id: 'berlin_tv', name: '柏林電視塔', lat: 52.5208, lon: 13.4094, type: 'needle', h: 368 },
     { id: 'rio_christ', name: '里約救世基督像', lat: -22.9519, lon: -43.2105, type: 'christ', h: 40 },
-    { id: 'taipei_101', name: '台北 101', lat: 25.0339, lon: 121.5645, type: 'pin_only', h: 508 }
+    { id: 'taipei_101', name: '台北 101', lat: 25.0339, lon: 121.5645, type: 'pin_only', h: 508 },
+    { id: 'taipei_cks', name: '中正紀念堂 CKS Hall', lat: 25.0347, lon: 121.5218, type: 'palace_hall', h: 70 },
+    { id: 'taipei_grand_hotel', name: '圓山大飯店 Grand Hotel', lat: 25.0792, lon: 121.5262, type: 'palace_hall', h: 87 },
+    { id: 'kaohsiung_85', name: '高雄 85 大樓 85 Sky Tower', lat: 22.6116, lon: 120.3002, type: 'kaohsiung_85', h: 378 },
+    { id: 'taichung_opera', name: '臺中國家歌劇院', lat: 24.1627, lon: 120.6404, type: 'palace_hall', h: 38 },
+    { id: 'osaka_castle', name: '大阪城天守閣 Osaka Castle', lat: 34.6873, lon: 135.5262, type: 'castle_keep', h: 58 },
+    { id: 'fuji_torii', name: '富士山忠靈塔與鳥居', lat: 35.5012, lon: 138.8035, type: 'castle_keep', h: 42 },
+    { id: 'beijing_cctv', name: '北京央視總部大樓 CCTV', lat: 39.9154, lon: 116.4631, type: 'cctv_loop', h: 234 },
+    { id: 'hk_boc', name: '香港中銀大廈 BOC Tower', lat: 22.2793, lon: 114.1615, type: 'pyramid_tower', h: 367 },
+    { id: 'macau_tower', name: '澳門旅遊塔 Macau Tower', lat: 22.1795, lon: 113.5367, type: 'needle', h: 338 },
+    { id: 'bangkok_mahanakhon', name: '曼谷大京都大廈 MahaNakhon', lat: 13.7235, lon: 100.5283, type: 'empire', h: 314 },
+    { id: 'agra_taj_mahal', name: '印度泰姬瑪哈陵 Taj Mahal', lat: 27.1751, lon: 78.0421, type: 'taj_mahal', h: 73 },
+    { id: 'dubai_burj_alarab', name: '杜拜帆船飯店 Burj Al Arab', lat: 25.1412, lon: 55.1853, type: 'sail_hotel', h: 321 },
+    { id: 'dubai_future', name: '杜拜未來博物館', lat: 25.2192, lon: 55.2819, type: 'torus_ring', h: 77 },
+    { id: 'nyc_chrysler', name: '紐約克萊斯勒大廈 Chrysler', lat: 40.7516, lon: -73.9755, type: 'empire', h: 319 },
+    { id: 'chicago_willis', name: '芝加哥威利斯大廈 Willis', lat: 41.8789, lon: -87.6359, type: 'empire', h: 442 },
+    { id: 'la_hollywood_griffith', name: '格里斐斯天文台與好萊塢', lat: 34.1184, lon: -118.3004, type: 'taj_mahal', h: 45 },
+    { id: 'chichen_itza', name: '奇琴伊察馬雅金字塔', lat: 20.6843, lon: -88.5678, type: 'pyramids', h: 30 },
+    { id: 'paris_triomphe', name: '巴黎凱旋門 Arc de Triomphe', lat: 48.8738, lon: 2.2950, type: 'arch_gate', h: 50 },
+    { id: 'london_eye', name: '倫敦眼摩天輪 London Eye', lat: 51.5033, lon: -0.1196, type: 'ferris_wheel', h: 135 },
+    { id: 'pisa_tower', name: '比薩斜塔 Leaning Tower', lat: 43.7230, lon: 10.3966, type: 'pisa', h: 56 },
+    { id: 'barcelona_sagrada', name: '巴塞隆納聖家堂 Sagrada', lat: 41.4036, lon: 2.1744, type: 'sagrada', h: 172 },
+    { id: 'bavaria_neuschwanstein', name: '德國新天鵝堡 Neuschwanstein', lat: 47.5576, lon: 10.7498, type: 'castle_keep', h: 65 },
+    { id: 'athens_parthenon', name: '雅典衛城帕德嫩神廟', lat: 37.9715, lon: 23.7267, type: 'arch_gate', h: 32 }
   ];
 
   const bridgeOrangeMat = new THREE.MeshStandardMaterial({
@@ -1084,6 +1107,93 @@ function createGlobalScenery(scene, ground, airports = []) {
       addBox(roofMat, 12, 10, 12, cx, gy + 5, cz);
       addCyl(whiteShellMat, 3.2, 4.5, 30, 10, cx, gy + 25, cz);
       addBox(whiteShellMat, 28, 4, 4, cx, gy + 32, cz);
+    } else if (lm.type === 'kaohsiung_85') {
+      // Kaohsiung 85 Sky Tower: Pronged "高" twin lower piers merging into central 347m tower + 378m spire
+      for (const ox of [-22, 22]) addBox(landmarkGlassMat, 22, 165, 34, cx + ox, gy + 82, cz);
+      addBox(landmarkGlassMat, 48, 178, 34, cx, gy + 185, cz);
+      addCyl(monumentGoldMat, 4, 24, 38, 4, cx, gy + 293, cz, Math.PI / 4);
+      addCyl(whiteShellMat, 0.8, 2.2, 48, 8, cx, gy + 336, cz);
+      beacons.push({ x: cx, y: gy + 362, z: cz });
+    } else if (lm.type === 'palace_hall') {
+      // CKS Memorial Hall / Grand Hotel / Taichung Opera
+      const h = lm.h || 70;
+      addBox(whiteShellMat, 64, h * 0.56, 56, cx, gy + h * 0.28, cz);
+      addCyl(bridgeOrangeMat, 6, 48, h * 0.44, 8, cx, gy + h * 0.78, cz, Math.PI / 8);
+      beacons.push({ x: cx, y: gy + h + 2, z: cz });
+    } else if (lm.type === 'castle_keep') {
+      // Osaka Castle / Neuschwanstein / Fuji Pagoda
+      const h = lm.h || 56;
+      addBox(roofMat, 54, h * 0.32, 54, cx, gy + h * 0.16, cz);
+      for (let t = 0; t < 4; t++) {
+        const w = 38 - t * 7, y = gy + h * 0.32 + t * (h * 0.16);
+        addBox(whiteShellMat, w, h * 0.14, w, cx, y, cz);
+        addCyl(copperGreenMat, w * 0.35, w * 0.82, h * 0.07, 4, cx, y + h * 0.09, cz, Math.PI / 4);
+      }
+    } else if (lm.type === 'cctv_loop') {
+      // Beijing CCTV Headquarters canted 3D structural loop
+      for (const [ox, oz] of [[-38, -28], [38, 28]]) {
+        const leg = addBox(landmarkGlassMat, 34, 210, 34, cx + ox, gy + 105, cz + oz);
+        leg.rotation.z = ox > 0 ? 0.11 : -0.11;
+      }
+      addBox(landmarkGlassMat, 118, 36, 76, cx, gy + 192, cz);
+      beacons.push({ x: cx, y: gy + 218, z: cz });
+    } else if (lm.type === 'taj_mahal') {
+      // Taj Mahal / Griffith Observatory white marble onion dome & 4 corner minarets
+      addBox(whiteShellMat, 86, 12, 86, cx, gy + 6, cz);
+      addBox(whiteShellMat, 52, 34, 52, cx, gy + 29, cz);
+      addCyl(whiteShellMat, 4, 18, 28, 16, cx, gy + 58, cz);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        addCyl(whiteShellMat, 2.2, 3.2, 44, 10, cx + sx * 38, gy + 34, cz + sz * 38);
+      }
+    } else if (lm.type === 'sail_hotel') {
+      // Dubai Burj Al Arab billowing dhow sail & cantilevered circular helipad
+      addCyl(whiteShellMat, 6, 38, 280, 3, cx, gy + 140, cz);
+      addCyl(landmarkGlassMat, 14, 34, 250, 12, cx + 8, gy + 132, cz);
+      addCyl(whiteShellMat, 15, 15, 2.5, 20, cx - 18, gy + 210, cz);
+      addCyl(whiteShellMat, 0.9, 2.5, 42, 8, cx, gy + 300, cz);
+      beacons.push({ x: cx, y: gy + 322, z: cz });
+    } else if (lm.type === 'torus_ring') {
+      // Dubai Museum of the Future metallic torus ring
+      const torus = new THREE.Mesh(new THREE.TorusGeometry(34, 12, 12, 28), steelArchMat);
+      torus.position.set(cx, gy + 44, cz);
+      torus.scale.set(1.35, 1.0, 0.65);
+      g.add(torus);
+    } else if (lm.type === 'arch_gate') {
+      // Arc de Triomphe / Parthenon
+      for (const ox of [-16, 16]) addBox(bldgWallMat, 14, 46, 22, cx + ox, gy + 23, cz);
+      addBox(bldgWallMat, 46, 16, 23, cx, gy + 42, cz);
+    } else if (lm.type === 'ferris_wheel') {
+      // London Eye 135m cantilevered observation wheel
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(58, 2.2, 10, 28), whiteShellMat);
+      rim.position.set(cx, gy + 72, cz);
+      g.add(rim);
+      for (const sx of [-1, 1]) {
+        const leg = addCyl(whiteShellMat, 1.8, 2.6, 82, 8, cx + sx * 22, gy + 38, cz);
+        leg.rotation.z = -sx * 0.28;
+      }
+      beacons.push({ x: cx, y: gy + 134, z: cz });
+    } else if (lm.type === 'pisa') {
+      // Leaning Tower of Pisa tilted 4 degrees
+      const pisa = addCyl(whiteShellMat, 7.6, 8.2, 56, 18, cx, gy + 28, cz);
+      pisa.rotation.z = 0.072;
+    } else if (lm.type === 'sagrada') {
+      // Barcelona Sagrada Familia 5 organic spindle honeycomb towers
+      for (const [ox, oz, th] of [[0, 0, 172], [-18, -14, 115], [18, -14, 115], [-18, 14, 110], [18, 14, 110]]) {
+        addCyl(monumentGoldMat, 2.2, 9.5, th, 10, cx + ox, gy + th * 0.5, cz + oz);
+      }
+      addBox(bldgWallMat, 58, 45, 76, cx, gy + 22, cz);
+      beacons.push({ x: cx, y: gy + 174, z: cz });
+    }
+    // Optional Blender .glb external landmark model override if lm.glb is specified
+    if (lm.glb && typeof THREE.GLTFLoader === 'function') {
+      try {
+        new THREE.GLTFLoader().load('models/' + lm.glb, (gltf) => {
+          if (gltf && gltf.scene) {
+            gltf.scene.position.set(cx, gy, cz);
+            g.add(gltf.scene);
+          }
+        });
+      } catch (_) {}
     }
     if (beacons.length) {
       const dummy = new THREE.Object3D();

@@ -69,6 +69,180 @@ function createAirportSurroundings(parent,airport,layout){
     box(white,4,.1,5.8,terminalX,height+2.2,apronZ+z);
     box(frame,1.1,.55,12,terminalX+side*3,height+1,apronZ+z+4);
   }
+  // Bespoke 3D Architectural Landmarks for World-Famous & Regional Airports (merged into batched draw calls!)
+  (function buildFamousAirportArchitecture(){
+    const code=airport.code;
+    const tZ=apronZ-buildingLength/2-56;
+    const tX=terminalX+side*15;
+    if(code==='RCTP'){
+      // Taiwan Taoyuan International: T1 Saarinen-inspired sweeping catenary wing eaves + 65m red/white cylindrical dual-cab ATCT
+      for(let k=-4;k<=4;k++){
+        const z=apronZ+k*(buildingLength/9.5);
+        const sag=Math.abs(k)*0.32;
+        box(white,terminalWidth+18,0.65+sag*0.2,buildingLength/10,terminalX,height+1.6+sag,z);
+        box(frame,1.4,4.2+sag,1.4,gateWall-side*3,height*0.75,z);
+        box(frame,1.4,4.2+sag,1.4,back+side*3,height*0.75,z);
+      }
+      add(new THREE.CylinderGeometry(4.8,5.6,54,16),white,tX,27,tZ);
+      add(new THREE.CylinderGeometry(9.2,7.8,5.2,16),litGlass,tX,52,tZ);
+      add(new THREE.CylinderGeometry(9.8,9.8,1.1,16),red,tX,55.2,tZ);
+      add(new THREE.CylinderGeometry(6.8,6.2,3.6,16),litGlass,tX,57.5,tZ);
+      add(new THREE.CylinderGeometry(7.2,7.2,0.9,16),red,tX,59.8,tZ);
+      stats.landmark='Taoyuan Catenary Wing Terminal & Dual-Cab Red/White ATCT';
+    }else if(code==='RCSS'){
+      // Taipei Songshan: T1/T2 orange-and-silver dual roofline + green-glass octagonal ATCT
+      box(yellow,terminalWidth+6,1.15,buildingLength+4,terminalX,height+1.1,apronZ);
+      box(litGlass,28,4.6,44,terminalX,height+2.8,apronZ);
+      add(new THREE.CylinderGeometry(6.5,5.8,5.5,8),litGlass,tX,34,tZ);
+      stats.landmark='Songshan Orange/Silver Fascia & Octagonal ATCT';
+    }else if(code==='RCKH'){
+      // Kaohsiung International: Central elevated pyramidal glass skylight atrium + octagonal ATCT
+      add(new THREE.ConeGeometry(26,9.5,4),litGlass,terminalX,height+5.2,apronZ,1.2,1,1.6,Math.PI/4);
+      box(blue,terminalWidth+6,0.9,buildingLength,terminalX,height+1.05,apronZ);
+      stats.landmark='Kaohsiung Skylight Atrium Terminal';
+    }else if(code==='RCMQ'){
+      // Taichung Ching Chuan Kang: Wave-curved white terminal canopy + military hardened shelters
+      for(let i=-3;i<=3;i++){
+        const z=apronZ+i*(buildingLength/7.2);
+        add(new THREE.CylinderGeometry(18,18,terminalWidth+10,12),white,terminalX,height+0.8,z,1,0.22,1,Math.PI/2);
+      }
+      stats.landmark='Taichung Wave Canopy Terminal';
+    }else if(code==='RCBS'){
+      // Kinmen Shangyi: Traditional Minnan terracotta swallowtail curved ridge crown atop glass terminal
+      box(red,terminalWidth*0.65,2.6,buildingLength*0.72,terminalX,height+1.8,apronZ);
+      for(const end of [-1,1]){
+        box(red,terminalWidth*0.68,4.2,6,terminalX,height+3.1,apronZ+end*(buildingLength*0.36));
+        box(yellow,terminalWidth*0.72,0.8,8,terminalX,height+5.1,apronZ+end*(buildingLength*0.37));
+      }
+      stats.landmark='Kinmen Minnan Swallowtail Ridge Terminal';
+    }else if(code==='WSSS'){
+      // Singapore Changi: Moshe Safdie Jewel Changi 130m toroidal diamond-glass vortex dome + 81m double-goblet ATCT
+      const jX=back+side*46, jZ=apronZ;
+      add(new THREE.SphereGeometry(56,24,14),litGlass,jX,12,jZ,1.0,0.46,1.25);
+      add(new THREE.TorusGeometry(42,1.6,8,24),frame,jX,24,jZ,1.0,1.2,0.35);
+      add(new THREE.CylinderGeometry(8,11,28,16),litGlass,jX,14,jZ);
+      add(new THREE.CylinderGeometry(4.5,6.2,72,16),white,tX,36,tZ);
+      add(new THREE.CylinderGeometry(15,9,6.5,20),litGlass,tX,68,tZ);
+      add(new THREE.CylinderGeometry(16,16,1.4,20),white,tX,72,tZ);
+      stats.landmark='Changi Jewel Vortex Glass Dome & 81m Goblet ATCT';
+    }else if(code==='KJFK'){
+      // New York JFK: Eero Saarinen TWA Flight Center 4 soaring thin-shell white concrete bird wings + 98m ATCT
+      for(const s of [-1,1]){
+        const wingZ=apronZ+s*34;
+        add(new THREE.ConeGeometry(28,14,12),white,back+side*14,height*0.65,wingZ,1.1,0.55,1.8,s*0.32);
+        add(new THREE.ConeGeometry(22,11,12),white,gateWall-side*4,height*0.72,wingZ*0.8,0.9,0.48,1.5,-s*0.25);
+      }
+      add(new THREE.CylinderGeometry(5.2,7.2,86,12),white,tX,43,tZ);
+      add(new THREE.CylinderGeometry(12.5,9.2,7.5,12),litGlass,tX,88,tZ);
+      add(new THREE.SphereGeometry(4.2,12,10),white,tX,96,tZ);
+      stats.landmark='JFK Saarinen TWA Flight Center Bird-Wing Shells & 98m ATCT';
+    }else if(code==='KLAX'){
+      // Los Angeles LAX: Iconic Googie parabolic-arch Theme Building spider legs & flying saucer + 15 Illuminated Gateway Pylons
+      const tbX=back+side*42, tbZ=apronZ;
+      for(let a=0;a<4;a++){
+        const ang=a*Math.PI/2+Math.PI/4;
+        add(new THREE.TorusGeometry(28,1.3,8,20,Math.PI),white,tbX,2,tbZ,1,1.35,1,ang);
+      }
+      add(new THREE.CylinderGeometry(18,16,4.2,24),white,tbX,22,tbZ);
+      add(new THREE.CylinderGeometry(15,15,3.2,24),litGlass,tbX,24.5,tbZ);
+      for(let p=-7;p<=7;p++){
+        const pH=18+Math.abs(p)*1.4;
+        add(new THREE.CylinderGeometry(1.3,1.6,pH,12),lamp,roadX+side*13,pH*0.5,apronZ+p*22);
+      }
+      stats.landmark='LAX Googie Theme Building Arches & 15 Illuminated Gateway Pylons';
+    }else if(code==='KSFO'){
+      // San Francisco SFO: SOM International Terminal double-cantilevered inverted-truss butterfly wing roof + 67m flared Torch ATCT
+      box(white,terminalWidth+26,1.4,buildingLength*0.86,terminalX,height+3.8,apronZ);
+      for(let z=-buildingLength*0.38;z<=buildingLength*0.38;z+=28){
+        box(frame,terminalWidth+24,2.6,1.2,terminalX,height+2.1,apronZ+z);
+      }
+      add(new THREE.CylinderGeometry(8.5,4.2,62,16),white,tX,31,tZ);
+      add(new THREE.CylinderGeometry(11.5,8.5,6.5,16),litGlass,tX,64,tZ);
+      stats.landmark='SFO Butterfly Inverted-Truss Roof & Flared Torch ATCT';
+    }else if(code==='RJTT'||code==='RJAA'||code==='RJBB'){
+      // Tokyo Haneda / Narita / Osaka Kansai: Sweeping airfoil / Edo-wave silver roof shells + Circular Satellites (RJAA) + 110m ATCT
+      const waves=code==='RJBB'?9:5;
+      for(let w=0;w<waves;w++){
+        const wz=apronZ-buildingLength*0.42+w*(buildingLength*0.84/Math.max(1,waves-1));
+        add(new THREE.CylinderGeometry(terminalWidth*0.55,terminalWidth*0.55,buildingLength/waves+6,16),white,terminalX,height+0.6,wz,1,0.28,1);
+      }
+      if(code==='RJAA'){
+        for(const end of [-1,1]){
+          add(new THREE.CylinderGeometry(32,32,height+2,20),litGlass,gateWall-side*14,(height+2)*0.5,apronZ+end*(buildingLength*0.46));
+          add(new THREE.CylinderGeometry(34,34,1.2,20),white,gateWall-side*14,height+2.6,apronZ+end*(buildingLength*0.46));
+        }
+      }
+      add(new THREE.CylinderGeometry(5.5,6.8,88,16),frame,tX,44,tZ);
+      add(new THREE.CylinderGeometry(12,9.5,6.5,16),litGlass,tX,90,tZ);
+      stats.landmark=code+' Sweeping Airfoil Wave Roof & High-Elevation ATCT';
+    }else if(code==='VHHH'){
+      // Hong Kong Chek Lap Kok: Norman Foster barrel-vaulted multi-bay Y-concourse skylight roof + SkyBridge over taxiway
+      for(let b=-3;b<=3;b++){
+        const bz=apronZ+b*(buildingLength/7.2);
+        add(new THREE.CylinderGeometry(16,16,terminalWidth+8,12),white,terminalX,height+1.2,bz,1,0.35,1,Math.PI/2);
+      }
+      box(litGlass,48,7.5,16,gateWall-side*24,18,apronZ-buildingLength*0.38);
+      box(white,50,1.2,18,gateWall-side*24,22.2,apronZ-buildingLength*0.38);
+      stats.landmark='HKIA Foster Barrel-Vault Roof & SkyBridge';
+    }else if(code==='RKSI'||code==='ZSPD'||code==='ZBAA'||code==='ZGGG'||code==='ZGSZ'){
+      // Incheon / Pudong / Beijing Capital Dragon Roof / Guangzhou / Shenzhen Manta-Ray
+      const roofMatUse=code==='ZBAA'?red:white;
+      for(let s=-4;s<=4;s++){
+        const sz=apronZ+s*(buildingLength/9);
+        const hLift=code==='RKSI'?(4-Math.abs(s))*0.9:(s%2===0?2.6:0.8);
+        box(roofMatUse,terminalWidth+16,1.3,buildingLength/8.5,terminalX,height+1.5+hLift,sz);
+        box(litGlass,12,0.5,buildingLength/10,terminalX,height+2.3+hLift,sz);
+      }
+      add(new THREE.CylinderGeometry(4.6,7.2,84,16),white,tX,42,tZ);
+      add(new THREE.CylinderGeometry(11,8,6,16),litGlass,tX,86,tZ);
+      stats.landmark=code+' Grand Mega-Hub Wave/Dragon Canopy & 95m ATCT';
+    }else if(code==='VTBS'||code==='WMKK'||code==='VIDP'||code==='VABB'){
+      // Bangkok Suvarnabhumi Super-Truss & 132m ATCT / KLIA Islamic Shells / Delhi & Mumbai
+      for(let bay=-4;bay<=4;bay++){
+        const bz=apronZ+bay*(buildingLength/9);
+        box(frame,terminalWidth+14,2.8,1.6,terminalX,height+3.4,bz);
+        add(new THREE.ConeGeometry(20,6.5,12),white,terminalX,height+1.8,bz,1.3,0.6,1.1);
+      }
+      const twH=code==='VTBS'||code==='WMKK'?112:82;
+      add(new THREE.CylinderGeometry(4.4,6.4,twH,16),white,tX,twH*0.5,tZ);
+      add(new THREE.CylinderGeometry(10.5,8.2,6.5,16),litGlass,tX,twH+2,tZ);
+      stats.landmark=code+' Super-Truss Membrane Vaults & Ultra-Tall ATCT';
+    }else if(code==='OMDB'||code==='OTHH'||code==='LTFM'){
+      // Dubai Cigar Aerodynamic Shell / Doha Oasis Wave / Istanbul Ottoman Vaults & Tulip ATCT
+      add(new THREE.CylinderGeometry(terminalWidth*0.52,terminalWidth*0.52,buildingLength*0.96,20),frame,terminalX,height*0.85,apronZ,1,0.42,1);
+      add(new THREE.CylinderGeometry(terminalWidth*0.48,terminalWidth*0.48,buildingLength*0.92,20),litGlass,terminalX,height*0.92,apronZ,1,0.44,1);
+      add(new THREE.CylinderGeometry(7.8,4.6,74,16),white,tX,37,tZ);
+      add(new THREE.CylinderGeometry(12.5,7.8,8.5,16),litGlass,tX,76,tZ);
+      stats.landmark=code+' Aerodynamic Teardrop Concourse & Crescent/Tulip ATCT';
+    }else if(code==='EGLL'||code==='LFPG'||code==='EDDF'||code==='EHAM'||code==='LEMD'||code==='LIRF'||code==='LSZH'){
+      // London Heathrow T5 / Paris CDG T1 Circular Drum / Frankfurt Squaire / Madrid T4 Bamboo Wave
+      if(code==='LFPG'){
+        add(new THREE.CylinderGeometry(48,48,height+6,24),white,back+side*38,(height+6)*0.5,apronZ);
+        add(new THREE.CylinderGeometry(49,49,4.2,24),litGlass,back+side*38,height*0.7,apronZ);
+      }
+      const roofCol=code==='LEMD'?yellow:white;
+      for(let b=-4;b<=4;b++){
+        const bz=apronZ+b*(buildingLength/9);
+        box(roofCol,terminalWidth+12,1.2,buildingLength/8.6,terminalX,height+2.2+Math.sin(b)*1.1,bz);
+        box(code==='LEMD'?red:frame,1.4,height+2.4,1.4,gateWall-side*2.2,(height+2.4)*0.5,bz);
+        box(code==='LEMD'?red:frame,1.4,height+2.4,1.4,back+side*2.2,(height+2.4)*0.5,bz);
+      }
+      add(new THREE.CylinderGeometry(3.8,4.2,78,16),frame,tX,39,tZ);
+      add(new THREE.CylinderGeometry(12.8,5.5,7.5,16),litGlass,tX,80,tZ);
+      add(new THREE.CylinderGeometry(0.6,0.9,14,8),yellow,tX,90,tZ);
+      stats.landmark=code+' European Mega-Hub Vaulted Terminal & 87m Cone-Cab ATCT';
+    }else{
+      // All other international & regional airports (KORD, KSEA, CYYZ, CYVR, PHNL, PANC, YSSY, YMML, NZAA, SBGR, MMMX, SCEL, HECA, FAOR, etc.)
+      for(let b=-2;b<=2;b++){
+        const bz=apronZ+b*(buildingLength/5.2);
+        box(white,terminalWidth+8,1.1,buildingLength/6,terminalX,height+1.6+(2-Math.abs(b))*0.7,bz);
+        box(litGlass,terminalWidth*0.6,1.4,buildingLength/7,terminalX,height+2.4+(2-Math.abs(b))*0.7,bz);
+      }
+      add(new THREE.CylinderGeometry(4.2,5.4,48,14),white,tX,24,tZ);
+      add(new THREE.CylinderGeometry(9.6,7.2,5.4,14),litGlass,tX,50,tZ);
+      stats.landmark=code+' Custom Multi-Bay Skylight Terminal & Regional ATCT';
+    }
+  })();
   // Separate curtain-wall panes, mullions, recessed entrance doors and roof fascia.
   // All dimensions are metres; details remain outside the working jetway envelope.
   for(const wall of [gateWall-side*.16,back+side*.16]){
