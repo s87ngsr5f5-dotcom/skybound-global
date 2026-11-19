@@ -2053,9 +2053,19 @@ body.title-hub-open>header{padding-top:calc(8px + var(--menu-safe-top));padding-
 }
 
 /* Autopilot FMA & Interactive MCP HUD */
+.flight-ui header {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.flight-ui:not(.mobile-mode) #flightGuide,
+body.flight-ui:not(.mobile-mode) #gateGuide {
+  bottom: calc(var(--flight-bottom) + 56px);
+}
 .ap-mcp-wrap {
   position: absolute;
-  top: 4px;
+  top: max(10px, env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: 16;
