@@ -483,6 +483,199 @@ function createAirportSurroundings(parent,airport,layout){
     for(const z of [33,43])box(frame,3.6,.1,.12,roadX-side*11.7,.65,apronZ+z);
     for(let z=-length/2;z<length/2;z+=34)pole(gateWall-side*9,apronZ+z,9);
   }
+  // === GTA V (LSIA) Living Airport Campus: Hangars, Fuel Farm, Cargo ULD Yard, ARFF Fire Station, Elevated Viaduct, Parking Garage & High-Mast Floodlights ===
+  const gtaRadarNodes=[];
+  const gtaBeaconMats=[];
+  const gtaWindsocks=[];
+  (function buildGtaAirportCampus(){
+    const hangarBaseX=terminalX+side*8;
+    const southZoneZ=apronZ+buildingLength*0.5+98;
+    const northZoneZ=apronZ-buildingLength*0.5-128;
+
+    // 1. Giant Open-Bay Maintenance Hangars (with arched corrugated roofs, open blast doors & glowing interior)
+    for(let hIdx=0;hIdx<2;hIdx++){
+      const hz=southZoneZ+hIdx*84;
+      const hw=54, hh=18, hd=62;
+      // Back & side walls leaving airside hangar bay partially open!
+      box(white,3.2,hh,hd,hangarBaseX+side*(hw*0.5-1.6),hh*0.5,hz);
+      box(white,hw,hh,3.2,hangarBaseX,hh*0.5,hz-hd*0.5+1.6);
+      box(white,hw,hh,3.2,hangarBaseX,hh*0.5,hz+hd*0.5-1.6);
+      // Half-open sliding steel hangar doors on airside face
+      for(const ds of [-1,1]){
+        box(frame,1.4,hh*0.86,hd*0.24,hangarBaseX-side*(hw*0.5-0.8),hh*0.43,hz+ds*(hd*0.36));
+        box(yellow,1.55,0.65,hd*0.24,hangarBaseX-side*(hw*0.5-0.75),1.2,hz+ds*(hd*0.36));
+      }
+      // Glowing interior workshop strip & overhead hangar lighting
+      box(litGlass,hw-8,2.2,hd-10,hangarBaseX+side*2,hh-2.2,hz);
+      box(lamp,hw*0.7,0.4,2.2,hangarBaseX,hh-0.9,hz);
+      // Curved steel arch roof + hangar numbering stripe
+      add(new THREE.CylinderGeometry(hd*0.52,hd*0.52,hw+4,16),frame,hangarBaseX,hh+1.5,hz,1,0.22,1,Math.PI/2);
+      box(blue,hw+2,1.6,hd+1,hangarBaseX,hh-0.6,hz);
+      box(paving,hw+36,0.12,hd+14,hangarBaseX-side*18,0.06,hz);
+      // Maintenance bay concrete yellow hazard threshold
+      box(yellow,0.5,0.03,hd-6,hangarBaseX-side*(hw*0.5+3),0.14,hz);
+    }
+
+    // 2. Aviation Jet-A1 Fuel Farm (5 white cylindrical fuel tanks, containment berm, red/yellow hazard rings & overhead pipe bridge)
+    const fuelX=parkingX+side*(parkWidth*0.5+42);
+    const fuelZ=northZoneZ-15;
+    box(paving,48,0.16,74,fuelX,0.08,fuelZ);
+    // Concrete containment dike walls
+    box(curb,48,1.5,0.8,fuelX,0.75,fuelZ-36.5);
+    box(curb,48,1.5,0.8,fuelX,0.75,fuelZ+36.5);
+    box(curb,0.8,1.5,74,fuelX-23.6,0.75,fuelZ);
+    box(curb,0.8,1.5,74,fuelX+23.6,0.75,fuelZ);
+    for(let t=0;t<5;t++){
+      const tx=fuelX+(t%2===0?-10:10);
+      const tz=fuelZ-24+Math.floor(t/2)*24;
+      add(new THREE.CylinderGeometry(8.2,8.2,11.5,18),white,tx,5.75,tz);
+      add(new THREE.CylinderGeometry(8.35,8.35,1.1,18),yellow,tx,9.6,tz);
+      add(new THREE.CylinderGeometry(8.35,8.35,0.65,18),red,tx,8.5,tz);
+      add(new THREE.ConeGeometry(8.3,2.2,18),frame,tx,12.6,tz);
+    }
+    // Overhead steel pipe bridge & fuel pump shed
+    box(frame,1.2,1.0,62,fuelX,5.2,fuelZ);
+    box(red,8,4.2,10,fuelX+14,2.1,fuelZ+24);
+
+    // 3. Air Cargo Freight Terminal & Stacked Colorful ULD Container Yard
+    const cargoX=hangarBaseX;
+    const cargoZ=northZoneZ-25;
+    box(white,44,11,76,cargoX,5.5,cargoZ);
+    box(darkMetal,45.5,0.9,77,cargoX,11.2,cargoZ);
+    box(blue,44.4,1.6,76.4,cargoX,9.4,cargoZ);
+    // Loading dock doors along cargo warehouse
+    for(let d=-28;d<=28;d+=9){
+      box(darkMetal,0.6,4.2,4.6,cargoX-side*22.2,2.1,cargoZ+d);
+      box(yellow,0.7,0.35,5.0,cargoX-side*22.25,4.35,cargoZ+d);
+    }
+    // Colorful ULD Air-Cargo Containers stacked neatly on the cargo apron
+    const uldMats=[white,blue,red,yellow,frame];
+    for(let r=0;r<4;r++)for(let c=0;c<4;c++){
+      const ux=cargoX-side*(32+r*6.2), uz=cargoZ-22+c*12;
+      const um=uldMats[(r*3+c)%uldMats.length];
+      box(um,4.2,2.5,3.2,ux,1.25,uz);
+      if((r+c)%3===0)box(uldMats[(r+c+1)%uldMats.length],4.0,2.4,3.0,ux,3.7,uz);
+    }
+
+    // 4. ARFF Airport Fire & Rescue Station + 2 Parked Crash Fire Tenders
+    const fireX=gateWall-side*8;
+    const fireZ=apronZ-buildingLength*0.5-42;
+    box(white,24,7.5,30,fireX+side*16,3.75,fireZ);
+    box(red,24.6,1.8,30.6,fireX+side*16,7.8,fireZ);
+    for(const bayOff of [-7,7]){
+      box(darkMetal,0.5,5.2,6.2,fireX+side*3.8,2.6,fireZ+bayOff);
+      // Neon-yellow/red airport crash tender truck parked ready outside!
+      const fx=fireX-side*4, fz=fireZ+bayOff;
+      box(yellow,8.8,2.7,3.1,fx,1.75,fz);
+      box(red,8.9,0.55,3.15,fx,1.5,fz);
+      box(glazing,2.2,1.1,2.8,fx-side*3.1,2.4,fz);
+      box(lamp,0.6,0.4,1.6,fx-side*2.2,3.3,fz);
+    }
+
+    // 5. GTA-Style Elevated Double-Deck Departures Viaduct Overpass & Highway Overhead Gantry Signs
+    const viaX=roadX-side*2.5;
+    const viaLen=buildingLength+180;
+    box(paving,11.5,0.95,viaLen,viaX,6.4,apronZ);
+    box(curb,0.55,1.15,viaLen,viaX-5.6,7.3,apronZ);
+    box(curb,0.55,1.15,viaLen,viaX+5.6,7.3,apronZ);
+    // Support concrete T-piers & upward/downward access ramps
+    for(let z=-viaLen*0.46;z<=viaLen*0.46;z+=28){
+      add(new THREE.CylinderGeometry(0.95,1.1,6.2,10),curb,viaX,3.1,apronZ+z);
+      box(curb,9.6,0.9,1.8,viaX,5.6,apronZ+z);
+    }
+    // Overhead green/blue highway directional gantry signboards across airport boulevard!
+    for(const gz of [-buildingLength*0.36,buildingLength*0.36]){
+      const gx=roadX+side*2;
+      box(frame,0.45,11.5,0.45,gx-10,5.75,apronZ+gz);
+      box(frame,0.45,11.5,0.45,gx+10,5.75,apronZ+gz);
+      box(frame,20.8,0.65,0.65,gx,11.2,apronZ+gz);
+      sign(gz<0?airport.code+'  DEPARTURES  ↑  T1 / T2':'ARRIVALS  ↗  PARKING  P1',gx,10.6,apronZ+gz,15.5,2.2);
+    }
+
+    // 6. Multi-Story Concrete Airport Parking Garage behind the surface lot
+    const garX=parkingX+side*(parkWidth*0.5+28);
+    const garW=34, garD=Math.min(130,parkLength*0.82);
+    for(let fl=0;fl<4;fl++){
+      const fy=fl*3.6;
+      box(paving,garW,0.45,garD,garX,fy+0.25,apronZ);
+      box(curb,garW+0.5,1.15,0.45,garX,fy+0.9,apronZ-garD*0.5);
+      box(curb,garW+0.5,1.15,0.45,garX,fy+0.9,apronZ+garD*0.5);
+      box(curb,0.45,1.15,garD,garX-garW*0.5,fy+0.9,apronZ);
+      box(curb,0.45,1.15,garD,garX+garW*0.5,fy+0.9,apronZ);
+      box(lamp,0.3,0.25,garD-8,garX-side*(garW*0.48),fy+2.6,apronZ);
+    }
+    for(let gz=-garD*0.45;gz<=garD*0.45;gz+=16){
+      box(curb,0.8,14.5,0.8,garX-garW*0.46,7.25,apronZ+gz);
+      box(curb,0.8,14.5,0.8,garX+garW*0.46,7.25,apronZ+gz);
+    }
+
+    // 7. High-Mast 22m Apron Stadium Floodlight Towers + Jet Blast Deflectors + Gate GSE Clusters
+    const mastStep=Math.max(72,buildingLength/5);
+    for(let mz=-buildingLength*0.45;mz<=buildingLength*0.45;mz+=mastStep){
+      const mx=gateWall-side*4.2, mzz=apronZ+mz;
+      add(new THREE.CylinderGeometry(0.28,0.58,22,8),frame,mx,11,mzz);
+      box(frame,1.4,0.9,5.8,mx-side*0.6,22.2,mzz);
+      box(lamp,0.6,1.1,5.2,mx-side*1.1,21.9,mzz);
+      stats.lights+=4;
+    }
+    // Red/white jet blast deflector fences along outer apron ends
+    for(const end of [-1,1]){
+      const bz=apronZ+end*(buildingLength*0.5+38);
+      for(let bx=0;bx<4;bx++){
+        const x=gateWall-side*(14+bx*9);
+        box(bx%2===0?red:white,8.2,3.4,0.45,x,1.7,bz);
+      }
+    }
+
+    // 8. Animated GTA Airport Life: Spinning Primary ASR Surveillance Radar, Follow-Me Patrol SUV & Fluttering Windsock!
+    const radarGroup=new THREE.Group();
+    const rX=terminalX+side*22, rZ=apronZ-buildingLength*0.5-86;
+    radarGroup.position.set(rX,24,rZ);
+    box(frame,4.5,24,4.5,rX,12,rZ);
+    const dish=new THREE.Mesh(new THREE.BoxGeometry(7.2,2.2,0.55),white);
+    const dishRim=new THREE.Mesh(new THREE.BoxGeometry(7.5,0.35,0.75),red);
+    dishRim.position.y=1.15;
+    radarGroup.add(dish,dishRim);
+    root.add(radarGroup);
+    gtaRadarNodes.push(radarGroup);
+
+    // Animated Follow-Me Yellow Patrol SUV with flashing amber beacon patrolling the airside service lane!
+    const followMe=new THREE.Group();
+    movingBox(followMe,yellow,1.95,1.25,4.7,0,0.95,0);
+    movingBox(followMe,glazing,1.8,0.65,2.4,0,1.75,-0.15);
+    movingBox(followMe,darkMetal,2.0,0.28,4.85,0,0.42,0);
+    const amberBeaconMat=new THREE.MeshStandardMaterial({color:0xffaa00,emissive:0xffaa00,emissiveIntensity:3.0,roughness:0.2});
+    const beaconBar=new THREE.Mesh(new THREE.BoxGeometry(1.15,0.22,0.32),amberBeaconMat);
+    beaconBar.position.set(0,2.18,0);
+    followMe.add(beaconBar);
+    gtaBeaconMats.push(amberBeaconMat);
+    const fmWheels=[];
+    for(const sx of [-1,1])for(const sz of [-1,1]){
+      const w=new THREE.Mesh(wheelGeometry,rubber);
+      w.position.set(sx*0.98,0.38,sz*1.55);followMe.add(w);fmWheels.push(w);
+    }
+    traffic.add(followMe);
+    moving.push({root:followMe,wheels:fmWheels,distance:buildingLength*0.45,speed:7.2,
+      laneX:gateWall-side*14.5,laneZ:apronZ,straight:buildingLength*0.82});
+    stats.movingVehicles++;
+
+    // Animated Striped Orange-and-White Windsock beside runway edge
+    const wsX=-side*(airport.width*0.5+38), wsZ=apronZ-95;
+    box(white,0.18,7.2,0.18,wsX,3.6,wsZ);
+    const wsPivot=new THREE.Group();
+    wsPivot.position.set(wsX,7.1,wsZ);
+    const orangeConeMat=new THREE.MeshStandardMaterial({color:0xff5500,roughness:0.6});
+    const cone1=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.46,1.6,10,1,true),orangeConeMat);
+    cone1.rotation.z=Math.PI/2; cone1.position.x=0.8;
+    const cone2=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.28,1.4,10,1,true),white);
+    cone2.rotation.z=Math.PI/2; cone2.position.x=2.3;
+    const cone3=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.18,1.1,10,1,true),orangeConeMat);
+    cone3.rotation.z=Math.PI/2; cone3.position.x=3.55;
+    wsPivot.add(cone1,cone2,cone3);
+    root.add(wsPivot);
+    gtaWindsocks.push(wsPivot);
+    stats.gtaCampus=true;
+  })();
   // Soft apron/road light pools use one batched transparent surface, no point lights.
   const glowCanvas=document.createElement('canvas');glowCanvas.width=glowCanvas.height=64;
   const glowContext=glowCanvas.getContext('2d'),gradient=glowContext.createRadialGradient(32,32,0,32,32,32);
@@ -492,6 +685,10 @@ function createAirportSurroundings(parent,airport,layout){
   const glow=new THREE.MeshBasicMaterial({map:glowTexture,transparent:true,depthWrite:false,opacity:0,polygonOffset:true,polygonOffsetFactor:-1});
   for(let z=-parkLength/2+8;z<parkLength/2;z+=16){
     const plane=new THREE.PlaneGeometry(17,21);plane.rotateX(-Math.PI/2);add(plane,glow,roadX+side*6,.155,apronZ+z);
+  }
+  // Apron floodlight glow pools along the gates at dusk/night!
+  for(let z=-buildingLength*0.42;z<=buildingLength*0.42;z+=68){
+    const aPlane=new THREE.PlaneGeometry(42,46);aPlane.rotateX(-Math.PI/2);add(aPlane,glow,gateWall-side*20,.16,apronZ+z);
   }
   // Original deterministic aggregate texture, mapped in metres rather than per box.
   const surface=document.createElement('canvas');surface.width=surface.height=128;
@@ -530,6 +727,15 @@ function createAirportSurroundings(parent,airport,layout){
     litGlass.emissiveIntensity=.04+night*1.25;glow.opacity=night;
     road.roughness=byId('weather').value==='wet'?.38:.91;
     traffic.visible=root.visible&&Math.hypot(x-airport.x,z-airport.z)<2400;
+    if(root.visible){
+      for(const rNode of gtaRadarNodes)rNode.rotation.y+=dt*1.45;
+      const pulse=Math.sin(now*0.014)>0?4.2:0.4;
+      for(const bm of gtaBeaconMats)bm.emissiveIntensity=pulse;
+      for(const ws of gtaWindsocks){
+        ws.rotation.y=Math.sin(now*0.0011)*0.22;
+        ws.rotation.z=-0.16+Math.sin(now*0.0065)*0.09;
+      }
+    }
     if(traffic.visible)for(const v of moving){
       const r=3.3,straight=v.straight??(length-18),curve=Math.PI*r,lap=straight*2+curve*2;
       v.distance=(v.distance+dt*v.speed)%lap;

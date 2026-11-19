@@ -416,9 +416,11 @@ function stepTrainer(f, input, dt=simTick){
     f.maxG=Math.max(f.maxG??1.0, 1.0);
     f.minG=Math.min(f.minG??1.0, 1.0);
     const rollSpeed=Math.hypot(f.vx,f.vz);
-    const braking=input.brake||f.parkingBrake||f.noseDoor||f.sideDoor||f.service?.door||f.service?.pushing||Boolean(payload?.problems.length);
-    const force=(f.reverse?-thrust*.40:thrust)-drag-(braking?(aircraft.brakeForce||5900)+((payload?.mass||0)*4.8):(aircraft.rollingResistance||170));
-    const spoilerDrag=f.spoilers?1200:0;
+    const autoRollBrake=Boolean(f.easyLanding&&f.landed&&f.power<0.22&&rollSpeed>2);
+    const braking=input.brake||autoRollBrake||f.parkingBrake||f.noseDoor||f.sideDoor||f.service?.door||f.service?.pushing||Boolean(payload?.problems.length);
+    const brakeScale=(f.easyLanding&&braking&&!f.parkingBrake)?1.75:1;
+    const force=(f.reverse?-thrust*.40:thrust)-drag-(braking?((aircraft.brakeForce||5900)+((payload?.mass||0)*4.8))*brakeScale:(aircraft.rollingResistance||170));
+    const spoilerDrag=f.spoilers?(f.easyLanding?3800:1200):0;
     const next=limit(rollSpeed+(force-spoilerDrag)/mass*dt,0,aircraft.thrust?122:105);
     f.vx=next*Math.sin(f.heading); f.vz=-next*Math.cos(f.heading);
     if(lift+Math.sin(f.pitch)*thrust>mass*g*1.03 && f.pitch>.055 && !f.service?.door && !f.service?.pushing && forwardSpeed>(aircraft.rotation?aircraft.rotation/1.94384*.87:23) && !f.parkingBrake){
@@ -431,8 +433,9 @@ function stepTrainer(f, input, dt=simTick){
     const vertical=lift*Math.cos(f.bank)*Math.cos(signedPathAngle);
     const effThrustPitch=(aerobaticManual&&bankCos<-.25&&input.pitch>=-.05)?Math.min(0,f.pitch):f.pitch;
     const axial=thrust*Math.cos(effThrustPitch)-lift*Math.cos(f.bank)*Math.sin(signedPathAngle);
-    const airBrakeDrag=f.airBrake?Math.min(q*aircraft.wingArea*.24,mass*17):0;
-    const d=(drag+airBrakeDrag+(f.spoilers?q*aircraft.wingArea*.10:0))/Math.max(1,speed);
+    const airBrakeCoeff=f.easyLanding?.48:.24;
+    const airBrakeDrag=f.airBrake?Math.min(q*aircraft.wingArea*airBrakeCoeff,mass*(f.easyLanding?26:17)):0;
+    const d=(drag+airBrakeDrag+(f.spoilers?q*aircraft.wingArea*(f.easyLanding?.22:.10):0))/Math.max(1,speed);
     f.vx+=(s*axial+c*side-airX*d)/mass*dt;
     const upForce=vertical+thrust*Math.sin(effThrustPitch)-airY*d;
     const rightForce=side-(airX*c+airZ*s)*d;
@@ -443,6 +446,20 @@ function stepTrainer(f, input, dt=simTick){
     f.minG=Math.min(f.minG??1.0, loadG);
     f.vy+=(upForce/mass-g)*dt;
     f.vz+=(-c*axial+s*side-airZ*d)/mass*dt;
+    // Active Soft-Touchdown Landing Cushion & Wing Leveler when Easy Landing is enabled
+    if(f.easyLanding&&f.gear!==false&&agl<52&&f.pitch>-0.28&&!f.cobraActive){
+      const flareFloor=Math.max(-3.0,-1.1-agl*0.045);
+      if(f.vy<flareFloor){
+        const cushionBlend=Math.min(1,dt*(2.8+(52-agl)*0.16));
+        f.vy+=(flareFloor-f.vy)*cushionBlend;
+      }
+      if(agl<28&&Math.abs(input.roll||0)<0.15){
+        f.bank*=Math.max(0,1-dt*3.2);
+      }
+      if(agl<18&&f.pitch<0.04&&Math.abs(input.pitch||0)<0.12){
+        f.pitch+=(0.055-f.pitch)*Math.min(1,dt*2.4);
+      }
+    }
     if(aerobaticManual&&!gameAirborne&&(Math.abs(f.pitch)>.38||Math.abs(input.pitch)>.35&&Math.abs(f.pitchRate)>.25)){
       const loopBlend=Math.min(1,dt*(1.9+Math.abs(f.pitchRate)*2.2));
       const aoaOffset=limit(input.pitch*.09,-.12,.12)*bankCos;
@@ -476,11 +493,12 @@ function stepTrainer(f, input, dt=simTick){
       const {along,cross}=f.regional?runwayCoordinates(f.x,f.z,runway):localRunway(f.x,f.z);
       f.touchdown={along,cross,verticalSpeed:f.vy,speed,pitch:f.pitch,bank:f.bank,time:f.elapsed};
       const training=Boolean(f.shortMission?.assistedLanding);
+      const forgiving=training||Boolean(f.easyLanding);
       const sinkMult=f.crashSinkMult||1;
       const runwayTouchOk=(rw,al,cr)=>{
         const hErr=Math.min(Math.abs(wrapAngle(f.heading-rw.heading)),Math.abs(wrapAngle(f.heading-rw.heading-Math.PI)));
-        return Math.abs(al)<=rw.length/2+90 && Math.abs(cr)<=rw.width/2+18 && f.gear!==false &&
-          f.vy>(training?-12.5:-5.5)*sinkMult && Math.abs(f.bank)<(training?.62:.48) && hErr<(training?.78:.58);
+        return Math.abs(al)<=rw.length/2+(forgiving?160:90) && Math.abs(cr)<=rw.width/2+(forgiving?34:18) && f.gear!==false &&
+          f.vy>(forgiving?-13.5:-5.5)*sinkMult && Math.abs(f.bank)<(forgiving?.68:.48) && hErr<(forgiving?.82:.58);
       };
       f.landed=runwayTouchOk(runway,along,cross);
       let safeTouch=f.landed;
@@ -488,8 +506,20 @@ function stepTrainer(f, input, dt=simTick){
         const depFrame=runwayCoordinates(f.x,f.z,f.departure);
         safeTouch=runwayTouchOk(f.departure,depFrame.along,depFrame.cross);
       }
-      const severeCrash=f.vy<=(training?-16.5:-5.5)*sinkMult || Math.abs(f.bank)>=(training?.88:.75) ||
-        (f.pitch<=-.38 && speed>45) || (f.gear===false && f.vy<=-5.5);
+      // In Easy Landing mode, allow clean landings on ANY airport runway in the global network!
+      if(!safeTouch && f.easyLanding && f.regional && typeof allAirports!=='undefined' && Array.isArray(allAirports)){
+        for(let i=0;i<allAirports.length;i++){
+          const cand=allAirports[i];
+          if(Math.abs(cand.x-f.x)>3500 || Math.abs(cand.z-f.z)>3500) continue;
+          const cf=runwayCoordinates(f.x,f.z,cand);
+          if(runwayTouchOk(cand,cf.along,cf.cross)){ safeTouch=true; f.landed=true; break; }
+        }
+      }
+      if(safeTouch && f.easyLanding){
+        f.spoilers=true;
+      }
+      const severeCrash=f.vy<=(forgiving?-18.0:-5.5)*sinkMult || Math.abs(f.bank)>=(forgiving?.95:.75) ||
+        (f.pitch<=(forgiving?-.48:-.38) && speed>45) || (f.gear===false && f.vy<=(forgiving?-9.0:-5.5));
       f.ended=!safeTouch && severeCrash;
     }
     f.ground=true;f.y=floor;f.vy=0;

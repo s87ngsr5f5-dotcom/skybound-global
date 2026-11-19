@@ -661,6 +661,32 @@ function initialize(){
 
   const lampMaterial=new THREE.MeshBasicMaterial({color:0xd7eaff});
   const taxiEdgeMat=new THREE.MeshBasicMaterial({color:0x44aaff});
+  const skidMat=new THREE.MeshBasicMaterial({color:0x101318,transparent:true,opacity:0.42,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-6});
+  // Shared 3D Glowing Approach Glideslope Tunnel (8 emerald guide gates + chasing white Rabbit approach strobes!)
+  const approachTunnelGroup=new THREE.Group();
+  approachTunnelGroup.name='ApproachGlideslopeTunnel';
+  approachTunnelGroup.visible=false;
+  const apGateMat=new THREE.MeshBasicMaterial({color:0x34f5a8,transparent:true,opacity:0.46,side:THREE.DoubleSide,depthWrite:false});
+  const apGateNextMat=new THREE.MeshBasicMaterial({color:0x7cf8ff,transparent:true,opacity:0.78,side:THREE.DoubleSide,depthWrite:false});
+  const apGateDists=[480,1050,1750,2550,3500,4600,5900,7400];
+  const apGateMeshes=[];
+  for(let gi=0;gi<apGateDists.length;gi++){
+    const d=apGateDists[gi];
+    const gw=46+gi*8, gh=24+gi*4.2, bar=1.5+gi*0.25;
+    const frame=new THREE.Group();
+    const mTop=new THREE.Mesh(new THREE.BoxGeometry(gw,bar,bar),apGateMat); mTop.position.y=gh*0.5;
+    const mBot=new THREE.Mesh(new THREE.BoxGeometry(gw,bar,bar),apGateMat); mBot.position.y=-gh*0.5;
+    const mL=new THREE.Mesh(new THREE.BoxGeometry(bar,gh,bar),apGateMat); mL.position.x=-gw*0.5;
+    const mR=new THREE.Mesh(new THREE.BoxGeometry(bar,gh,bar),apGateMat); mR.position.x=gw*0.5;
+    frame.add(mTop,mBot,mL,mR);
+    frame.userData={dist:d,bars:[mTop,mBot,mL,mR]};
+    approachTunnelGroup.add(frame);
+    apGateMeshes.push(frame);
+  }
+  const rabbitStrobeMat=new THREE.MeshBasicMaterial({color:0xffffff});
+  const rabbitStrobe=new THREE.Mesh(new THREE.SphereGeometry(2.6,10,8),rabbitStrobeMat);
+  approachTunnelGroup.add(rabbitStrobe);
+  scene.add(approachTunnelGroup);
   for(const airport of airports){
     const half=airport.length/2, width=airport.width, apron=airport.apron, sideOfApron=Math.sign(apron);
     const local=airport.shortField, apronZ=local?-airport.parkingAlong:-65;
@@ -701,6 +727,13 @@ function initialize(){
       box(group,white,1.05,.035,airport.length-38,side*(width/2-2),.08,0);
       for(const end of [-1,1]){
         if(!local) box(group,white,Math.min(8,width*.13),.035,48,side*width*.22,.086,end*(half-315));
+        // GTA / MSFS realistic rubber touchdown tire skid marks across the touchdown zone
+        if(!local&&!airport.carrier){
+          const skid=new THREE.Mesh(new THREE.PlaneGeometry(width*0.36,210),skidMat);
+          skid.rotation.x=-Math.PI/2;
+          skid.position.set(side*width*0.11,0.095,end*(half-285));
+          group.add(skid);
+        }
         const tdz=local?[[145,1]]:airport.length>=2400?[[150,3],[450,2],[600,2],[750,1],[900,1]]:
           airport.length>=1500?[[150,3],[450,2],[600,1]]:[[145,1]];
         for(const [distance,stripes] of tdz){
@@ -3068,6 +3101,7 @@ function initialize(){
         flight.fuelStart=flight.fuel;
       }
       flight.quickPreset=preset;
+      flight.easyLanding=true;
       flight.fastCruise=!flight.aircraft.helicopter&&byId('speedProfile').value==='fast';
       if(preset==='helipad'&&flight.aircraft.helicopter){
         const p=airportPoint(flight.departure,385,flight.departure.apron+46);
@@ -5947,6 +5981,68 @@ function initialize(){
       btn.addEventListener('click',()=>strip?.click());
       deck.insertBefore(btn,deck.querySelector('.deck-sep'));
     }
+    const triggerEasyAutoLand=()=>{
+      if(!flight||flight.finished) return;
+      if(flight.ground){ showPill('✈ 已在地面上，起飛後可隨時按「自動降落」返場！'); return; }
+      if(!flight.battery){ flight.battery=true; flight.engines.fill(true); }
+      if(flight.aircraft?.helicopter){ toggleHelicopterHover(flight); return; }
+      // Pick destination if within 65km, otherwise nearest suitable runway!
+      let targetAp=flight.destination;
+      if(!targetAp||Math.hypot(flight.x-targetAp.x,flight.z-targetAp.z)>65000){
+        let best=null, bestD=Infinity;
+        for(const ap of airports){
+          if(ap.shortField&&!flight.aircraft.shortField) continue;
+          const d=Math.hypot(flight.x-ap.x,flight.z-ap.z);
+          if(d<bestD){ bestD=d; best=ap; }
+        }
+        if(best) targetAp=best;
+      }
+      if(targetAp){
+        flight.destination=targetAp;
+        flight.route=regionalRoute(flight.departure||targetAp,targetAp);
+        flight.waypoint=Math.max(0,flight.route.length-2);
+      }
+      flight.easyLanding=true;
+      flight.navMessage='';
+      flight.hold={nav:true,forceApproach:true,altitude:Math.round(flight.y)};
+      showPill('🛬 一鍵自動降落已接通 → 鎖定 '+(targetAp?.name||targetAp?.code||'最近跑道')+' 自動對準與柔和落地！');
+      apMcpLastUpdate=0;
+    };
+    if(deck&&!byId('deckAutoLandBtn')){
+      const landBtn=document.createElement('button');
+      landBtn.type='button';landBtn.id='deckAutoLandBtn';landBtn.className='deck-autoland-btn';
+      landBtn.textContent='🛬 自動降落';
+      landBtn.addEventListener('click',()=>{ triggerEasyAutoLand(); landBtn.blur(); });
+      deck.insertBefore(landBtn,deck.querySelector('.deck-sep'));
+      const softBtn=document.createElement('button');
+      softBtn.type='button';softBtn.id='deckEasyLandBtn';softBtn.setAttribute('aria-pressed','true');
+      softBtn.textContent='🛡 柔和降落';
+      softBtn.title='開啟／關閉低空拉平緩衝與寬容接地輔助';
+      softBtn.addEventListener('click',()=>{
+        if(!flight) return;
+        flight.easyLanding=!flight.easyLanding;
+        softBtn.setAttribute('aria-pressed',String(flight.easyLanding));
+        showPill(flight.easyLanding?'🛡 柔和降落輔助已開啟（低空自動拉平緩衝＋強化煞車）':'⚠ 柔和降落輔助已關閉（擬真硬核接地模式）');
+        softBtn.blur();
+      });
+      deck.insertBefore(softBtn,deck.querySelector('.deck-sep'));
+    }
+    const mobileQuick=byId('touchQuick');
+    if(mobileQuick&&!byId('touchAutoLandBtn')){
+      const mLand=document.createElement('button');
+      mLand.type='button';mLand.id='touchAutoLandBtn';mLand.textContent='🛬 自動降落';
+      mLand.addEventListener('click',triggerEasyAutoLand);
+      mobileQuick.insertBefore(mLand,mobileQuick.firstChild);
+    }
+    // Floating Real-Time Approach Guidance Coach Ribbon
+    let coachEl=byId('approachCoach');
+    if(!coachEl){
+      coachEl=document.createElement('div');
+      coachEl.id='approachCoach';
+      coachEl.className='approach-coach-ribbon';
+      coachEl.hidden=true;
+      hud.appendChild(coachEl);
+    }
     const ensureEditableHold=()=>{
       if(!flight||flight.ground||!flight.battery||flight.finished||flight.aircraft?.helicopter) return null;
       if(!flight.hold) flight.hold={mode:'hdg',heading:flight.heading,altitude:Math.round(flight.y)};
@@ -6925,6 +7021,80 @@ function initialize(){
           airportDetails.push(createAirportSurroundings(group,airport,layout));
         }
       }
+    }
+    // 3D Glowing Approach Glideslope Tunnel (8 emerald guide gates + chasing Rabbit strobe) & Live Approach Coach
+    const coachEl=byId('approachCoach');
+    if(flight&&!flight.ground&&!hangarMode&&!flight.finished&&!flight.aircraft?.helicopter){
+      // Pick destination if within 18km, else nearest airport within 16km when below 2600m AGL
+      let apTarget=flight.destination;
+      let apDist=apTarget?Math.hypot(px-apTarget.x,pz-apTarget.z):Infinity;
+      if(apDist>18000){
+        for(const cand of airports){
+          if(cand.shortField&&!flight.aircraft.shortField) continue;
+          const d=Math.hypot(px-cand.x,pz-cand.z);
+          if(d<apDist){ apDist=d; apTarget=cand; }
+        }
+      }
+      if(apTarget&&apDist<18000&&!apTarget.carrier){
+        const frame=runwayCoordinates(px,pz,apTarget);
+        const halfLen=apTarget.length*0.5;
+        // Choose approach end based on which side of the runway the aircraft is approaching from
+        const signEnd=frame.along>0?1:-1;
+        const distToThresh=Math.max(0,Math.abs(frame.along)-halfLen);
+        const onApproachSide=distToThresh<14500&&Math.abs(frame.cross)<5200;
+        approachTunnelGroup.visible=onApproachSide;
+        if(onApproachSide){
+          approachTunnelGroup.position.set(apTarget.x,apTarget.elevation,apTarget.z);
+          approachTunnelGroup.rotation.y=-apTarget.heading;
+          const slopeTan=Math.tan(3.1*Math.PI/180);
+          let highlighted=false;
+          for(let gi=0;gi<apGateMeshes.length;gi++){
+            const gm=apGateMeshes[gi], gd=gm.userData.dist;
+            const zLocal=-signEnd*(halfLen+gd);
+            const yLocal=14+gd*slopeTan;
+            gm.position.set(0,yLocal,zLocal);
+            gm.visible=gd>distToThresh-260;
+            const isNext=!highlighted&&gm.visible;
+            if(isNext) highlighted=true;
+            const useMat=isNext?apGateNextMat:apGateMat;
+            for(const b of gm.userData.bars) b.material=useMat;
+          }
+          // Chasing white Rabbit approach strobe racing toward runway threshold!
+          const rabbitFrac=1-((performance.now()*0.0014)%1);
+          const rDist=60+rabbitFrac*480;
+          rabbitStrobe.position.set(0,2.2,-signEnd*(halfLen+rDist));
+          rabbitStrobe.visible=true;
+        }
+        if(coachEl){
+          const showCoach=distToThresh<11500&&Math.abs(frame.cross)<3200&&(flight.y-apTarget.elevation)<1500;
+          coachEl.hidden=!showCoach;
+          if(showCoach){
+            const idealAlt=Math.round(apTarget.elevation+14+distToThresh*Math.tan(3.1*Math.PI/180));
+            const curAlt=Math.round(flight.y);
+            const altDiff=curAlt-idealAlt;
+            const targetKts=Math.round(flight.aircraft.approach||135);
+            const curKts=Math.round((flight.speed||0)*knotsPerMps);
+            let cue='✅ 完美下滑道 · 保持柔和接地';
+            let tone='good';
+            if(distToThresh<4500&&flight.gear===false){ cue='⚠ 請按 G 放下起落架！'; tone='warn'; }
+            else if(curKts>targetKts+32){ cue='⬇ 速度偏快 · 收油門／按空白減速'; tone='warn'; }
+            else if(altDiff>85){ cue='⬇ 高度偏高 · 壓鼻緩降對準綠框'; tone='high'; }
+            else if(altDiff<-55&&distToThresh>400){ cue='⬆ 高度偏低 · 補油門拉升回綠框'; tone='warn'; }
+            else if(Math.abs(frame.cross)>85){ cue=(frame.cross*signEnd>0?'⬅ 略偏右':'➡ 略偏左')+' · 微調對準中線'; tone='high'; }
+            const txt=`🛬 進場 ${apTarget.name||apTarget.code} · 距跑道 ${(distToThresh/1000).toFixed(1)} km · 建議高 ${idealAlt}m / 速 ${targetKts}kt · ${cue}`;
+            if(coachEl.textContent!==txt){
+              coachEl.textContent=txt;
+              coachEl.dataset.tone=tone;
+            }
+          }
+        }
+      }else{
+        approachTunnelGroup.visible=false;
+        if(coachEl) coachEl.hidden=true;
+      }
+    }else{
+      approachTunnelGroup.visible=false;
+      if(coachEl) coachEl.hidden=true;
     }
     if(!flight&&previewInspection.startsWith('tour-')){
       models.forEach(model=>{model.visible=false;if(model.userData.cabin)model.userData.cabin.visible=false;});

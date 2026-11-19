@@ -2066,6 +2066,45 @@ body.flight-ui:not(.mobile-mode) #gateGuide {
 .desktop-deck button {
   white-space: nowrap;
 }
+.desktop-deck button.deck-autoland-btn {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(14, 165, 233, 0.28));
+  border-color: rgba(52, 245, 168, 0.55);
+  color: #a7f3d0;
+  font-weight: 700;
+}
+.desktop-deck button.deck-autoland-btn:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.45), rgba(14, 165, 233, 0.45));
+  color: #ffffff;
+}
+.approach-coach-ribbon {
+  position: fixed;
+  top: calc(max(10px, env(safe-area-inset-top)) + 34px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: rgba(7, 22, 34, 0.86);
+  border: 1px solid rgba(52, 245, 168, 0.55);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.48);
+  color: #d1fae5;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  max-width: min(94vw, 680px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.approach-coach-ribbon[data-tone="warn"] {
+  border-color: rgba(251, 191, 36, 0.85);
+  color: #fef08a;
+  background: rgba(48, 22, 10, 0.9);
+}
+.approach-coach-ribbon[data-tone="high"] {
+  border-color: rgba(103, 214, 255, 0.72);
+  color: #bae6fd;
+}
 .ap-mcp-wrap {
   position: absolute;
   top: max(10px, env(safe-area-inset-top));
