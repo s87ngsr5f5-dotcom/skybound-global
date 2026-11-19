@@ -74,9 +74,9 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     const minLon=Math.min(nw.lon,se.lon), maxLon=Math.max(nw.lon,se.lon);
     const minLat=Math.min(nw.lat,se.lat), maxLat=Math.max(nw.lat,se.lat);
     const lonSpan=Math.max(0.005,maxLon-minLon), latSpan=Math.max(0.005,maxLat-minLat);
-    // Crisp z=14 (1024px) for near chunks & z=12 (512px) for mid-ring chunks
-    let tz=variant==='high'?14:12;
-    const maxSpan=variant==='high'?6:4;
+    // 3 LOD rings: high (1024px z=14 near), low (512px z=12 mid), horizon (256px z=10 far up to ~86km!)
+    let tz=variant==='high'?14:variant==='low'?12:10;
+    const maxSpan=variant==='high'?6:variant==='low'?4:2;
     let tx0=lonToTileX(minLon,tz), tx1=lonToTileX(maxLon,tz);
     let ty0=latToTileY(maxLat,tz), ty1=latToTileY(minLat,tz);
     while(tz>7&&((tx1-tx0+1)>maxSpan||(ty1-ty0+1)>maxSpan)){
@@ -84,7 +84,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
       tx0=lonToTileX(minLon,tz); tx1=lonToTileX(maxLon,tz);
       ty0=latToTileY(maxLat,tz); ty1=latToTileY(minLat,tz);
     }
-    const dim=variant==='high'?1024:512;
+    const dim=variant==='high'?1024:variant==='low'?512:256;
     const canvas=document.createElement('canvas');
     canvas.width=dim; canvas.height=dim;
     const ctx=canvas.getContext('2d');
@@ -156,7 +156,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
   }
 
   function process(){
-    while(loading<4&&queue.length){
+    while(loading<8&&queue.length){
       const [tile,variant]=queue.shift();
       if(tile.variant!==variant||tile.loading) continue;
       loading++;
@@ -194,20 +194,29 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     if(tiles.get(tile.key)===tile&&tile.variant&&tile.variant!==variant) queue.unshift([tile,tile.variant]);
     process();
   }
-  function update(col,row,quality){
-    const id=col+':'+row+':'+quality;
+  function update(col,row,quality,lookX=0,lookZ=0){
+    const dirBucket=Math.round(Math.atan2(lookX,lookZ)*2);
+    const id=col+':'+row+':'+quality+':'+dirBucket;
     if(id===location) return;
     location=id;
     queue=[];
     const active=new Set(), candidates=[];
-    for(let z=row-3;z<=row+3;z++){
-      for(let x=col-3;x<=col+3;x++){
+    const rad=quality==='low'?3:quality==='balanced'?5:7;
+    const lookLen=Math.hypot(lookX,lookZ)||1;
+    const lx=lookX/lookLen, lz=lookZ/lookLen;
+    for(let z=row-rad;z<=row+rad;z++){
+      for(let x=col-rad;x<=col+rad;x++){
         const key=x+'_'+z;
+        const dx=x-col, dz=z-row;
+        const dist2=dx*dx+dz*dz;
         const inCatalog=catalog.has(key);
-        const isGlobal=!inCatalog&&quality!=='low'&&chunkHasLand(x,z);
+        const isGlobal=!inCatalog&&quality!=='low'&&dist2<=rad*rad+4&&chunkHasLand(x,z);
         if(!inCatalog&&!isGlobal) continue;
         active.add(key);
-        candidates.push({key,x,z,isGlobal,distance:(x-col)**2+(z-row)**2});
+        // Forward-biased priority: load tiles in your line of sight FIRST!
+        const ahead=(dx*lx+dz*lz)/(Math.sqrt(dist2)||1);
+        const priority=dist2*(ahead>0?(1-0.38*ahead):(1+0.25*Math.abs(ahead)));
+        candidates.push({key,x,z,isGlobal,distance:dist2,priority});
       }
     }
     for(const [key,tile] of tiles){
@@ -216,7 +225,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
       tile.material.dispose();
       tiles.delete(key);
     }
-    candidates.sort((a,b)=>a.distance-b.distance);
+    candidates.sort((a,b)=>a.priority-b.priority);
     const highTiles=quality==='ultra'?9:quality==='high'?6:quality==='satellite'?5:quality==='balanced'?4:0;
     candidates.forEach(({key,x,z,isGlobal,distance},index)=>{
       let tile=tiles.get(key);
@@ -225,9 +234,14 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
         tile.material=makeMaterial(tile);
         tiles.set(key,tile);
       }
-      // Keep a low-resolution middle ring between the local imagery and island atlas.
+      // Keep a low-resolution middle ring between the local imagery and far horizon imagery.
       const imageryRadiusSquared=quality==='ultra'?13:quality==='high'?8:2;
-      const variant=distance>imageryRadiusSquared?null:index<highTiles&&renderer.capabilities.maxTextureSize>=1152?'high':'low';
+      let variant;
+      if(isGlobal){
+        variant=index<highTiles&&distance<=4&&renderer.capabilities.maxTextureSize>=1152?'high':distance<=18?'low':'horizon';
+      }else{
+        variant=distance>imageryRadiusSquared?null:index<highTiles&&renderer.capabilities.maxTextureSize>=1152?'high':'low';
+      }
       if(tile.variant!==variant){
         tile.variant=variant;
         if(variant) queue.push([tile,variant]);

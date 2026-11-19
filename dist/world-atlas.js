@@ -312,7 +312,7 @@ const WorldAtlas = (() => {
   function requestDEMTile(tx, ty) {
     if (typeof Image === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
     const key = `10:${tx}:${ty}`;
-    if (demCache.has(key) || demLoading >= 6) return;
+    if (demCache.has(key) || demLoading >= 8) return;
     demCache.set(key, { state: 'loading', data: null });
     demLoading++;
     const img = new Image();
@@ -336,7 +336,7 @@ const WorldAtlas = (() => {
             elev[i] = h > 0.2 ? h : 0;
           }
           demCache.set(key, { state: 'ready', data: elev });
-          while (demCache.size > 72) {
+          while (demCache.size > 140) {
             const oldest = demCache.keys().next().value;
             demCache.delete(oldest);
           }
@@ -355,13 +355,16 @@ const WorldAtlas = (() => {
   function prefetchDEM(lon, lat) {
     const { tx, ty } = demLonLatToTileFrac(lon, lat, 10);
     const n = 1024;
-    for (let dy = -1; dy <= 1; dy++) {
+    const list = [];
+    for (let dy = -2; dy <= 2; dy++) {
       const ny = ty + dy;
       if (ny < 0 || ny >= n) continue;
-      for (let dx = -1; dx <= 1; dx++) {
-        requestDEMTile(((tx + dx) % n + n) % n, ny);
+      for (let dx = -2; dx <= 2; dx++) {
+        list.push({ tx: ((tx + dx) % n + n) % n, ty: ny, d: dx * dx + dy * dy });
       }
     }
+    list.sort((a, b) => a.d - b.d);
+    for (const item of list) requestDEMTile(item.tx, item.ty);
   }
   function sampleRealDEM(lon, lat) {
     if (typeof Image === 'undefined') return null;

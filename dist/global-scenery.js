@@ -1093,7 +1093,7 @@ function createGlobalScenery(scene, ground, airports = []) {
       if (realLandmarksBuilt.has(lm.id)) continue;
       const pt = geoPoint(lm.lat, lm.lon);
       if (!pt) continue;
-      if (Math.hypot(px - pt.x, pz - pt.z) > 42000) continue;
+      if (Math.hypot(px - pt.x, pz - pt.z) > 95000) continue;
       realLandmarksBuilt.add(lm.id);
       const grp = buildRealLandmarkAtGPS(lm);
       if (grp) root.add(grp);
@@ -1294,7 +1294,7 @@ function createGlobalScenery(scene, ground, airports = []) {
     for (let i = 0; i < airports.length; i++) {
       const a = airports[i];
       if (a.shortField || a.carrier || hubLandmarksAdded.has(a.code)) continue;
-      if (Math.hypot(px - a.x, pz - a.z) > 28000) continue;
+      if (Math.hypot(px - a.x, pz - a.z) > 75000) continue;
       hubLandmarksAdded.add(a.code);
       const { lat, lon } = latLon(a.x, a.z);
       if (insideTaiwanDetailed(lat, lon)) continue;
@@ -1401,7 +1401,7 @@ function createGlobalScenery(scene, ground, airports = []) {
     if (quality === 'ultra' || quality === 'high' || quality === 'balanced') streamLiveOsmBuildings(px, pz);
 
     const cx = Math.floor(px / TILE), cz = Math.floor(pz / TILE);
-    const rad = quality === 'ultra' || quality === 'high' ? 4 : 3;
+    const rad = quality === 'ultra' || quality === 'high' ? 7 : 5;
     const keep = new Set();
     const candidates = [];
     const curSatRev = typeof window !== 'undefined' ? (window.__SKYBOUND_SAT_REVISION || 0) : 0;
@@ -1417,7 +1417,7 @@ function createGlobalScenery(scene, ground, airports = []) {
       }
     }
     candidates.sort((a, b) => a.d - b.d);
-    const maxBuild = loaded.size < 9 ? 12 : 3;
+    const maxBuild = loaded.size < 16 ? 16 : 5;
     for (let i = 0; i < candidates.length && i < maxBuild; i++) {
       const { c, r, key, stale } = candidates[i];
       if (stale) {

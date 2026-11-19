@@ -129,7 +129,7 @@ function initialize(){
     overviewToggle.hidden=!visible;
     if(!visible&&overviewActive) setOverview(false);
     if(overviewActive) byId('overviewAltitude').textContent=Math.round(f.y).toLocaleString();
-    const far=farView?430000:155000;
+    const far=farView?430000:Math.min(430000,Math.max(195000,165000+(f?.y||0)*14));
     if(camera.far!==far){camera.far=far;camera.updateProjectionMatrix();}
   }
   function getViewportSize(){
@@ -401,27 +401,33 @@ function initialize(){
     };
     document.head.appendChild(script);
   }
+  const terrainLookDir=new THREE.Vector3(0,0,-1);
   function terrainVertex(x,z){
     const key=x+':'+z;
     let height=terrainHeights.get(key);
     if(height===undefined){
       height=terrainHeight(x,z);
-      if(terrainHeights.size>=90000) terrainHeights.clear();
+      if(terrainHeights.size>=180000) terrainHeights.clear();
       terrainHeights.set(key,height);
     }
     return height;
   }
   function stitchedHeight(x,z,step){
-    // Fine tiles share the coarse edge profile, so adjacent meshes meet.
-    if(step===120){
-      if(x%span===0&&z%240!==0) return (terrainVertex(x,z-120)+terrainVertex(x,z+120))/2;
-      if(z%span===0&&x%240!==0) return (terrainVertex(x-120,z)+terrainVertex(x+120,z))/2;
+    // Fine tiles share the adjacent coarser LOD edge profile (120->240->480->960->1920) so no cracks ever appear to the horizon.
+    const dbl=step*2;
+    if(step<=960){
+      if(x%span===0&&z%dbl!==0) return (terrainVertex(x,z-step)+terrainVertex(x,z+step))/2;
+      if(z%span===0&&x%dbl!==0) return (terrainVertex(x-step,z)+terrainVertex(x+step,z))/2;
     }
     return terrainVertex(x,z);
   }
   function updateTerrain(x,z){
     if(renderer.instrumentOnly) return;
     loadTaipeiImagery(x,z);
+    camera.getWorldDirection(terrainLookDir);
+    const lookX=terrainLookDir.x, lookZ=terrainLookDir.z;
+    const lookLen=Math.hypot(lookX,lookZ)||1;
+    const lx=lookX/lookLen, lz=lookZ/lookLen;
     const cx=Math.floor(x/span),cz=Math.floor(z/span),id=cx+':'+cz+':'+terrainColorRevision;
     if((Math.abs(x)>120000||Math.abs(z)>220000)&&typeof WorldAtlas!=='undefined'&&typeof WorldAtlas.prefetchDEM==='function'){
       const pKey=cx+':'+cz;
@@ -431,7 +437,7 @@ function initialize(){
         WorldAtlas.prefetchDEM(ll.lon,ll.lat);
       }
     }
-    taiwanSatellite.update(cx,cz,byId('quality').value);
+    taiwanSatellite.update(cx,cz,byId('quality').value,lx,lz);
     for(const [k,patch] of terrainChunks){
       const [pc,pr]=k.split(':').map(Number);
       const satMat=taiwanSatellite.material(pc,pr)??terrainMaterial;
@@ -442,17 +448,26 @@ function initialize(){
       previousChunk=id;
       const visible=new Set();
       terrainQueue=[];
-      for(let row=cz-4;row<=cz+4;row++){
-        for(let col=cx-4;col<=cx+4;col++){
+      const q=byId('quality').value;
+      // Full horizon streaming: +-10 chunks (~120 km radius / 240 km across) on balanced/high/ultra, +-6 (~75 km) on low!
+      const hRad=q==='low'?6:10;
+      for(let row=cz-hRad;row<=cz+hRad;row++){
+        for(let col=cx-hRad;col<=cx+hRad;col++){
+          const dx=col-cx, dz=row-cz;
+          if(dx*dx+dz*dz>hRad*hRad+4) continue;
           const key=col+':'+row;
           visible.add(key);
           const mountain=Boolean(centralMountainTile(col,row));
-          const cheb=Math.max(Math.abs(col-cx),Math.abs(row-cz));
-          const near=cheb<=1;
-          const step=near?120:cheb<=2?terrainStep(col,row):480;
+          const cheb=Math.max(Math.abs(dx),Math.abs(dz));
+          const step=cheb<=1?120:cheb<=2?240:cheb<=4?480:cheb<=6?960:1920;
           const old=terrainChunks.get(key)?.userData;
           if(old?.colorRevision!==terrainColorRevision||old.step!==step){
-            terrainQueue.push({col,row,key,step,mountain,distance:(x/span-col-.5)**2+(z/span-row-.5)**2});
+            const d2=(x/span-col-.5)**2+(z/span-row-.5)**2;
+            const d=Math.sqrt(d2)||1;
+            const ahead=((col+.5-x/span)*lx+(row+.5-z/span)*lz)/d;
+            // Prioritize terrain directly inside your forward line of sight!
+            const priority=d2*(ahead>0?(1-0.45*ahead):(1+0.35*Math.abs(ahead)));
+            terrainQueue.push({col,row,key,step,mountain,distance:priority});
           }
         }
       }
@@ -468,8 +483,8 @@ function initialize(){
         terrainChunks.delete(key);
       }
     }
-    // Build the nearest patches first without generating a whole region in one frame.
-    const deadline=performance.now()+4.2;
+    // Build nearest & forward line-of-sight patches first without stalling the frame.
+    const deadline=performance.now()+5.5;
     while(terrainBuild||terrainQueue.length){
       if(!terrainBuild){
         const {col,row,key,step,mountain}=terrainQueue.shift();

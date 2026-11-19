@@ -248,7 +248,7 @@
     const puffTex = new THREE.CanvasTexture(canvas);
     if (THREE.SRGBColorSpace) puffTex.colorSpace = THREE.SRGBColorSpace;
 
-    const SPAN = 26000;
+    const SPAN = 52000;
     const HALF = SPAN * 0.5;
     const clusters = [];
     let seed = 918273;
@@ -266,7 +266,7 @@
       fog: true
     });
 
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 36; i++) {
       const cGrp = new THREE.Group();
       const ox = (rand() - 0.5) * SPAN;
       const oz = (rand() - 0.5) * SPAN;
