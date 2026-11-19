@@ -38,14 +38,31 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     const n=Math.PI-(2*Math.PI*ty)/(1<<z);
     return (180/Math.PI)*Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));
   }
+  const satPixelMaps=new Map();
+  let satSampleCanvas=null, satSampleCtx=null;
+  if(typeof window!=='undefined'){
+    window.__SKYBOUND_SAT_REVISION=0;
+    window.__SKYBOUND_SAT_SAMPLER=(x,z)=>{
+      const col=Math.floor(x/span), row=Math.floor(z/span);
+      const pm=satPixelMaps.get(col+'_'+row);
+      if(!pm) return null;
+      const u=Math.max(0,Math.min(63,Math.floor(((x-col*span)/span)*64)));
+      const v=Math.max(0,Math.min(63,Math.floor(((z-row*span)/span)*64)));
+      const idx=(v*64+u)*4;
+      return {r:pm[idx],g:pm[idx+1],b:pm[idx+2],a:pm[idx+3]};
+    };
+  }
   function chunkHasLand(col,row){
     const x0=col*span,z0=row*span;
-    const pts=[[x0+span*.5,z0+span*.5],[x0+span*.15,z0+span*.15],[x0+span*.85,z0+span*.15],[x0+span*.15,z0+span*.85],[x0+span*.85,z0+span*.85]];
-    for(const [px,pz] of pts){
-      if(typeof terrainHeight==='function'&&terrainHeight(px,pz)>0.25) return true;
-      if(typeof latLon==='function'&&typeof WorldAtlas!=='undefined'&&WorldAtlas.countryAt){
-        const ll=latLon(px,pz);
-        if(WorldAtlas.countryAt(ll.lon,ll.lat)) return true;
+    // 3x3 grid catches narrow peninsulas, straits, islands & bays (e.g. San Francisco Bay, Hong Kong, Manhattan)
+    for(let gy=0;gy<3;gy++){
+      for(let gx=0;gx<3;gx++){
+        const px=x0+span*(0.12+gx*0.38), pz=z0+span*(0.12+gy*0.38);
+        if(typeof terrainHeight==='function'&&terrainHeight(px,pz)>0.2) return true;
+        if(typeof latLon==='function'&&typeof WorldAtlas!=='undefined'&&WorldAtlas.countryAt){
+          const ll=latLon(px,pz);
+          if(WorldAtlas.countryAt(ll.lon,ll.lat)) return true;
+        }
       }
     }
     return false;
@@ -57,15 +74,17 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     const minLon=Math.min(nw.lon,se.lon), maxLon=Math.max(nw.lon,se.lon);
     const minLat=Math.min(nw.lat,se.lat), maxLat=Math.max(nw.lat,se.lat);
     const lonSpan=Math.max(0.005,maxLon-minLon), latSpan=Math.max(0.005,maxLat-minLat);
-    let tz=variant==='high'?13:11;
+    // Crisp z=14 (1024px) for near chunks & z=12 (512px) for mid-ring chunks
+    let tz=variant==='high'?14:12;
+    const maxSpan=variant==='high'?6:4;
     let tx0=lonToTileX(minLon,tz), tx1=lonToTileX(maxLon,tz);
     let ty0=latToTileY(maxLat,tz), ty1=latToTileY(minLat,tz);
-    while(tz>6&&((tx1-tx0+1)>4||(ty1-ty0+1)>4)){
+    while(tz>7&&((tx1-tx0+1)>maxSpan||(ty1-ty0+1)>maxSpan)){
       tz--;
       tx0=lonToTileX(minLon,tz); tx1=lonToTileX(maxLon,tz);
       ty0=latToTileY(maxLat,tz); ty1=latToTileY(minLat,tz);
     }
-    const dim=variant==='high'?512:256;
+    const dim=variant==='high'?1024:512;
     const canvas=document.createElement('canvas');
     canvas.width=dim; canvas.height=dim;
     const ctx=canvas.getContext('2d');
@@ -87,6 +106,21 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
       remaining--;
       if(remaining>0) return;
       if(loadedCount===0){done(null);return;}
+      // Capture lightweight 64x64 color lookup so 3D scenery aligns trees/buildings/water to actual Google Satellite pixels!
+      try{
+        if(!satSampleCanvas){
+          satSampleCanvas=document.createElement('canvas');
+          satSampleCanvas.width=64; satSampleCanvas.height=64;
+          satSampleCtx=satSampleCanvas.getContext('2d',{willReadFrequently:true});
+        }
+        if(satSampleCtx&&typeof satSampleCtx.getImageData==='function'){
+          satSampleCtx.clearRect(0,0,64,64);
+          satSampleCtx.drawImage(canvas,0,0,64,64);
+          satPixelMaps.set(tile.key,satSampleCtx.getImageData(0,0,64,64).data);
+          while(satPixelMaps.size>64){satPixelMaps.delete(satPixelMaps.keys().next().value);}
+          if(typeof window!=='undefined') window.__SKYBOUND_SAT_REVISION=(window.__SKYBOUND_SAT_REVISION||0)+1;
+        }
+      }catch{}
       const texture=new THREE.CanvasTexture(canvas);
       texture.colorSpace=THREE.SRGBColorSpace;
       texture.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());

@@ -261,17 +261,18 @@ function initialize(){
         }
         float closeFade=1.0-smoothstep(2800.0,28500.0,length(vViewPosition));
         if(closeFade>0.005){
+          float hasRealPhoto=max(step(0.5,regionalImageReady),step(0.5,taipeiImageReady));
           vec2 parcel=abs(fract(terrainXZ*0.0075)-0.5)*2.0;
           vec2 blockGrid=abs(fract(terrainXZ*0.022)-0.5)*2.0;
-          float parcelEdge=smoothstep(0.84,0.98,max(parcel.x,parcel.y));
-          float blockEdge=smoothstep(0.86,0.98,max(blockGrid.x,blockGrid.y));
+          float parcelEdge=smoothstep(0.84,0.98,max(parcel.x,parcel.y))*(1.0-hasRealPhoto);
+          float blockEdge=smoothstep(0.86,0.98,max(blockGrid.x,blockGrid.y))*(1.0-hasRealPhoto);
           float fine=sin(terrainXZ.x*0.18)*cos(terrainXZ.y*0.18)*0.55
             +sin((terrainXZ.x*0.43-terrainXZ.y*0.37))*0.30
             +cos((terrainXZ.x+terrainXZ.y)*0.85)*0.15;
           float coarsePatch=sin(terrainXZ.x*0.029+cos(terrainXZ.y*0.021)*2.0)*cos(terrainXZ.y*0.031);
-          float fieldQuilt=terrainWorldPos.y<180.0?smoothstep(0.15,0.85,sin(terrainXZ.x*0.0042)*cos(terrainXZ.y*0.0038)*0.5+0.5)*0.07:0.0;
-          float ridgeStrata=terrainWorldPos.y>160.0?sin(terrainWorldPos.y*0.095+sin(terrainXZ.x*0.012)*2.4)*0.065:0.0;
-          float detailGain=1.0+closeFade*(fine*0.14+coarsePatch*0.10+fieldQuilt+ridgeStrata-parcelEdge*0.068-blockEdge*0.052);
+          float fieldQuilt=terrainWorldPos.y<180.0?smoothstep(0.15,0.85,sin(terrainXZ.x*0.0042)*cos(terrainXZ.y*0.0038)*0.5+0.5)*0.07*(1.0-hasRealPhoto):0.0;
+          float ridgeStrata=terrainWorldPos.y>160.0?sin(terrainWorldPos.y*0.095+sin(terrainXZ.x*0.012)*2.4)*0.055:0.0;
+          float detailGain=1.0+closeFade*(fine*(hasRealPhoto>0.5?0.055:0.14)+coarsePatch*(hasRealPhoto>0.5?0.03:0.10)+fieldQuilt+ridgeStrata-parcelEdge*0.068-blockEdge*0.052);
           diffuseColor.rgb=clamp(diffuseColor.rgb*detailGain,0.0,1.0);
         }
         if(terrainWorldPos.y>0.08&&terrainWorldPos.y<4.2&&diffuseColor.b<=diffuseColor.r*1.38){
@@ -351,6 +352,17 @@ function initialize(){
   const span=11520;
   const terrainHeights=new Map();
   let previousChunk='',terrainQueue=[],terrainBuild=null,terrainColorRevision=0;
+  let demRefreshTimer=0, lastDemPrefetchKey='';
+  if(typeof WorldAtlas!=='undefined'&&typeof WorldAtlas.onDemLoad==='function'){
+    WorldAtlas.onDemLoad(()=>{
+      if(demRefreshTimer) return;
+      demRefreshTimer=setTimeout(()=>{
+        demRefreshTimer=0;
+        terrainHeights.clear();
+        terrainColorRevision++;
+      },850);
+    });
+  }
   const terrainStep=(col,row)=>col>=-1&&col<=0&&row>=-1&&row<=0?120:240;
   let mountainLayerRequested=false;
   let taipeiImageRequested='';
@@ -411,6 +423,14 @@ function initialize(){
     if(renderer.instrumentOnly) return;
     loadTaipeiImagery(x,z);
     const cx=Math.floor(x/span),cz=Math.floor(z/span),id=cx+':'+cz+':'+terrainColorRevision;
+    if((Math.abs(x)>120000||Math.abs(z)>220000)&&typeof WorldAtlas!=='undefined'&&typeof WorldAtlas.prefetchDEM==='function'){
+      const pKey=cx+':'+cz;
+      if(pKey!==lastDemPrefetchKey){
+        lastDemPrefetchKey=pKey;
+        const ll=latLon(x,z);
+        WorldAtlas.prefetchDEM(ll.lon,ll.lat);
+      }
+    }
     taiwanSatellite.update(cx,cz,byId('quality').value);
     for(const [k,patch] of terrainChunks){
       const [pc,pr]=k.split(':').map(Number);

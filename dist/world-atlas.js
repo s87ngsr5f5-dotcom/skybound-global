@@ -287,7 +287,105 @@ const WorldAtlas = (() => {
     return exact;
   }
 
+  // Real-World Global 30m SRTM Digital Elevation Model (AWS Mapzen Terrarium z=10 RGB PNGs, CORS-enabled)
+  const demCache = new Map();
+  const demListeners = new Set();
+  let demLoading = 0;
+  let demCanvas = null, demCtx = null;
+
+  function onDemLoad(fn) {
+    if (typeof fn === 'function') demListeners.add(fn);
+  }
+  function notifyDemListeners() {
+    for (const fn of demListeners) { try { fn(); } catch {} }
+  }
+  function demLonLatToTileFrac(lon, lat, z = 10) {
+    const n = 1 << z;
+    const wLon = wrapLon(lon);
+    const clampedLat = Math.max(-84.5, Math.min(84.5, lat)) * Math.PI / 180;
+    const fx = ((wLon + 180) / 360) * n;
+    const fy = (1 - Math.log(Math.tan(clampedLat) + 1 / Math.cos(clampedLat)) / Math.PI) * 0.5 * n;
+    const tx = ((Math.floor(fx) % n) + n) % n;
+    const ty = Math.max(0, Math.min(n - 1, Math.floor(fy)));
+    return { tx, ty, u: fx - Math.floor(fx), v: fy - Math.floor(fy) };
+  }
+  function requestDEMTile(tx, ty) {
+    if (typeof Image === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    const key = `10:${tx}:${ty}`;
+    if (demCache.has(key) || demLoading >= 6) return;
+    demCache.set(key, { state: 'loading', data: null });
+    demLoading++;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.referrerPolicy = 'no-referrer';
+    img.onload = () => {
+      demLoading = Math.max(0, demLoading - 1);
+      try {
+        if (!demCanvas) {
+          demCanvas = document.createElement('canvas');
+          demCanvas.width = 256; demCanvas.height = 256;
+          demCtx = demCanvas.getContext('2d', { willReadFrequently: true });
+        }
+        if (demCtx && typeof demCtx.getImageData === 'function') {
+          demCtx.clearRect(0, 0, 256, 256);
+          demCtx.drawImage(img, 0, 0, 256, 256);
+          const rgba = demCtx.getImageData(0, 0, 256, 256).data;
+          const elev = new Float32Array(256 * 256);
+          for (let i = 0, p = 0; i < 65536; i++, p += 4) {
+            const h = (rgba[p] * 256 + rgba[p + 1] + rgba[p + 2] / 256) - 32768;
+            elev[i] = h > 0.2 ? h : 0;
+          }
+          demCache.set(key, { state: 'ready', data: elev });
+          while (demCache.size > 72) {
+            const oldest = demCache.keys().next().value;
+            demCache.delete(oldest);
+          }
+          notifyDemListeners();
+          return;
+        }
+      } catch {}
+      demCache.set(key, { state: 'error', data: null });
+    };
+    img.onerror = () => {
+      demLoading = Math.max(0, demLoading - 1);
+      demCache.set(key, { state: 'error', data: null });
+    };
+    img.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/10/${tx}/${ty}.png`;
+  }
+  function prefetchDEM(lon, lat) {
+    const { tx, ty } = demLonLatToTileFrac(lon, lat, 10);
+    const n = 1024;
+    for (let dy = -1; dy <= 1; dy++) {
+      const ny = ty + dy;
+      if (ny < 0 || ny >= n) continue;
+      for (let dx = -1; dx <= 1; dx++) {
+        requestDEMTile(((tx + dx) % n + n) % n, ny);
+      }
+    }
+  }
+  function sampleRealDEM(lon, lat) {
+    if (typeof Image === 'undefined') return null;
+    const { tx, ty, u, v } = demLonLatToTileFrac(lon, lat, 10);
+    const key = `10:${tx}:${ty}`;
+    const entry = demCache.get(key);
+    if (!entry) {
+      requestDEMTile(tx, ty);
+      return null;
+    }
+    if (entry.state !== 'ready' || !entry.data) return null;
+    const px = Math.max(0, Math.min(254.999, u * 255));
+    const py = Math.max(0, Math.min(254.999, v * 255));
+    const x0 = px | 0, y0 = py | 0;
+    const fx = px - x0, fy = py - y0;
+    const d = entry.data;
+    const h00 = d[y0 * 256 + x0], h10 = d[y0 * 256 + x0 + 1];
+    const h01 = d[(y0 + 1) * 256 + x0], h11 = d[(y0 + 1) * 256 + x0 + 1];
+    return (h00 * (1 - fx) + h10 * fx) * (1 - fy) + (h01 * (1 - fx) + h11 * fx) * fy;
+  }
+
   function globalLandElevation(lon, lat, x = 0, z = 0) {
+    const realH = sampleRealDEM(lon, lat);
+    if (realH !== null) return realH;
     const c = countryAt(lon, lat);
     if (!c) return 0;
     const wLon = wrapLon(lon);
@@ -730,6 +828,9 @@ const WorldAtlas = (() => {
     isNaturalEarthLand,
     countryAt,
     globalLandElevation,
+    sampleRealDEM,
+    prefetchDEM,
+    onDemLoad,
     greatCircleGeoPoints,
     drawVectorWorld
   };

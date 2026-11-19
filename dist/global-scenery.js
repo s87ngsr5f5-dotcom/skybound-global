@@ -325,6 +325,24 @@ function createGlobalScenery(scene, ground, airports = []) {
     return r > 0.65 ? 0x46783e : r > 0.3 ? 0x386634 : 0x528244;
   }
 
+  function classifyLandUse(x, z, gH) {
+    if (gH < 1.1) return 'water';
+    const slope = Math.hypot(ground(x + 55, z) - gH, ground(x, z + 55) - gH) / 55;
+    const sampler = typeof window !== 'undefined' ? window.__SKYBOUND_SAT_SAMPLER : null;
+    const sat = sampler ? sampler(x, z) : null;
+    if (sat && sat.a > 120) {
+      const lum = sat.r + sat.g + sat.b;
+      if ((sat.b > sat.r * 1.12 && sat.b > sat.g * 1.03 && sat.r < 110) || (lum < 90 && gH < 6)) return 'water';
+      if (slope > 0.25) return 'mountain';
+      if (sat.g > sat.r * 1.04 && sat.g > sat.b * 1.04 && sat.g > 52) return 'forest';
+      if (sat.r > 138 && sat.g > 108 && (sat.r - sat.b) > 34 && lum > 330) return 'open';
+      if (Math.abs(sat.r - sat.g) < 26 && Math.abs(sat.g - sat.b) < 30 && sat.r > 68) return 'urban';
+      return 'suburban';
+    }
+    if (slope > 0.24) return 'mountain';
+    return null;
+  }
+
   function buildTile(col, row) {
     const cx = (col + 0.5) * TILE, cz = (row + 0.5) * TILE;
     const ll = typeof latLon === 'function' ? latLon(cx, cz) : null;
@@ -334,8 +352,11 @@ function createGlobalScenery(scene, ground, airports = []) {
     const country = typeof WorldAtlas !== 'undefined' ? WorldAtlas.countryAt(ll.lon, ll.lat) : null;
     const hubInfo = nearestHubInfo(cx, cz);
     const hubDist = hubInfo.dist;
+    const sampler = typeof window !== 'undefined' ? window.__SKYBOUND_SAT_SAMPLER : null;
+    const hasSatPhoto = Boolean(sampler && sampler(cx, cz));
 
     const group = new THREE.Group();
+    group.userData.satRev = typeof window !== 'undefined' ? (window.__SKYBOUND_SAT_REVISION || 0) : 0;
     const posArr = [], linePosArr = [];
     const houses = [], apts = [], glassTowers = [], warehouses = [], lamps = [], beacons = [], trees = [];
     const x0 = col * TILE, z0 = row * TILE;
@@ -344,152 +365,165 @@ function createGlobalScenery(scene, ground, airports = []) {
     const cbdX = hubAp ? hubAp.x + Math.cos(hubAp.heading) * (cbdSide * 3400) : 1e9;
     const cbdZ = hubAp ? hubAp.z + Math.sin(hubAp.heading) * (cbdSide * 3400) : 1e9;
     const cbdDist = Math.hypot(cx - cbdX, cz - cbdZ);
-    // Regional inland cities every ~11 km across all continents so flying anywhere on Earth has realistic cities & towns
-    const regCellX = Math.floor(col / 7), regCellZ = Math.floor(row / 7);
-    const regCityCore = hubDist > 22000 && hash2(regCellX * 13, regCellZ * 17) > 0.42 &&
-      Math.abs(((col % 7) + 7) % 7 - 3) <= 1 && Math.abs(((row % 7) + 7) % 7 - 3) <= 1;
-    const isMetroCore = cbdDist < 2800 || regCityCore || (hubDist > 2600 && hubDist < 6800 && hash2(col * 5, row * 9) > 0.68);
-    const isUrbanTile = hubDist < 22000 || regCityCore || hash2(col * 3, row * 5) > 0.42;
-    const isSuburbanTile = !isUrbanTile && (hubDist < 42000 || hash2(col * 7, row * 11) > 0.18);
+    const regCellX = Math.floor(col / 8), regCellZ = Math.floor(row / 8);
+    const regCityCore = hubDist > 22000 && hash2(regCellX * 13, regCellZ * 17) > 0.52 &&
+      Math.abs(((col % 8) + 8) % 8 - 4) <= 1 && Math.abs(((row % 8) + 8) % 8 - 4) <= 1;
+    const isMetroCore = cbdDist < 2800 || regCityCore;
+    const isUrbanTile = hubDist < 20000 || regCityCore;
+    const isSuburbanTile = !isUrbanTile && hubDist < 38000;
     const biome = country?.biome || 'temperate';
-    const pal = getRegionalPalette(country, hubAp?.region);
+    const regionCode = hubAp?.region || (biome === 'arid' ? 'me' : biome === 'mediterranean' ? 'eu' : 'na');
+    const pal = getRegionalPalette(country, regionCode);
+    const isEuropean = regionCode === 'eu' || biome === 'mediterranean';
+    const isMiddleEast = regionCode === 'me' || biome === 'arid';
 
-    // 1. Continuous cross-country arterial highways
-    const segs = 4, step = TILE / segs;
-    const hwyOffsetZ = z0 + TILE * 0.5 + (Math.sin(col * 0.45) * 220);
-    const hwyOffsetZNext = z0 + TILE * 0.5 + (Math.sin((col + 1) * 0.45) * 220);
-    const hwyOffsetX = x0 + TILE * 0.5 + (Math.cos(row * 0.45) * 220);
-    const hwyOffsetXNext = x0 + TILE * 0.5 + (Math.cos((row + 1) * 0.45) * 220);
-
-    for (let s = 0; s < segs; s++) {
-      const t0 = s / segs, t1 = (s + 1) / segs;
-      const hx0 = x0 + s * step, hz0 = hwyOffsetZ + (hwyOffsetZNext - hwyOffsetZ) * t0;
-      const hx1 = x0 + (s + 1) * step, hz1 = hwyOffsetZ + (hwyOffsetZNext - hwyOffsetZ) * t1;
-      addRoadStrip(posArr, linePosArr, hx0, hz0, hx1, hz1, 16);
-      const vx0 = hwyOffsetX + (hwyOffsetXNext - hwyOffsetX) * t0, vz0 = z0 + s * step;
-      const vx1 = hwyOffsetX + (hwyOffsetXNext - hwyOffsetX) * t1, vz1 = z0 + (s + 1) * step;
-      addRoadStrip(posArr, linePosArr, vx0, vz0, vx1, vz1, 16);
-
-      const hg = ground(hx0, hz0);
-      if (hg >= 1.0 && !inAirportClearance(hx0, hz0, 240)) {
-        lamps.push({ x: hx0, y: hg + 6.5, z: hz0 + 9.5 });
+    // 1. Only draw procedural road strips when offline/no Google Satellite photo is available (otherwise real Google Satellite roads shine cleanly!)
+    if (!hasSatPhoto) {
+      const segs = 4, step = TILE / segs;
+      const hwyOffsetZ = z0 + TILE * 0.5 + (Math.sin(col * 0.45) * 220);
+      const hwyOffsetZNext = z0 + TILE * 0.5 + (Math.sin((col + 1) * 0.45) * 220);
+      const hwyOffsetX = x0 + TILE * 0.5 + (Math.cos(row * 0.45) * 220);
+      const hwyOffsetXNext = x0 + TILE * 0.5 + (Math.cos((row + 1) * 0.45) * 220);
+      for (let s = 0; s < segs; s++) {
+        const t0 = s / segs, t1 = (s + 1) / segs;
+        addRoadStrip(posArr, linePosArr, x0 + s * step, hwyOffsetZ + (hwyOffsetZNext - hwyOffsetZ) * t0, x0 + (s + 1) * step, hwyOffsetZ + (hwyOffsetZNext - hwyOffsetZ) * t1, 14);
+        addRoadStrip(posArr, linePosArr, hwyOffsetX + (hwyOffsetXNext - hwyOffsetX) * t0, z0 + s * step, hwyOffsetX + (hwyOffsetXNext - hwyOffsetX) * t1, z0 + (s + 1) * step, 14);
       }
     }
 
-    // 2. Dense Urban & Suburban Street Grid (4x4 = 16 city blocks in urban tiles, 3x3 in suburban)
-    const gridDiv = isMetroCore ? 5 : isUrbanTile ? 4 : isSuburbanTile ? 3 : 2;
+    // 2. Satellite-Color & Slope-Guided Real Land-Use Population (Forests stay green, Hills/Cliffs stay natural, Cities get regional architecture!)
+    const gridDiv = isMetroCore ? 5 : isUrbanTile ? 4 : 3;
     const blockSize = TILE / gridDiv;
-    for (let g = 1; g < gridDiv; g++) {
-      for (let s = 0; s < 2; s++) {
-        addRoadStrip(posArr, linePosArr, x0 + s * (TILE / 2), z0 + g * blockSize, x0 + (s + 1) * (TILE / 2), z0 + g * blockSize, isUrbanTile ? 9.5 : 7.5);
-        addRoadStrip(posArr, linePosArr, x0 + g * blockSize, z0 + s * (TILE / 2), x0 + g * blockSize, z0 + (s + 1) * (TILE / 2), isUrbanTile ? 9.5 : 7.5);
-      }
-    }
-
-    // 3. Populate Every City Block with Complete Street-Aligned Architecture
     const osmCity = typeof window !== 'undefined' ? window.__SKYBOUND_WORLD_CITY : null;
+    const districtAngle = (hash2(col * 11, row * 17) - 0.5) * 1.15;
+
     for (let br = 0; br < gridDiv; br++) {
       for (let bc = 0; bc < gridDiv; bc++) {
         const bx0 = x0 + bc * blockSize, bz0 = z0 + br * blockSize;
         const bcx = bx0 + blockSize * 0.5, bcz = bz0 + blockSize * 0.5;
         if (osmCity && typeof osmCity.blocked === 'function' && osmCity.blocked(bcx, bcz)) continue;
         const bGround = ground(bcx, bcz);
-        if (bGround < 1.0 || bGround > 2350) continue;
+        if (bGround < 1.1 || bGround > 2450) continue;
+
+        const landUse = classifyLandUse(bcx, bcz, bGround);
+        if (landUse === 'water') continue;
 
         const blockCbdDist = Math.hypot(bcx - cbdX, bcz - cbdZ);
         const blockHubDist = Math.hypot(bcx - (hubAp?.x || 0), bcz - (hubAp?.z || 0));
         const blockSeed = hash2(col * 19 + bc * 7, row * 23 + br * 11);
 
-        if (blockCbdDist < 2600 || (isMetroCore && blockSeed > 0.45)) {
-          // Downtown CBD / Metropolitan Commercial & High-Rise Block
-          const lotCount = 5;
+        // Parks, Forests, Cliffs & Mountain Slopes: NEVER place fake buildings! Render lush biome-appropriate trees & keep real terrain visible!
+        if (landUse === 'forest' || landUse === 'mountain') {
+          const treeCount = landUse === 'mountain' ? (biome === 'arid' ? 2 : 7) : (biome === 'arid' ? 3 : 11);
+          for (let t = 0; t < treeCount; t++) {
+            const tx = bx0 + 16 + hash2(bc * 43 + t * 5, br * 19 + col) * (blockSize - 32);
+            const tz = bz0 + 16 + hash2(bc * 29 + row, br * 37 + t * 7) * (blockSize - 32);
+            if (inAirportClearance(tx, tz, 240)) continue;
+            const tg = ground(tx, tz);
+            if (tg >= 1.5 && tg < 2350) {
+              const tr = (biome === 'tropical' ? 5.8 : biome === 'boreal' ? 4.8 : 5.2) + hash2(t * 7, col + row) * 6.5;
+              trees.push({ x: tx, y: tg + tr * 0.72, z: tz, r: tr, color: getTreeTone(biome, hash2(t, bc + br)) });
+            }
+          }
+          continue;
+        }
+
+        // Open deserts, beaches & agricultural plains: leave open & natural with only occasional rural farms/trees
+        if (landUse === 'open' || (!hasSatPhoto && !isUrbanTile && !isSuburbanTile && blockSeed > 0.35)) {
+          if (biome !== 'arid' && blockSeed < 0.65) {
+            for (let t = 0; t < 4; t++) {
+              const tx = bx0 + 20 + hash2(bc * 13 + t, br * 29) * (blockSize - 40);
+              const tz = bz0 + 20 + hash2(br * 17 + t, bc * 31) * (blockSize - 40);
+              if (inAirportClearance(tx, tz, 220)) continue;
+              const tg = ground(tx, tz);
+              if (tg >= 1.5) trees.push({ x: tx, y: tg + 4.5, z: tz, r: 5.2, color: getTreeTone(biome, hash2(t, col)) });
+            }
+          }
+          continue;
+        }
+
+        const allowUrban = landUse === 'urban' || (!hasSatPhoto && isUrbanTile);
+        const allowSuburban = landUse === 'suburban' || (!hasSatPhoto && isSuburbanTile);
+
+        if (allowUrban && (blockCbdDist < 2600 || (isMetroCore && blockSeed > 0.45))) {
+          // Region-Distinct Downtown CBD (European Haussmann courtyard blocks vs American/Asian/Dubai glass skylines!)
+          const lotCount = isEuropean ? 6 : 5;
           for (let k = 0; k < lotCount; k++) {
             const rA = hash2(col * 37 + bc * 13 + k, row * 41 + br * 17);
             const rB = hash2(col * 17 + k * 29, row * 31 + bc + br);
             const lx = bx0 + 26 + rA * (blockSize - 52);
             const lz = bz0 + 26 + rB * (blockSize - 52);
-            if (inAirportClearance(lx, lz, 150)) continue;
+            if (inAirportClearance(lx, lz, 160)) continue;
             const lg = ground(lx, lz);
-            if (lg < 1.0) continue;
-            const w = 20 + hash2(k, bc + col) * 22;
-            const d = 20 + hash2(br + row, k) * 22;
-            const h = 24 + Math.pow(hash2(col + k, row - k + bc), 1.65) * (blockCbdDist < 1800 ? 115 : 64);
+            if (lg < 1.2 || classifyLandUse(lx, lz, lg) === 'water') continue;
+            const w = 18 + hash2(k, bc + col) * 20;
+            const d = 18 + hash2(br + row, k) * 20;
+            // European historic centers favor elegant 6-8 story limestone blocks; NA/Asia/ME build taller glass cores
+            const maxH = isEuropean ? 42 : isMiddleEast ? 135 : 110;
+            const h = (isEuropean ? 18 : 22) + Math.pow(hash2(col + k, row - k + bc), 1.6) * (blockCbdDist < 1800 ? maxH : maxH * 0.55);
             const tone = pal.apt[(k + bc + br) % pal.apt.length];
-            if (h > 48) {
+            if (h > 48 && !isEuropean) {
               const podH = Math.min(15, h * 0.24);
-              apts.push({ x: lx, y: lg + podH * 0.5 - 0.5, z: lz, w: w * 1.18, h: podH, d: d * 1.18, rot: 0, tone });
+              apts.push({ x: lx, y: lg + podH * 0.5 - 0.5, z: lz, w: w * 1.18, h: podH, d: d * 1.18, rot: districtAngle, tone });
               glassTowers.push({ x: lx, y: lg + h * 0.5 - 0.5, z: lz, w: w * 0.86, h, d: d * 0.86, tone: pal.glass[k % pal.glass.length] });
               const crownH = h * 0.18;
               glassTowers.push({ x: lx, y: lg + h + crownH * 0.5 - 0.8, z: lz, w: w * 0.55, h: crownH, d: d * 0.55, tone: pal.glass[k % pal.glass.length] });
               if (h > 68) beacons.push({ x: lx, y: lg + h + crownH + 1.2, z: lz });
             } else {
-              apts.push({ x: lx, y: lg + h * 0.5 - 0.5, z: lz, w, h, d, rot: (k & 1) ? 0 : Math.PI * 0.5, tone });
+              apts.push({ x: lx, y: lg + h * 0.5 - 0.5, z: lz, w, h, d, rot: districtAngle + ((k & 1) ? 0 : Math.PI * 0.5), tone });
             }
           }
-          // Street-front low-rise retail & townhouses along block edges
-          for (let hIdx = 0; hIdx < 6; hIdx++) {
-            const hx = bx0 + 24 + (hIdx / 6) * (blockSize - 48);
-            const hz = bz0 + (hIdx % 2 === 0 ? 22 : blockSize - 22);
-            if (inAirportClearance(hx, hz, 140)) continue;
-            const hg = ground(hx, hz);
-            if (hg < 1.0) continue;
-            houses.push({
-              x: hx, y: hg + 5.2 - 0.4, z: hz,
-              w: 12 + (hIdx % 3) * 3, h: 10.4, d: 11 + ((hIdx + 1) % 3) * 2,
-              rot: 0, tone: pal.house[(hIdx + bc) % pal.house.length]
-            });
-          }
-        } else if (isUrbanTile && (blockHubDist < 2200 ? blockSeed < 0.38 : blockSeed < 0.18)) {
-          // Logistics / Industrial / Airport Perimeter Commercial Park Block
-          for (let wIdx = 0; wIdx < 4; wIdx++) {
-            const wx = bx0 + 44 + (wIdx % 2) * (blockSize * 0.48);
-            const wz = bz0 + 44 + Math.floor(wIdx / 2) * (blockSize * 0.46);
-            if (inAirportClearance(wx, wz, 140)) continue;
+        } else if (allowUrban && (blockHubDist < 2400 ? blockSeed < 0.35 : blockSeed < 0.16)) {
+          // Logistics / Port / Airport Commercial Park Block
+          for (let wIdx = 0; wIdx < 3; wIdx++) {
+            const wx = bx0 + 44 + (wIdx % 2) * (blockSize * 0.44);
+            const wz = bz0 + 44 + Math.floor(wIdx / 2) * (blockSize * 0.44);
+            if (inAirportClearance(wx, wz, 150)) continue;
             const wg = ground(wx, wz);
-            if (wg < 1.0) continue;
-            const ww = 36 + hash2(wIdx, col) * 26;
-            const wd = 26 + hash2(row, wIdx) * 20;
+            if (wg < 1.2 || classifyLandUse(wx, wz, wg) === 'water') continue;
+            const ww = 34 + hash2(wIdx, col) * 24;
+            const wd = 24 + hash2(row, wIdx) * 18;
             const wh = 9.5 + (wIdx % 2) * 3.5;
             warehouses.push({ x: wx, y: wg + wh * 0.5 - 0.5, z: wz, w: ww, h: wh, d: wd, tone: pal.ind[wIdx % pal.ind.length] });
           }
-        } else {
-          // Mixed Residential & Mid-Rise Neighborhood Block (dense rows of pitched-roof houses + mid-rise apartments)
-          const rows = isUrbanTile ? 4 : isSuburbanTile ? 3 : 2;
-          const colsPerRow = isUrbanTile ? 5 : isSuburbanTile ? 4 : 3;
+        } else if (allowUrban || allowSuburban) {
+          // Organic Regional Residential Neighborhood (respects satellite land-use & slopes, varied street angles!)
+          const rows = allowUrban ? 3 : 2;
+          const colsPerRow = allowUrban ? 4 : 3;
           for (let rr = 0; rr < rows; rr++) {
             for (let cc = 0; cc < colsPerRow; cc++) {
-              const jitterX = (hash2(bc * 17 + cc, br * 23 + rr) - 0.5) * 10;
-              const jitterZ = (hash2(bc * 31 + rr, br * 13 + cc) - 0.5) * 10;
-              const hx = bx0 + 22 + ((cc + 0.5) / colsPerRow) * (blockSize - 44) + jitterX;
-              const hz = bz0 + 22 + ((rr + 0.5) / rows) * (blockSize - 44) + jitterZ;
-              if (inAirportClearance(hx, hz, 130)) continue;
+              const jitterX = (hash2(bc * 17 + cc, br * 23 + rr) - 0.5) * 18;
+              const jitterZ = (hash2(bc * 31 + rr, br * 13 + cc) - 0.5) * 18;
+              const hx = bx0 + 26 + ((cc + 0.5) / colsPerRow) * (blockSize - 52) + jitterX;
+              const hz = bz0 + 26 + ((rr + 0.5) / rows) * (blockSize - 52) + jitterZ;
+              if (inAirportClearance(hx, hz, 140)) continue;
               const hg = ground(hx, hz);
-              if (hg < 1.0) continue;
-              const isMidRiseLot = isUrbanTile && ((rr + cc + bc) % 3 === 0);
+              const ptUse = classifyLandUse(hx, hz, hg);
+              if (hg < 1.2 || ptUse === 'water' || ptUse === 'forest' || ptUse === 'mountain') continue;
+              const isMidRiseLot = allowUrban && ((rr + cc + bc) % 3 === 0);
               if (isMidRiseLot) {
-                const ah = 13 + hash2(cc + col, rr + row) * 20;
-                const aw = 18 + (cc % 3) * 6, ad = 16 + (rr % 3) * 5;
-                apts.push({ x: hx, y: hg + ah * 0.5 - 0.5, z: hz, w: aw, h: ah, d: ad, rot: ((cc + rr) & 1) ? 0 : Math.PI * 0.5, tone: pal.apt[(cc + rr + bc) % pal.apt.length] });
+                const ah = (isEuropean ? 15 : 12) + hash2(cc + col, rr + row) * (isEuropean ? 14 : 20);
+                const aw = 16 + (cc % 3) * 5, ad = 14 + (rr % 3) * 5;
+                apts.push({ x: hx, y: hg + ah * 0.5 - 0.5, z: hz, w: aw, h: ah, d: ad, rot: districtAngle + (((cc + rr) & 1) ? 0 : Math.PI * 0.5), tone: pal.apt[(cc + rr + bc) % pal.apt.length] });
               } else {
-                const hh = 7.5 + hash2(cc, rr + row) * 4.5;
-                const hw = 11.5 + ((cc + bc) % 4) * 2.5;
-                const hd = 10.5 + ((rr + br) % 3) * 2.5;
-                const rot = ((cc + rr) & 1) ? 0 : Math.PI * 0.5;
-                houses.push({ x: hx, y: hg + hh * 0.5 - 0.4, z: hz, w: hw, h: hh, d: hd, rot, tone: pal.house[(cc + rr + bc + br) % pal.house.length] });
+                const hh = 7.2 + hash2(cc, rr + row) * 4.5;
+                const hw = 10.5 + ((cc + bc) % 4) * 2.4;
+                const hd = 9.5 + ((rr + br) % 3) * 2.4;
+                houses.push({ x: hx, y: hg + hh * 0.5 - 0.4, z: hz, w: hw, h: hh, d: hd, rot: districtAngle + (((cc + rr) & 1) ? 0 : Math.PI * 0.5), tone: pal.house[(cc + rr + bc + br) % pal.house.length] });
               }
             }
           }
+          lamps.push({ x: bx0 + 18, y: bGround + 6.2, z: bz0 + 18 });
         }
 
-        // Block streetlamp & courtyard trees
-        lamps.push({ x: bx0 + 14, y: bGround + 6.2, z: bz0 + 14 });
-        const treePerBlock = biome === 'arid' ? 1 : (isUrbanTile ? 2 : 4);
+        // Natural neighborhood trees
+        const treePerBlock = biome === 'arid' ? 1 : (allowUrban ? 2 : 4);
         for (let t = 0; t < treePerBlock; t++) {
           const tx = bx0 + 18 + hash2(bc * 43 + t, br * 19 + col) * (blockSize - 36);
           const tz = bz0 + 18 + hash2(bc * 29 + row, br * 37 + t) * (blockSize - 36);
           if (inAirportClearance(tx, tz, 240)) continue;
           const tg = ground(tx, tz);
-          if (tg >= 1.2 && tg < 2300) {
+          if (tg >= 1.5 && tg < 2300 && classifyLandUse(tx, tz, tg) !== 'water') {
             const tr = 4.5 + hash2(t * 7, col + row) * 5.2;
             trees.push({ x: tx, y: tg + tr * 0.72, z: tz, r: tr, color: getTreeTone(biome, hash2(t, bc + br)) });
           }
@@ -1077,7 +1111,7 @@ function createGlobalScenery(scene, ground, airports = []) {
     const { lat, lon } = latLon(px, pz);
     if (insideTaiwanDetailed(lat, lon)) return;
     // Only query near populated hubs/airports/landmarks within 24km so open wilderness stays instant
-    const nearHub = nearestHubInfo(px, pz).dist < 24000;
+    const nearHub = nearestHubInfo(px, pz).dist < 45000;
     if (!nearHub) return;
     const step = 0.015;
     const clat = Math.floor(lat / step) * step;
@@ -1089,12 +1123,16 @@ function createGlobalScenery(scene, ground, airports = []) {
     lastOsmCheck = now;
 
     const bbox = `${clat.toFixed(4)},${clon.toFixed(4)},${(clat + step).toFixed(4)},${(clon + step).toFixed(4)}`;
-    const query = `[out:json][timeout:6];way["building"](${bbox});out body 220;>;out skel qt;`;
-    fetch('https://overpass-api.de/api/interpreter', {
+    const query = `[out:json][timeout:6];way["building"](${bbox});out body 340;>;out skel qt;`;
+    const fetchOsm = url => fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'data=' + encodeURIComponent(query)
-    }).then(r => (r.ok ? r.json() : null)).then(data => {
+    }).then(r => (r.ok ? r.json() : null));
+    fetchOsm('https://overpass-api.de/api/interpreter')
+      .catch(() => null)
+      .then(d => d || fetchOsm('https://overpass.kumi.systems/api/interpreter'))
+      .then(data => {
       liveOsmBusy = false;
       if (!data || !Array.isArray(data.elements)) { liveOsmCells.set(cellKey, 'empty'); return; }
       const nodes = new Map();
@@ -1366,19 +1404,29 @@ function createGlobalScenery(scene, ground, airports = []) {
     const rad = quality === 'ultra' || quality === 'high' ? 4 : 3;
     const keep = new Set();
     const candidates = [];
+    const curSatRev = typeof window !== 'undefined' ? (window.__SKYBOUND_SAT_REVISION || 0) : 0;
     for (let r = cz - rad; r <= cz + rad; r++) {
       for (let c = cx - rad; c <= cx + rad; c++) {
         const key = c + ':' + r;
         keep.add(key);
-        if (!loaded.has(key)) {
-          candidates.push({ c, r, key, d: Math.hypot(c - cx, r - cz) });
+        const existing = loaded.get(key);
+        const staleSat = existing && (existing.userData?.satRev || 0) < curSatRev && curSatRev > 0;
+        if (!loaded.has(key) || staleSat) {
+          candidates.push({ c, r, key, stale: Boolean(staleSat), d: Math.hypot(c - cx, r - cz) });
         }
       }
     }
     candidates.sort((a, b) => a.d - b.d);
-    const maxBuild = loaded.size < 9 ? 12 : 4;
+    const maxBuild = loaded.size < 9 ? 12 : 3;
     for (let i = 0; i < candidates.length && i < maxBuild; i++) {
-      const { c, r, key } = candidates[i];
+      const { c, r, key, stale } = candidates[i];
+      if (stale) {
+        const old = loaded.get(key);
+        if (old) {
+          root.remove(old);
+          old.traverse(o => { if (o.geometry && o.geometry !== houseGeo) o.geometry.dispose(); });
+        }
+      }
       loaded.set(key, buildTile(c, r));
     }
     for (const [key, grp] of loaded) {
