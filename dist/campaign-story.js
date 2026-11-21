@@ -2940,12 +2940,18 @@
 
     if (rewardsEl) {
       if (won && rewardInfo) {
+        let balText = '';
+        try {
+          const c = JSON.parse(localStorage.getItem(SIM_CAREER_KEY) || '{}');
+          if (Number.isFinite(c.money)) balText = `<span class="reward-chip">🏦 帳戶餘額：$${Math.round(c.money).toLocaleString()}</span>`;
+        } catch {}
         const medalChips = rewardInfo.newlyUnlocked.map(m => `<span class="reward-chip medal">🏅 新勳章：${m.name}</span>`).join('');
         const rankChip = rewardInfo.rankUp ? `<span class="reward-chip rank">🎖 晉升軍階：${rewardInfo.rankUp}</span>` : '';
         rewardsEl.innerHTML = `
+          <span class="reward-chip" style="background:rgba(16,185,129,0.22);border-color:#34d399;color:#a7f3d0;">✅ 獎勵已自動領取入帳</span>
           <span class="reward-chip">💰 +$${rewardInfo.moneyEarned.toLocaleString()}</span>
           <span class="reward-chip">⭐ +${rewardInfo.xpEarned} XP</span>
-          ${rankChip}${medalChips}${(rewardInfo.unlockedAircraft||[]).map(name=>`<span class="reward-chip">✈ 解鎖：${name}</span>`).join('')}`;
+          ${balText}${rankChip}${medalChips}${(rewardInfo.unlockedAircraft||[]).map(name=>`<span class="reward-chip">✈ 解鎖：${name}</span>`).join('')}`;
       } else {
         rewardsEl.innerHTML = '';
       }
@@ -2953,15 +2959,17 @@
 
     actions.innerHTML = '';
 
-    if (won && !ch.isChallenge && ch.id < ALL_CHAPTERS.length) {
+    const curIdx = ALL_CHAPTERS.findIndex(c => c.id === ch.id);
+    const nextChapter = curIdx >= 0 ? ALL_CHAPTERS[curIdx + 1] : null;
+    if (won && !ch.isChallenge && nextChapter) {
       const nextBtn = document.createElement('button');
       nextBtn.type = 'button';
       nextBtn.className = 'campaign-launch-btn';
-      nextBtn.textContent = `▶ 續飛第 ${ch.id + 1} 章 →`;
+      nextBtn.textContent = `🎁 領獎並續飛 ${nextChapter.code} →`;
       nextBtn.onclick = () => {
         modal.hidden = true;
         document.getElementById('menu')?.click();
-        setTimeout(() => startChapter(ch.id + 1), 160);
+        setTimeout(() => startChapter(nextChapter.id), 160);
       };
       actions.appendChild(nextBtn);
     }
@@ -3152,7 +3160,34 @@
         showRadio('未知訊號 · FORMOSA SANCTUM', '「偵測到南港上空黃金星環共鳴！獲得隱藏探索獎金 +$35,000！」', 7500);
       }
     }
-    if (!activeMission || activeMission.settled) return;
+    if (!activeMission) {
+      // Free Flight auto-settlement & reward payout when reaching near the destination yellow point!
+      if (f && !f.ended && !f.__freeFlightSettled && f.destination && f.departure && f.destination !== f.departure) {
+        if (!f.ground) f.__freeAirborneM = (f.__freeAirborneM || 0) + (f.speed || 0) * 0.25;
+        const distToDest = Math.hypot((f.x || 0) - f.destination.x, (f.z || 0) - f.destination.z);
+        if ((f.__freeAirborneM || 0) > 4500 && distToDest <= 1850) {
+          f.__freeFlightSettled = true;
+          const freeCh = {
+            id: 999,
+            isChallenge: true,
+            code: `${f.departure.code} → ${f.destination.code}`,
+            title: `自由航線抵達：${f.destination.name || f.destination.code}`,
+            image: 'assets/campaign/ch1.jpg',
+            rewardMoney: 6500,
+            rewardXp: 150,
+            parTimeS: 600,
+            maxSafeG: 4.0
+          };
+          const freeSt = { flownM: f.__freeAirborneM || 5000, elapsedS: f.elapsed || 90, maxG: f.maxG || 1.2, warnings: 0, gatesPassed: 1, aerobaticDone: false };
+          const rewardInfo = settleWinRewards(freeCh, freeSt);
+          try { globalScope.__skyboundSyncWallet?.(); } catch {}
+          showRadio('陳語彤 · 國際塔台主任', `「歡迎抵達 ${f.destination.name || f.destination.code} 終點黃點空域！航段獎勵 +$${rewardInfo.moneyEarned.toLocaleString()} 已自動入帳！」`, 6500);
+          setTimeout(() => showDebrief(freeCh, true, `已順利飛抵目標黃點「${f.destination.name || f.destination.code}」！獎勵已自動領取入帳。`, rewardInfo), 700);
+        }
+      }
+      return;
+    }
+    if (activeMission.settled) return;
     if (!f) return;
     const now = performance.now();
     const elapsedS = (now - activeMission.startedAt) / 1000;
@@ -3180,18 +3215,37 @@
     if(!f.ground && !f.ended && activeMission.gatesPassed>=3 && skillOk) activeMission.stableS+=missionDt;
     const nearAirport=typeof allAirports!=='undefined' && allAirports.some(a=>a.code===(ch.destination||ch.departure) && Math.abs((f.x-a.x)*Math.cos(a.heading)+(f.z-a.z)*Math.sin(a.heading))<(a.width||45)*.7 && Math.abs((f.x-a.x)*Math.sin(a.heading)-(f.z-a.z)*Math.cos(a.heading))<a.length*.6);
 
-    // Check 3D Sky Gate passes
-    if (Array.isArray(activeMission.gates) && !f.ground) {
+    // Check 3D Sky Gate (Yellow Waypoint) passes with generous proximity radius & vertical capture
+    let reachedFinalYellowPoint = false;
+    if (Array.isArray(activeMission.gates) && activeMission.gates.length > 0 && !f.ground) {
       for (const gate of activeMission.gates) {
         if (gate.passed) continue;
+        const captureR = Math.max(1550, (gate.radius || 950) * 1.45);
         const dHoriz = Math.hypot(f.x - gate.x, f.z - gate.z);
-        if (dHoriz <= (gate.radius || 950) && Math.abs(f.y-gate.y) <= 300) {
+        if (dHoriz <= captureR && Math.abs((f.y || 0) - (gate.y || 0)) <= 1200) {
           gate.passed = true;
           activeMission.gatesPassed = (activeMission.gatesPassed || 0) + 1;
           awardSimMoney(2000);
-          showRadio('導航光門 · SKY GATE', `「通過 ${gate.name}！精準導航賞金 +$2,000！」`, 4200);
+          try { globalScope.__skyboundSyncWallet?.(); } catch {}
+          showRadio('導航黃點 · SKY GATE', `「抵達 ${gate.name}！精準導航賞金 +$2,000 已入帳！」`, 4200);
         }
         break; // Only the next gate is active.
+      }
+      const lastGate = activeMission.gates[activeMission.gates.length - 1];
+      const dToFinalGate = Math.hypot(f.x - lastGate.x, f.z - lastGate.z);
+      const allGatesCleared = activeMission.gates.every(g => g.passed);
+      if (allGatesCleared || (activeMission.wasAirborne && activeMission.flownM >= 1400 && dToFinalGate <= 1650)) {
+        // Mark any remaining gates as reached once player arrives at the final yellow waypoint!
+        activeMission.gates.forEach(g => { g.passed = true; });
+        activeMission.gatesPassed = Math.max(activeMission.gatesPassed || 0, activeMission.gates.length);
+        reachedFinalYellowPoint = true;
+      }
+    }
+    // Also detect arriving near the destination airport yellow marker (when destination != departure)
+    if (!reachedFinalYellowPoint && !ch.licensedMission && activeMission.wasAirborne && activeMission.flownM >= 2200 && ch.destination && ch.destination !== ch.departure && typeof allAirports !== 'undefined') {
+      const dstAp = allAirports.find(a => a.code === ch.destination);
+      if (dstAp && Math.hypot(f.x - dstAp.x, f.z - dstAp.z) <= 1850) {
+        reachedFinalYellowPoint = true;
       }
     }
 
@@ -3281,15 +3335,20 @@
     if(qualificationFailure&&!activeMission.settled){activeMission.settled=true;showDebrief(ch,false,qualificationFailure,null);return;}
 
     const allStagesDone = stages.length > 0 ? activeMission.stageIdx >= stages.length : true;
-    if (allStagesDone && ch.winCondition(f, st) && st.gatesPassed >= requiredGates(ch) && !activeMission.settled) {
+    const autoCompleteAtYellow = reachedFinalYellowPoint && !ch.licensedMission && !f.ended;
+    if (autoCompleteAtYellow) {
+      activeMission.stageIdx = stages.length;
+    }
+    if ((autoCompleteAtYellow || (allStagesDone && ch.winCondition(f, st) && st.gatesPassed >= requiredGates(ch))) && !activeMission.settled) {
       activeMission.settled = true;
       const rewardInfo = settleWinRewards(ch, st);
       if(rewardInfo.storageError){activeMission.settled=false;if(objHud)objHud.textContent=rewardInfo.storageError;return;}
-      if (objHud) objHud.textContent = `✓ ${ch.code} 任務達成！(${'★'.repeat(rewardInfo.stars)})`;
-      showRadio('戰情中心 · MISSION CONTROL', `「漂亮！${ch.code}『${ch.title}』獲得 ${rewardInfo.stars}★，賞金 +$${rewardInfo.moneyEarned.toLocaleString()}！」`, 6500);
+      try { globalScope.__skyboundSyncWallet?.(); } catch {}
+      if (objHud) objHud.textContent = `✓ ${ch.code} 已抵達終點黃點！任務達成 (${'★'.repeat(rewardInfo.stars)}) · 獎勵 +$${rewardInfo.moneyEarned.toLocaleString()}`;
+      showRadio('林嵐少校 · 戰情指揮官', `「抵達目標黃點！${ch.code}『${ch.title}』獲得 ${rewardInfo.stars}★，賞金 +$${rewardInfo.moneyEarned.toLocaleString()} 與 +${rewardInfo.xpEarned} XP 已自動入帳！」`, 6500);
       setTimeout(() => {
         if (activeMission?.ch === ch) showDebrief(ch, true, null, rewardInfo);
-      }, 2600);
+      }, 900);
     }
   }, 250);
 
