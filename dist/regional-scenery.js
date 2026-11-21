@@ -197,7 +197,11 @@ function* buildRegionalScenery(scene,ground,airports,roadData,cityData,taipeiBou
     scene.add(tower50);
   }
   const boxMatrix=new THREE.Object3D(),color=new THREE.Color();
-  const palette=[0xa6a3a1,0xc9c2ad,0x9fa9af,0xada299,0x9dada7,0xc7c8c2,0xa3a7b0];
+  const palette=[
+    0xf2e8d4,0xd98a6c,0xc5664e,0xe6d4b6,0x7ca3bd,0xb8cbb8,0xdca974,0xe8ecee,
+    0xc47d64,0x8ea5b7,0xd8be8c,0xb35c4a,0xcfd8d0,0x638298,0xe5c7a8,0x8c969e,
+    0xd49583,0x587f85,0xe8daa9,0xa58f79
+  ];
   const carBody=new THREE.InstancedMesh(new THREE.BoxGeometry(),new THREE.MeshStandardMaterial({color:0xffffff}),180);
   const carCabin=new THREE.InstancedMesh(new THREE.BoxGeometry(),new THREE.MeshStandardMaterial({color:0x31434c}),180);
   carBody.name='Regional highway vehicles';
@@ -316,7 +320,10 @@ function* buildRegionalScenery(scene,ground,airports,roadData,cityData,taipeiBou
           boxMatrix.scale.set(b.width,b.height+1.3,b.depth);
           boxMatrix.updateMatrix();
           buildings.setMatrixAt(buildings.count,boxMatrix.matrix);
-          buildings.setColorAt(buildings.count++,color.setHex(palette[b.tone]));
+          const bHash=Math.abs(Math.imul(Math.floor(b.x),73856093)^Math.imul(Math.floor(b.z),19349663));
+          color.setHex(palette[(bHash+(b.tone|0))%palette.length]);
+          color.offsetHSL(((bHash&31)/31-0.5)*0.04,(((bHash>>5)&31)/31-0.5)*0.10,(((bHash>>10)&31)/31-0.5)*0.10);
+          buildings.setColorAt(buildings.count++,color);
         }
       }
     }

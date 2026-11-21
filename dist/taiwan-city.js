@@ -43,112 +43,391 @@ function createTaiwanCity(scene,ground,airports){
   reflectedMap.mapping=THREE.EquirectangularReflectionMapping;
   reflectedMap.colorSpace=THREE.SRGBColorSpace;
 
-  // Residential/mixed facade (warm concrete tile & Taiwanese recessed windows/AC units)
-  const facadeTex=texture(c=>{
-    c.fillStyle='#ede8de';c.fillRect(0,0,256,256);
-    c.fillStyle='#ded7ca';
-    for(let y=0;y<256;y+=8)c.fillRect(0,y,256,1);
-    for(let y=0;y<256;y+=8){
-      const shift=(y%16===0)?0:12;
-      for(let x=shift;x<256;x+=24)c.fillRect(x,y,1,8);
+  // 1. Taiwanese Tile & Balcony Apartment (wallApt): ceramic mosaic tile grid, recessed dark aluminum windows,
+  // white/silver balcony railings, exterior AC units, and warm-lit 1F arcade/storefront (騎樓)
+  const aptTex=texture(c=>{
+    c.fillStyle='#f3f0e8';c.fillRect(0,0,256,256);
+    // Fine ceramic mosaic tile grid with subtle tile-to-tile tonal variation
+    for(let ty=0;ty<256;ty+=6){
+      const shift=(ty%12===0)?0:6;
+      for(let tx=0;tx<256;tx+=12){
+        const v=((tx*13+ty*29)%17);
+        c.fillStyle=v<4?'#ece7dc':v<8?'#f7f4ee':'#f2eee6';
+        c.fillRect(tx+shift,ty,11,5);
+      }
+      c.fillStyle='rgba(120,112,102,0.18)';c.fillRect(0,ty,256,1);
     }
-    for(let row=0;row<8;row++){
-      const y=8+row*31;
-      c.fillStyle='#bcb6aa';c.fillRect(0,y+24,256,3);
-      for(let col=0;col<6;col++){
-        const x=6+col*41;
-        c.fillStyle='#2a3035';c.fillRect(x,y,30,22);
-        c.fillStyle=(row*3+col*5)%4===0?'#6e8999':'#4d6675';
-        c.fillRect(x+2,y+2,12,18);c.fillRect(x+16,y+2,12,18);
-        c.fillStyle='#202529';c.fillRect(x+14,y+2,2,18);
-        c.fillStyle='#67757f';c.fillRect(x+1,y+13,28,1);c.fillRect(x+1,y+18,28,1);
+    for(let ty=0;ty<256;ty+=6){
+      const shift=(ty%12===0)?0:6;
+      c.fillStyle='rgba(120,112,102,0.14)';
+      for(let tx=shift;tx<256;tx+=12)c.fillRect(tx,ty,1,6);
+    }
+    // 7 upper residential stories (y=0..216, 31px each) + 1F 騎樓 arcade storefront at bottom (y=217..256)
+    for(let row=0;row<7;row++){
+      const y=row*31;
+      // Floor slab ledge & subtle balcony underside shadow
+      c.fillStyle='#d2ccc0';c.fillRect(0,y+26,256,3);
+      c.fillStyle='rgba(40,42,46,0.22)';c.fillRect(0,y+29,256,2);
+      for(let col=0;col<5;col++){
+        const x=5+col*50;
+        // Recessed balcony opening shadow
+        c.fillStyle='rgba(36,42,48,0.22)';c.fillRect(x-1,y+3,40,23);
+        // Recessed dark aluminum window frame
+        c.fillStyle='#2a3239';c.fillRect(x+2,y+4,34,18);
+        // Split glass panes with subtle sky bounce
+        const bright=(row*5+col*3)%4===0;
+        c.fillStyle=bright?'#7ea0b5':'#506d7e';
+        c.fillRect(x+4,y+6,14,14);c.fillRect(x+20,y+6,14,14);
+        c.fillStyle='rgba(230,244,255,0.28)';
+        c.fillRect(x+5,y+7,5,11);c.fillRect(x+21,y+7,5,11);
+        c.fillStyle='#1f262c';c.fillRect(x+18,y+6,2,14);
+        // White/silver balcony railing & vertical balusters
+        c.fillStyle='#eceff2';c.fillRect(x,y+15,38,2);c.fillRect(x,y+23,38,2);
+        c.fillStyle='#cfd6dc';
+        for(let rx=x+2;rx<=x+36;rx+=6)c.fillRect(rx,y+17,1,6);
+        // Exterior mini-split AC compressor unit on ~65% of balconies
         if((row*7+col*11)%3!==0){
-          c.fillStyle='#f0f2f4';c.fillRect(x+17,y+15,11,8);
-          c.fillStyle='#353c41';c.fillRect(x+23,y+17,4,4);
+          c.fillStyle='#f4f6f8';c.fillRect(x+24,y+16,12,8);
+          c.fillStyle='#c4ccd2';c.fillRect(x+24,y+16,12,1);
+          c.fillStyle='#3a4249';c.fillRect(x+26,y+18,5,4);
+          c.fillStyle='#78828a';c.fillRect(x+32,y+18,3,4);
         }
       }
     }
+    // 1F Taiwanese arcade / storefront (騎樓) at bottom of texture (maps to v=0 ground level)
+    c.fillStyle='#d8d2c6';c.fillRect(0,217,256,5);
+    c.fillStyle='#343a40';c.fillRect(0,222,256,34);
+    for(let col=0;col<4;col++){
+      const sx=col*64;
+      // Arcade structural column
+      c.fillStyle='#ece7dc';c.fillRect(sx,222,11,34);
+      c.fillStyle='#c9c2b5';c.fillRect(sx+9,222,2,34);
+      // Warm-lit shopfront interior & glass bay
+      const sg=c.createLinearGradient(sx+13,225,sx+13,254);
+      sg.addColorStop(0,'#f6dfb0');sg.addColorStop(0.55,'#d9b478');sg.addColorStop(1,'#6d5a42');
+      c.fillStyle=sg;c.fillRect(sx+13,226,48,26);
+      // Shopfront mullions & subtle signage fascia
+      c.fillStyle='#2a2f34';c.fillRect(sx+29,226,2,26);c.fillRect(sx+45,226,2,26);
+      c.fillStyle=col%3===0?'#d96b4e':col%3===1?'#4d8978':'#d9a441';
+      c.fillRect(sx+12,219,50,6);
+      c.fillStyle='rgba(255,255,255,0.65)';c.fillRect(sx+18,221,36,2);
+    }
   },true);
 
-  const facadeNight=texture(c=>{
+  const aptNight=texture(c=>{
+    c.fillStyle='#000';c.fillRect(0,0,256,256);
+    for(let row=0;row<7;row++){
+      const y=row*31;
+      for(let col=0;col<5;col++){
+        const h=(row*11+col*17)%13;
+        if(h<5)continue;
+        const x=5+col*50;
+        c.fillStyle=h<8?'#ffd584':h<11?'#f7e8c2':'#a4c7e0';
+        c.fillRect(x+4,y+6,14,14);c.fillRect(x+20,y+6,14,14);
+      }
+    }
+    // Warm-lit 1F 騎樓 storefronts at night
+    for(let col=0;col<4;col++){
+      const sx=col*64;
+      c.fillStyle=col%2===0?'#ffda90':'#ffe8b5';
+      c.fillRect(sx+13,226,48,26);
+      c.fillStyle='#ffe2a8';c.fillRect(sx+14,220,46,4);
+    }
+  },true);
+
+  // 2. Modern Glass Curtain-Wall Tower (wallGlass): reflective tinted curtain-wall grid, mullions,
+  // spandrel bands, diagonal sky reflection highlights (high-value base so vertexColors tint vividly)
+  const glassTex=texture(c=>{
+    c.fillStyle='#d4e2ec';c.fillRect(0,0,256,256);
+    for(let row=0;row<8;row++){
+      const y=row*32;
+      // Horizontal metallic spandrel band
+      c.fillStyle='#788896';c.fillRect(0,y,256,7);
+      c.fillStyle='#b8c6d2';c.fillRect(0,y+6,256,1);
+      for(let col=0;col<8;col++){
+        const x=col*32;
+        const v=(row*5+col*7)%9;
+        // Bright neutral-cool vision glass pane
+        c.fillStyle=v<2?'#eaf4fc':v<5?'#d4e6f4':v<7?'#bfd6e8':'#cde0ef';
+        c.fillRect(x+2,y+7,28,24);
+        // Subtle interior ceiling/blind gradation
+        c.fillStyle='rgba(24,38,52,0.14)';c.fillRect(x+2,y+7,28,5);
+        // Vertical mullion + specular highlight edge
+        c.fillStyle='#34424e';c.fillRect(x,y+7,2,25);
+        c.fillStyle='#e2ecf4';c.fillRect(x+2,y+7,1,24);
+        c.fillStyle='#465664';c.fillRect(x+15,y+7,1,24);
+      }
+    }
+    // Diagonal sky reflection highlight sweeps across curtain wall
+    c.fillStyle='rgba(255,255,255,0.24)';
+    c.beginPath();c.moveTo(0,96);c.lineTo(96,0);c.lineTo(148,0);c.lineTo(0,148);c.fill();
+    c.beginPath();c.moveTo(116,256);c.lineTo(256,116);c.lineTo(256,162);c.lineTo(162,256);c.fill();
+  },true);
+
+  const glassRough=texture(c=>{
+    c.fillStyle='#363636';c.fillRect(0,0,256,256);
+    for(let y=0;y<256;y+=32){
+      c.fillStyle='#c4c4c4';c.fillRect(0,y,256,7);
+      for(let x=0;x<256;x+=32){c.fillStyle='#b0b0b0';c.fillRect(x,y,2,32);}
+    }
+  },false);
+
+  const glassNight=texture(c=>{
     c.fillStyle='#000';c.fillRect(0,0,256,256);
     for(let row=0;row<8;row++){
-      const y=8+row*31;
-      for(let col=0;col<6;col++){
-        if((row*3+col*7)%5<2)continue;
-        const x=6+col*41;
-        c.fillStyle=(row+col)%3===0?'#ffd98b':(row+col)%2===0?'#f6e7bd':'#90a9bc';
-        c.fillRect(x+2,y+2,12,18);c.fillRect(x+16,y+2,12,18);
+      const y=row*32;
+      const floorActive=(row*7+3)%5!==0;
+      for(let col=0;col<8;col++){
+        if(!floorActive&&((row+col)%3!==0))continue;
+        const h=(row*13+col*19)%11;
+        if(h<4)continue;
+        const x=col*32;
+        c.fillStyle=h<6?'#ffe4a4':h<9?'#d4ebff':'#fff1cb';
+        c.fillRect(x+3,y+8,26,22);
       }
     }
   },true);
 
-  // Commercial / skyscraper glass curtain wall
+  // 3. Red-Brick / Minnan / Heritage Townhouse 透天厝 (wallBrick): masonry courses, framed windows
+  // with awnings/shutters, horizontal cornice trims, traditional shopfront ground floor
+  const brickTex=texture(c=>{
+    c.fillStyle='#f0eae2';c.fillRect(0,0,256,256);
+    // Running-bond brick/terracotta masonry courses (high-value neutral so vertexColors tint richly)
+    for(let y=0;y<256;y+=8){
+      const shift=(y%16===0)?0:10;
+      for(let x=-10;x<256;x+=20){
+        const k=((x*7+y*13)&15);
+        c.fillStyle=k<4?'#dfd6cb':k<8?'#ece4da':k<12?'#f6f1ea':'#e6ddd2';
+        c.fillRect(x+shift,y,19,7);
+      }
+      c.fillStyle='#cfc5b8';c.fillRect(0,y+7,256,1);
+    }
+    // 4 upper townhouse stories (y=0..192, 48px each) + traditional shopfront 1F (y=192..256)
+    for(let row=0;row<4;row++){
+      const y=row*48;
+      // Horizontal cornice belt trim
+      c.fillStyle='#f9f6f0';c.fillRect(0,y+42,256,4);
+      c.fillStyle='rgba(70,56,48,0.28)';c.fillRect(0,y+46,256,2);
+      for(let col=0;col<4;col++){
+        const x=10+col*64;
+        // Corrugated metal / painted awning above window (遮雨棚)
+        c.fillStyle='#b8c0c4';c.fillRect(x-3,y+6,46,6);
+        c.fillStyle='rgba(36,30,28,0.28)';c.fillRect(x-2,y+12,44,3);
+        // Window frame + wooden shutters
+        c.fillStyle='#8c7a68';c.fillRect(x-4,y+13,6,24);c.fillRect(x+38,y+13,6,24);
+        c.fillStyle='#ede6dc';c.fillRect(x+2,y+13,36,24);
+        c.fillStyle='#333c44';c.fillRect(x+5,y+16,30,18);
+        c.fillStyle=(row+col)%3===0?'#6d8596':'#4b5f6e';
+        c.fillRect(x+6,y+17,13,16);c.fillRect(x+21,y+17,13,16);
+        // Sill
+        c.fillStyle='#f4efe6';c.fillRect(x,y+36,40,3);
+      }
+    }
+    // Traditional Taiwanese 透天厝 ground-floor shopfront & wooden lintel bay
+    c.fillStyle='#e8dfd4';c.fillRect(0,192,256,6);
+    c.fillStyle='#4a3d35';c.fillRect(0,198,256,58);
+    for(let col=0;col<3;col++){
+      const sx=8+col*84;
+      c.fillStyle='#ebe4d8';c.fillRect(sx-8,198,10,58);
+      // Warm transom + wood-framed shopfront glass/door
+      c.fillStyle='#b98552';c.fillRect(sx+4,202,68,8);
+      c.fillStyle='#e6c690';c.fillRect(sx+6,212,64,42);
+      c.fillStyle='#5c4534';c.fillRect(sx+26,212,3,42);c.fillRect(sx+48,212,3,42);
+      c.fillStyle='rgba(40,28,20,0.25)';c.fillRect(sx+6,238,64,16);
+    }
+  },true);
+
+  const brickNight=texture(c=>{
+    c.fillStyle='#000';c.fillRect(0,0,256,256);
+    for(let row=0;row<4;row++){
+      const y=row*48;
+      for(let col=0;col<4;col++){
+        if((row*5+col*9)%7<3)continue;
+        const x=10+col*64;
+        c.fillStyle=(row+col)%2===0?'#ffd07a':'#ffe4aa';
+        c.fillRect(x+6,y+17,13,16);c.fillRect(x+21,y+17,13,16);
+      }
+    }
+    for(let col=0;col<3;col++){
+      const sx=8+col*84;
+      c.fillStyle='#ffd890';c.fillRect(sx+6,212,64,34);
+    }
+  },true);
+
+  // 4. Modern Granite / White-Stucco Residence (wallCondo): clean architectural panels,
+  // deep cantilevered balcony bands, dark floor-to-ceiling window mullions
+  const condoTex=texture(c=>{
+    c.fillStyle='#f3f3f1';c.fillRect(0,0,256,256);
+    // Crisp architectural stone cladding joints & subtle granite grain
+    for(let i=0;i<900;i++){
+      c.fillStyle=i%2?'rgba(0,0,0,0.035)':'rgba(255,255,255,0.05)';
+      c.fillRect((i*67)%256,(i*113)%256,2,2);
+    }
+    c.fillStyle='rgba(90,94,100,0.16)';
+    for(let y=0;y<256;y+=32)c.fillRect(0,y,256,1);
+    for(let x=0;x<256;x+=64)c.fillRect(x,0,1,256);
+    // 8 sleek modern residential stories
+    for(let row=0;row<8;row++){
+      const y=row*32;
+      // Deep cantilevered balcony overhang shadow
+      c.fillStyle='rgba(28,34,40,0.34)';c.fillRect(0,y+1,256,4);
+      for(let col=0;col<4;col++){
+        const x=6+col*64;
+        // Dark modern sliding glass doors & mullions
+        c.fillStyle='#2a323b';c.fillRect(x,y+5,52,20);
+        c.fillStyle=(row*3+col*5)%5===0?'#94b0c2':'#6a8598';
+        c.fillRect(x+2,y+6,15,18);c.fillRect(x+19,y+6,15,18);c.fillRect(x+36,y+6,14,18);
+        c.fillStyle='rgba(235,246,255,0.26)';
+        c.fillRect(x+3,y+7,4,15);c.fillRect(x+20,y+7,4,15);
+        // Cantilevered balcony glass balustrade & crisp architectural slab fascia
+        c.fillStyle='rgba(175,204,222,0.52)';c.fillRect(x-2,y+17,56,7);
+        c.fillStyle='#ffffff';c.fillRect(x-3,y+24,58,5);
+        c.fillStyle='#c8cdd2';c.fillRect(x-3,y+16,58,1);
+      }
+    }
+  },true);
+
+  const condoNight=texture(c=>{
+    c.fillStyle='#000';c.fillRect(0,0,256,256);
+    for(let row=0;row<8;row++){
+      const y=row*32;
+      for(let col=0;col<4;col++){
+        const h=(row*9+col*13)%11;
+        if(h<4)continue;
+        const x=6+col*64;
+        c.fillStyle=h<8?'#ffe0a3':'#fff0cc';
+        c.fillRect(x+2,y+6,15,16);c.fillRect(x+19,y+6,15,16);c.fillRect(x+36,y+6,14,16);
+        // Warm modern indirect balcony cove glow
+        c.fillStyle='rgba(255,214,148,0.45)';c.fillRect(x,y+22,52,2);
+      }
+    }
+  },true);
+
+  // 5. Hsinchu/Taichung/Tainan Sci-Park & Industrial Cleanroom (techWall):
+  // corrugated metal panels, cleanroom ribbon windows, crisp horizontal louvers & vents
+  const techTex=texture(c=>{
+    c.fillStyle='#eaedf0';c.fillRect(0,0,256,256);
+    // Vertical corrugated metal ribs & architectural panel seams
+    for(let x=0;x<256;x+=8){
+      c.fillStyle='#d6dde3';c.fillRect(x,0,2,256);
+      c.fillStyle='#f6f8fa';c.fillRect(x+2,0,1,256);
+    }
+    c.fillStyle='#a8b4be';
+    for(let x=0;x<256;x+=32)c.fillRect(x,0,2,256);
+    for(let y=0;y<256;y+=64){
+      // Cleanroom ribbon window band
+      c.fillStyle='#243642';c.fillRect(0,y+14,256,18);
+      for(let x=0;x<256;x+=32){
+        c.fillStyle=(x/32+y/64)%3===0?'#6e94ad':'#4a6c82';
+        c.fillRect(x+2,y+16,28,14);
+        c.fillStyle='rgba(235,248,255,0.28)';c.fillRect(x+4,y+17,10,4);
+      }
+      // Crisp horizontal HVAC louvers & exhaust vents
+      c.fillStyle='#b8c2ca';c.fillRect(0,y+42,256,14);
+      c.fillStyle='#5c6872';
+      for(let ly=y+44;ly<y+55;ly+=3)c.fillRect(4,ly,248,1);
+      for(let vx=16;vx<256;vx+=64){
+        c.fillStyle='#78848e';c.fillRect(vx,y+43,22,12);
+        c.fillStyle='#3c464e';
+        for(let ly=y+45;ly<y+54;ly+=3)c.fillRect(vx+2,ly,18,1);
+      }
+    }
+  },true);
+
+  const techNight=texture(c=>{
+    c.fillStyle='#000';c.fillRect(0,0,256,256);
+    for(let y=0;y<256;y+=64){
+      for(let x=0;x<256;x+=32){
+        if(((x*3+y*5)%7)<2)continue;
+        c.fillStyle='#dcf0ff';
+        c.fillRect(x+2,y+16,28,14);
+      }
+    }
+  },true);
+
+  // Landmark high-rise glass curtain wall (non-vertexColors for iconic landmarks)
   const officeTex=texture(c=>{
     c.fillStyle='#264354';c.fillRect(0,0,256,256);
     for(let y=0;y<256;y+=32){
       c.fillStyle='#192c38';c.fillRect(0,y,256,6);
       c.fillStyle='#345a70';c.fillRect(0,y+6,256,26);
       for(let x=0;x<256;x+=16){
-        c.fillStyle=(x/16+y/32)%5===0?'#4c7b94':'#2f5368';
+        c.fillStyle=(x/16+y/32)%5===0?'#5285a0':'#2f5368';
         c.fillRect(x+2,y+7,12,24);
         c.fillStyle='#14232d';c.fillRect(x,y+6,2,26);
       }
     }
   },true);
+  const officeRough=glassRough;
+  const officeNight=glassNight;
 
-  const officeRough=texture(c=>{
-    c.fillStyle='#404040';c.fillRect(0,0,256,256);
-    for(let y=0;y<256;y+=32){c.fillStyle='#c0c0c0';c.fillRect(0,y,256,6);}
-  },false);
+  // Flat roof texture (neutral bright base for vertexColors: emerald waterproof, weathered concrete,
+  // parapet walls, rooftop HVAC chillers & signature Taiwanese stainless water tanks)
+  const roofFlatTex=texture(c=>{
+    c.fillStyle='#e8eae8';c.fillRect(0,0,256,256);
+    // Subtle waterproof membrane seams & weathered patches
+    c.fillStyle='rgba(0,0,0,0.06)';
+    for(let i=0;i<14;i++)c.fillRect((i*47)%212,(i*73)%212,34,28);
+    c.fillStyle='rgba(255,255,255,0.08)';
+    for(let y=32;y<224;y+=32)c.fillRect(14,y,228,2);
+    // Parapet border wall & inner drop shadow
+    c.fillStyle='#b8bcba';
+    c.fillRect(0,0,256,12);c.fillRect(0,244,256,12);c.fillRect(0,0,12,256);c.fillRect(244,0,12,256);
+    c.fillStyle='rgba(0,0,0,0.20)';c.fillRect(12,12,232,5);c.fillRect(12,12,5,232);
+    // Rooftop stairwell / elevator penthouse pad
+    c.fillStyle='#f0f0ec';c.fillRect(156,26,72,54);
+    c.fillStyle='rgba(0,0,0,0.22)';c.fillRect(160,80,72,6);c.fillRect(228,30,5,54);
+    // Rooftop HVAC chiller boxes
+    for(const [ax,ay] of [[32,168],[74,168],[116,174]]){
+      c.fillStyle='#969fa8';c.fillRect(ax,ay,32,24);
+      c.fillStyle='#464f58';c.beginPath();c.arc(ax+16,ay+12,8,0,Math.PI*2);c.fill();
+      c.fillStyle='#78848e';c.beginPath();c.arc(ax+16,ay+12,3,0,Math.PI*2);c.fill();
+    }
+    // Signature Taiwanese cylindrical stainless steel water tanks (水塔)
+    const drawTank=(cx,cy,r)=>{
+      c.fillStyle='rgba(0,0,0,0.30)';c.beginPath();c.ellipse(cx+r*0.22,cy+r*0.24,r*1.04,r*0.88,0,0,Math.PI*2);c.fill();
+      const g=c.createRadialGradient(cx-r*0.32,cy-r*0.32,r*0.1,cx,cy,r);
+      g.addColorStop(0,'#ffffff');g.addColorStop(0.35,'#e2e7ec');g.addColorStop(0.75,'#a4aeb8');g.addColorStop(1,'#6a747e');
+      c.fillStyle=g;c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);c.fill();
+    };
+    drawTank(58,68,22);drawTank(108,64,18);drawTank(72,118,16);
+  },true);
 
-  const officeNight=texture(c=>{
-    c.fillStyle='#000';c.fillRect(0,0,256,256);
-    for(let y=0;y<256;y+=32){
-      for(let x=0;x<256;x+=16){
-        if(((x*7+y*13)%11)<4)continue;
-        c.fillStyle=(x+y)%48===0?'#ffe59c':(x*3+y)%32===0?'#cbe6ff':'#ffd898';
-        c.fillRect(x+2,y+7,12,24);
+  // Pitched roof texture (neutral bright base for vertexColors: Minnan terracotta tiles / corrugated metal / slate)
+  const roofPitchedTex=texture(c=>{
+    c.fillStyle='#ecebe8';c.fillRect(0,0,256,256);
+    // Overlapping tile courses + vertical barrel-tile / corrugated ribs
+    for(let y=0;y<256;y+=16){
+      c.fillStyle='rgba(0,0,0,0.20)';c.fillRect(0,y,256,3);
+      c.fillStyle='rgba(255,255,255,0.22)';c.fillRect(0,y+3,256,2);
+      const off=(y%32===0)?0:6;
+      for(let x=off;x<256;x+=12){
+        c.fillStyle='rgba(0,0,0,0.13)';c.fillRect(x,y+2,2,14);
+        c.fillStyle='rgba(255,255,255,0.16)';c.fillRect(x+4,y+3,2,12);
       }
     }
   },true);
 
-  // Cleanroom / industrial tech park facade (Hsinchu/Tainan/Kaohsiung science parks)
-  const techTex=texture(c=>{
-    c.fillStyle='#dce2e7';c.fillRect(0,0,256,256);
-    c.fillStyle='#c5cfd6';
-    for(let x=0;x<256;x+=16)c.fillRect(x,0,2,256);
-    for(let y=20;y<256;y+=64){
-      c.fillStyle='#3d596b';c.fillRect(0,y,256,16);
-      c.fillStyle='#243642';for(let x=0;x<256;x+=32)c.fillRect(x,y,3,16);
-    }
-  },true);
+  // 5 distinct PBR building wall materials + 2 distinct roof materials (all vertexColors: true for city tiles)
+  const wallApt=new THREE.MeshStandardMaterial({vertexColors:true,map:aptTex,roughness:0.78,metalness:0.04,emissive:0xffe2ad,emissiveMap:aptNight,emissiveIntensity:0,side:THREE.DoubleSide});
+  const wallGlass=new THREE.MeshPhysicalMaterial({
+    vertexColors:true,map:glassTex,roughnessMap:glassRough,roughness:0.24,metalness:0.58,
+    clearcoat:0.85,clearcoatRoughness:0.12,envMap:reflectedMap,envMapIntensity:1.15,
+    emissive:0xffe6b8,emissiveMap:glassNight,emissiveIntensity:0,side:THREE.DoubleSide
+  });
+  const wallBrick=new THREE.MeshStandardMaterial({vertexColors:true,map:brickTex,roughness:0.86,metalness:0.02,emissive:0xffd794,emissiveMap:brickNight,emissiveIntensity:0,side:THREE.DoubleSide});
+  const wallCondo=new THREE.MeshStandardMaterial({vertexColors:true,map:condoTex,roughness:0.62,metalness:0.14,emissive:0xffe4b2,emissiveMap:condoNight,emissiveIntensity:0,side:THREE.DoubleSide});
+  const techWall=new THREE.MeshStandardMaterial({vertexColors:true,map:techTex,roughness:0.42,metalness:0.44,emissive:0xdcf0ff,emissiveMap:techNight,emissiveIntensity:0,side:THREE.DoubleSide});
+  const roofFlat=new THREE.MeshStandardMaterial({vertexColors:true,map:roofFlatTex,roughness:0.82,metalness:0.08});
+  const roofPitched=new THREE.MeshStandardMaterial({vertexColors:true,map:roofPitchedTex,roughness:0.72,metalness:0.12,side:THREE.DoubleSide});
 
-  // Taiwanese waterproofing green roof + stairwell + stainless water tanks
-  const roofTex=texture(c=>{
-    c.fillStyle='#417557';c.fillRect(0,0,256,256);
-    c.fillStyle='#366449';for(let i=0;i<10;i++)c.fillRect((i*53)%210,(i*71)%210,36,36);
-    c.fillStyle='#5c5952';c.fillRect(0,0,256,12);c.fillRect(0,244,256,12);c.fillRect(0,0,12,256);c.fillRect(244,0,12,256);
-    c.fillStyle='#cbc6be';c.fillRect(156,28,74,56);
-    const drawTank=(cx,cy,r)=>{
-      c.fillStyle='rgba(0,0,0,0.34)';c.beginPath();c.ellipse(cx+r*0.2,cy+r*0.24,r*1.04,r*0.88,0,0,Math.PI*2);c.fill();
-      const g=c.createRadialGradient(cx-r*0.32,cy-r*0.32,r*0.1,cx,cy,r);
-      g.addColorStop(0,'#ffffff');g.addColorStop(0.35,'#dde2e8');g.addColorStop(0.75,'#9aa4ae');g.addColorStop(1,'#626c76');
-      c.fillStyle=g;c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);c.fill();
-    };
-    drawTank(62,72,24);drawTank(114,68,20);drawTank(76,128,18);
-  },true);
-
-  const wall=new THREE.MeshStandardMaterial({vertexColors:true,map:facadeTex,roughness:.88,emissive:0xffe0ac,emissiveMap:facadeNight,emissiveIntensity:0,side:THREE.DoubleSide});
-  const techWall=new THREE.MeshStandardMaterial({vertexColors:true,map:techTex,roughness:.62,metalness:.24,side:THREE.DoubleSide});
-  const roof=new THREE.MeshStandardMaterial({vertexColors:true,map:roofTex,roughness:.84});
+  // Landmark shared materials (non-vertexColors for BoxGeometry/CylinderGeometry landmark primitives)
+  const wall=new THREE.MeshStandardMaterial({color:0xebe2d2,map:aptTex,roughness:0.78,metalness:0.04,emissive:0xffe2ad,emissiveMap:aptNight,emissiveIntensity:0,side:THREE.DoubleSide});
   const officeGlass=new THREE.MeshPhysicalMaterial({
     map:officeTex,roughnessMap:officeRough,color:0x3f657a,metalness:.80,roughness:.22,
     clearcoat:1.0,clearcoatRoughness:.09,envMap:reflectedMap,envMapIntensity:1.15,
     emissiveMap:officeNight,emissive:0xffdfab,emissiveIntensity:0,side:THREE.DoubleSide
   });
-
-  // Landmark shared materials
   const stone=new THREE.MeshStandardMaterial({color:0xd8d2c6,roughness:.76});
   const graniteRed=new THREE.MeshStandardMaterial({color:0xa84638,roughness:.74});
   const darkGlass=new THREE.MeshPhysicalMaterial({color:0x1a303d,metalness:.85,roughness:.18,clearcoat:1,envMap:reflectedMap,envMapIntensity:1.1,emissive:0xffdfa6,emissiveIntensity:0});
@@ -200,8 +479,46 @@ function createTaiwanCity(scene,ground,airports){
   const roadMat=new THREE.MeshStandardMaterial({color:0xffffff,map:twRoadDay,roughness:.84,emissive:0xffd596,emissiveMap:twRoadNight,emissiveIntensity:0,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
   const roadCurbMat=new THREE.MeshStandardMaterial({color:0xb8bec2,roughness:.85,vertexColors:true});
 
-  const palette=['#c6bfae','#b9bec2','#a89b8d','#c9c3b6','#98a7ad','#c4b7a4','#b0b6ba','#d2cab9'].map(h=>new THREE.Color(h));
-  const roofPalette=['#5f7167','#6c7375','#726b62','#5d6d71','#7c766d','#636f65','#6e7178','#767067'].map(h=>new THREE.Color(h));
+  // Rich real-world Taiwan architectural color palettes (40+ vivid authentic colors)
+  const PAL_APT=['#f0e6d2','#e6d5b8','#c97859','#dfb08c','#b5cbb8','#b8cad8','#d6b685','#c47668','#ebd9a7','#e6e8ea','#d49280','#d4c2a8'].map(h=>new THREE.Color(h));
+  const PAL_GLASS=['#467da8','#3b7c74','#96b8d0','#aa9375','#395a78','#4a8f8e','#5a6c7d','#78adc9'].map(h=>new THREE.Color(h));
+  const PAL_BRICK=['#bc5440','#ce7050','#cc8e52','#dfd2bc','#d48974','#d1a65a','#9f5c4f','#ebe4d8'].map(h=>new THREE.Color(h));
+  const PAL_CONDO=['#eef0f3','#b8aea2','#69717a','#dcd0bc','#7a8fa4','#cbbba4','#e4dfd5'].map(h=>new THREE.Color(h));
+  const PAL_TECH=['#e0e6ec','#c8d4de','#d5dce0','#b9cad6','#e6e2da','#9eb5c4'].map(h=>new THREE.Color(h));
+  const PAL_ROOF_FLAT=['#4c8460','#58926a','#9ea3a8','#8b9299','#525b64','#b8905a','#447858','#a8a296'].map(h=>new THREE.Color(h));
+  const PAL_ROOF_PITCHED=['#b5503c','#3b7a6e','#486e90','#9e4a3d','#4c8460','#525b64','#b8905a','#c66246'].map(h=>new THREE.Color(h));
+  const PAL_ROOF_MINNAN=['#b5503c','#c45a40','#9e4a3d','#b8905a','#525b64','#3b7a6e'].map(h=>new THREE.Color(h));
+
+  // Deterministic coordinate/index hash & subtle per-building RGB/HSL jitter (zero-alloc)
+  function hashBuilding(x,z,salt){
+    let h=(Math.imul(Math.round(x*2),374761393)^Math.imul(Math.round(z*2),668265263)^Math.imul((salt|0)+17,2246822519))>>>0;
+    h=Math.imul(h^(h>>>13),1274126177)>>>0;
+    return (h^(h>>>16))>>>0;
+  }
+  const tmpWallCol=new THREE.Color(),tmpRoofCol=new THREE.Color(),tmpCrownCol=new THREE.Color();
+  function pickJitteredColor(pal,h,out,brightScale=1){
+    const base=pal[h%pal.length];
+    // Deterministic subtle per-building lightness & warm/cool channel jitter so neighbors never match flatly
+    const jL=(((h>>>8)&255)/255-0.5)*0.11;
+    const jW=(((h>>>16)&255)/255-0.5)*0.055;
+    const jG=(((h>>>24)&255)/255-0.5)*0.032;
+    const clamp01=v=>v<0.06?0.06:(v>1?1:v);
+    out.r=clamp01((base.r+jL+jW)*brightScale);
+    out.g=clamp01((base.g+jL+jG)*brightScale);
+    out.b=clamp01((base.b+jL-jW)*brightScale);
+    return out;
+  }
+  // Regional character weights across Taiwan (Kinmen, Penghu, Tainan, Hualien/Taitung, Hsinchu, Taichung, Kaohsiung, Taoyuan)
+  function getTaiwanRegion(lat,lon){
+    if(lon<118.65)return 1; // Kinmen: strong Minnan red-brick & terracotta pitched roofs
+    if(lon<119.85&&lat>=23.15&&lat<=23.85)return 2; // Penghu: coral-lime stone, stucco & coastal terracotta/blue roofs
+    if(lat>=22.82&&lat<=23.40&&lon>=120.00&&lon<=120.48)return 3; // Tainan: historic Minnan townhouses + southern sun
+    if(lon>121.05&&lat<24.38)return 4; // Hualien & Taitung: east-coast low-rise brick/stucco & vibrant pitched roofs
+    if(lat>=24.70&&lat<=24.88&&lon>=120.90&&lon<=121.10)return 5; // Hsinchu / Zhubei: Sci-Park & modern condos/glass
+    if(lat>=24.06&&lat<=24.26&&lon>=120.54&&lon<=120.78)return 6; // Taichung: modern granite condos & glass CBD + warm apts
+    if(lat>=22.52&&lat<=22.76&&lon>=120.22&&lon<=120.44)return 7; // Kaohsiung: harbor glass skyline + vivid warm apts
+    return 0; // Taoyuan & general western/northern Taiwan
+  }
 
   // Build iconic Taiwan Landmarks outside Taipei at true Google Maps/OSM coordinates & 1:1 heights
   const landmarks=new THREE.Group();landmarks.name='Taiwan regional landmarks';root.add(landmarks);
@@ -765,17 +1082,20 @@ function createTaiwanCity(scene,ground,airports){
     g.computeBoundingSphere();
     const m=new THREE.Mesh(g,mat);m.name=name;m.receiveShadow=true;group.add(m);
   }
-  function emitUpTri(out,p0,p1,p2,y,cr,cg,cb){
+  function emitUpTri(out,p0,p1,p2,y,cr,cg,cb,minX,minZ,invW,invD){
+    const u0=invW?(p0[0]-minX)*invW:p0[0]*.08,v0=invD?(p0[1]-minZ)*invD:p0[1]*.08;
+    const u1=invW?(p1[0]-minX)*invW:p1[0]*.08,v1=invD?(p1[1]-minZ)*invD:p1[1]*.08;
+    const u2=invW?(p2[0]-minX)*invW:p2[0]*.08,v2=invD?(p2[1]-minZ)*invD:p2[1]*.08;
     if((p1[1]-p0[1])*(p2[0]-p0[0])-(p1[0]-p0[0])*(p2[1]-p0[1])>0){
-      triFlat(out,p0[0],y,p0[1],p1[0],y,p1[1],p2[0],y,p2[1],cr,cg,cb,0,1,0,p0[0]*.25,p0[1]*.25,p1[0]*.25,p1[1]*.25,p2[0]*.25,p2[1]*.25);
+      triFlat(out,p0[0],y,p0[1],p1[0],y,p1[1],p2[0],y,p2[1],cr,cg,cb,0,1,0,u0,v0,u1,v1,u2,v2);
     }else{
-      triFlat(out,p0[0],y,p0[1],p2[0],y,p2[1],p1[0],y,p1[1],cr,cg,cb,0,1,0,p0[0]*.25,p0[1]*.25,p2[0]*.25,p2[1]*.25,p1[0]*.25,p1[1]*.25);
+      triFlat(out,p0[0],y,p0[1],p2[0],y,p2[1],p1[0],y,p1[1],cr,cg,cb,0,1,0,u0,v0,u2,v2,u1,v1);
     }
   }
-  function polygon(out,points,y,col){
+  function polygon(out,points,y,col,minX,minZ,invW,invD){
     const n=points.length,cr=col.r,cg=col.g,cb=col.b;
     if(n===3){
-      emitUpTri(out,points[0],points[1],points[2],y,cr,cg,cb);
+      emitUpTri(out,points[0],points[1],points[2],y,cr,cg,cb,minX,minZ,invW,invD);
       return;
     }
     if(n===4){
@@ -785,14 +1105,24 @@ function createTaiwanCity(scene,ground,airports){
       const c2=(p3[0]-p2[0])*(p0[1]-p3[1])-(p3[1]-p2[1])*(p0[0]-p3[0]);
       const c3=(p0[0]-p3[0])*(p1[1]-p0[1])-(p0[1]-p3[1])*(p1[0]-p0[0]);
       if((c0>=0&&c1>=0&&c2>=0&&c3>=0)||(c0<=0&&c1<=0&&c2<=0&&c3<=0)){
-        emitUpTri(out,p0,p1,p2,y,cr,cg,cb);
-        emitUpTri(out,p0,p2,p3,y,cr,cg,cb);
+        emitUpTri(out,p0,p1,p2,y,cr,cg,cb,minX,minZ,invW,invD);
+        emitUpTri(out,p0,p2,p3,y,cr,cg,cb,minX,minZ,invW,invD);
         return;
       }
     }
     const contour=points.map(p=>new THREE.Vector2(p[0],p[1]));
     for(const ids of THREE.ShapeUtils.triangulateShape(contour,[])){
-      emitUpTri(out,points[ids[0]],points[ids[1]],points[ids[2]],y,cr,cg,cb);
+      emitUpTri(out,points[ids[0]],points[ids[1]],points[ids[2]],y,cr,cg,cb,minX,minZ,invW,invD);
+    }
+  }
+  function extrudeRingWalls(out,pts,y0,y1,cr,cg,cb,uScale,vScale){
+    const v=(y1-y0)/vScale;
+    for(let i=0;i<pts.length;i++){
+      const a=pts[i],b=pts[(i+1)%pts.length],dx=b[0]-a[0],dz=b[1]-a[1],len=Math.hypot(dx,dz);
+      if(len<.05)continue;
+      const nx=dz/len,nz=-dx/len,u=len/uScale;
+      triFlat(out,a[0],y0,a[1],b[0],y0,b[1],b[0],y1,b[1],cr,cg,cb,nx,0,nz,0,0,u,0,u,v);
+      triFlat(out,a[0],y0,a[1],b[0],y1,b[1],a[0],y1,a[1],cr,cg,cb,nx,0,nz,0,0,u,v,0,v);
     }
   }
 
@@ -801,20 +1131,25 @@ function createTaiwanCity(scene,ground,airports){
     group.userData.masks=[];
     const BC=typeof BuildingCollision!=='undefined'?BuildingCollision:null;
     if(BC)BC.clearGroup('tw:'+key);
-    const walls=buffers(),glazed=buffers(),techs=buffers(),roofs=buffers();
+    const aptBuf=buffers(),glassBuf=buffers(),brickBuf=buffers(),condoBuf=buffers(),techBuf=buffers();
+    const roofFlatBuf=buffers(),roofPitchedBuf=buffers();
     let built=0;
     for(const [x,z,h,tone,kind,coords] of data.b){
       if(skipBuilding(x,z))continue;
       const center=ground(x,z);
       if(center<0.35)continue;
       const points=[];
-      let minX=1e9,minZ=1e9,maxX=-1e9,maxZ=-1e9;
+      let minX=1e9,minZ=1e9,maxX=-1e9,maxZ=-1e9,sumX=0,sumZ=0;
       for(let i=0;i<coords.length;i+=2){
         const px=x+coords[i],pz=z+coords[i+1];
         points.push([px,pz]);
+        sumX+=px;sumZ+=pz;
         if(px<minX)minX=px;if(px>maxX)maxX=px;
         if(pz<minZ)minZ=pz;if(pz>maxZ)maxZ=pz;
       }
+      if(points.length<3)continue;
+      const cx=sumX/points.length,cz=sumZ/points.length;
+      const fw=maxX-minX,fd=maxZ-minZ,area=fw*fd;
       mask(group,minX-2,minZ-2,maxX+2,maxZ+2);
       let base=center;
       if(points.length<=4){
@@ -825,53 +1160,118 @@ function createTaiwanCity(scene,ground,airports){
         base-=2.4;
       }
       const top=center+h;
-      if(BC){const sx=(maxX-minX)*.06,sz=(maxZ-minZ)*.06;BC.add('tw:'+key,minX+sx,minZ+sz,maxX-sx,maxZ-sz,top,base);}
-      const col=palette[tone%palette.length].clone().multiplyScalar(h>70?.80:1);
-      const cr=col.r,cg=col.g,cb=col.b;
-      const isGlazed=(kind===1||h>=36);
-      const isTech=(kind===2&&!isGlazed);
-      const target=isGlazed?glazed:(isTech?techs:walls);
-      const vScale=isGlazed?12.8:3.2;
-      const pitched=!isGlazed&&!isTech&&h<=13.5&&points.length>=3&&points.length<=8&&(maxX-minX)<=30&&(maxZ-minZ)<=30;
-      const wallTop=pitched?(top-Math.min(2.1,h*.18)):top;
-      const rCol=pitched?new THREE.Color([0xb5533c,0x496d5c,0x4b5563,0x9e4b38][tone%4]):roofPalette[tone%roofPalette.length];
+      if(BC){const sx=fw*.06,sz=fd*.06;BC.add('tw:'+key,minX+sx,minZ+sz,maxX-sx,maxZ-sz,top,base);}
+
+      // Deterministic regional & architectural archetype assignment across 5 PBR wall buckets
+      const ll=latLon(x,z);
+      const region=getTaiwanRegion(ll.lat,ll.lon);
+      const bhHash=hashBuilding(x,z,tone);
+      const styleRoll=bhHash%100;
+      const isTech=(kind===2)||(h>=6&&h<=24&&Math.min(fw,fd)>=24&&area>=950&&styleRoll<(region===5?64:32));
+      const glassProb=(region===5||region===6||region===7)?66:54;
+      const isGlass=!isTech&&((kind===1&&h>=20)||(h>=38&&styleRoll<glassProb)||(h>=28&&styleRoll<28));
+      const condoProb=(region===5||region===6)?58:45;
+      const isCondo=!isTech&&!isGlass&&(h>=24||(h>=16&&styleRoll<condoProb));
+      const brickProb=region===1?72:region===2?60:(region===3||region===4)?46:28;
+      const isBrick=!isTech&&!isGlass&&!isCondo&&h<=18&&styleRoll<brickProb;
+
+      let target,pal,uScale,vScale;
+      if(isGlass){target=glassBuf;pal=PAL_GLASS;uScale=16.0;vScale=28.0;}
+      else if(isTech){target=techBuf;pal=PAL_TECH;uScale=20.0;vScale=18.0;}
+      else if(isCondo){target=condoBuf;pal=PAL_CONDO;uScale=16.0;vScale=25.6;}
+      else if(isBrick){target=brickBuf;pal=PAL_BRICK;uScale=15.0;vScale=18.5;}
+      else{target=aptBuf;pal=PAL_APT;uScale=15.5;vScale=24.0;}
+
+      pickJitteredColor(pal,bhHash,tmpWallCol,h>95?.93:1);
+      const cr=tmpWallCol.r,cg=tmpWallCol.g,cb=tmpWallCol.b;
+
+      // 3D pitched/hipped roofs for low-rise Taiwanese houses (h <= 13m, ~45% overall, higher in Minnan/East/Islands)
+      const pitchProb=region===1?78:region===2?68:(region===3||region===4)?58:(isBrick?60:42);
+      const pitched=!isGlass&&!isTech&&h<=13.0&&points.length>=3&&points.length<=10&&fw<=34&&fd<=34&&(((bhHash>>>5)%100)<pitchProb);
+      const wallTop=pitched?(top-Math.min(1.6,h*.14)):top;
+
+      const roofHash=(bhHash^0x9e3779b9)>>>0;
       if(pitched){
-        const rPeak=top+Math.min(1.6,Math.min(maxX-minX,maxZ-minZ)*.14);
-        const rux=(maxX-minX)>=(maxZ-minZ)?Math.max(0,(maxX-minX)*.22):0;
-        const ruz=(maxZ-minZ)>(maxX-minX)?Math.max(0,(maxZ-minZ)*.22):0;
-        const r0=[x-rux,rPeak,z-ruz],r1=[x+rux,rPeak,z+ruz];
+        const rPal=(region===1||region===3||isBrick)?PAL_ROOF_MINNAN:PAL_ROOF_PITCHED;
+        pickJitteredColor(rPal,roofHash,tmpRoofCol,1);
+        const rr=tmpRoofCol.r,rg=tmpRoofCol.g,rb=tmpRoofCol.b;
+        const rPeak=top+Math.min(2.4,Math.max(1.1,Math.min(fw,fd)*.17));
+        const rux=fw>=fd?Math.max(0,fw*.24):0;
+        const ruz=fd>fw?Math.max(0,fd*.24):0;
+        const r0=[cx-rux,rPeak,cz-ruz],r1=[cx+rux,rPeak,cz+ruz];
         for(let i=0;i<points.length;i++){
           const a=points[i],b=points[(i+1)%points.length];
-          const pA=(((a[0]-x)*rux+(a[1]-z)*ruz)>=0)?r1:r0;
-          const pB=(((b[0]-x)*rux+(b[1]-z)*ruz)>=0)?r1:r0;
+          const pA=(((a[0]-cx)*rux+(a[1]-cz)*ruz)>=0)?r1:r0;
+          const pB=(((b[0]-cx)*rux+(b[1]-cz)*ruz)>=0)?r1:r0;
           const triR=(aa,bb,cc)=>{
             const u1x=bb[0]-aa[0],u1y=bb[1]-aa[1],u1z=bb[2]-aa[2];
             const v1x=cc[0]-aa[0],v1y=cc[1]-aa[1],v1z=cc[2]-aa[2];
             let nx=u1y*v1z-u1z*v1y,ny=u1z*v1x-u1x*v1z,nz=u1x*v1y-u1y*v1x;
             const nl=Math.hypot(nx,ny,nz)||1;nx/=nl;ny/=nl;nz/=nl;
-            if(ny<0){triFlat(roofs,aa[0],aa[1],aa[2],cc[0],cc[1],cc[2],bb[0],bb[1],bb[2],rCol.r,rCol.g,rCol.b,-nx,-ny,-nz,aa[0]*.2,aa[2]*.2,cc[0]*.2,cc[2]*.2,bb[0]*.2,bb[2]*.2);}
-            else{triFlat(roofs,aa[0],aa[1],aa[2],bb[0],bb[1],bb[2],cc[0],cc[1],cc[2],rCol.r,rCol.g,rCol.b,nx,ny,nz,aa[0]*.2,aa[2]*.2,bb[0]*.2,bb[2]*.2,cc[0]*.2,cc[2]*.2);}
+            if(ny<0){
+              triFlat(roofPitchedBuf,aa[0],aa[1],aa[2],cc[0],cc[1],cc[2],bb[0],bb[1],bb[2],rr,rg,rb,-nx,-ny,-nz,aa[0]*.16,aa[2]*.16,cc[0]*.16,cc[2]*.16,bb[0]*.16,bb[2]*.16);
+            }else{
+              triFlat(roofPitchedBuf,aa[0],aa[1],aa[2],bb[0],bb[1],bb[2],cc[0],cc[1],cc[2],rr,rg,rb,nx,ny,nz,aa[0]*.16,aa[2]*.16,bb[0]*.16,bb[2]*.16,cc[0]*.16,cc[2]*.16);
+            }
           };
           const ea=[a[0],wallTop,a[1]],eb=[b[0],wallTop,b[1]];
           if(pA===pB){triR(ea,eb,pA);}else{triR(ea,eb,pB);triR(ea,pB,pA);}
         }
       }else{
-        polygon(roofs,points,wallTop,rCol);
+        pickJitteredColor(PAL_ROOF_FLAT,roofHash,tmpRoofCol,isTech?1.08:1);
+        polygon(roofFlatBuf,points,wallTop,tmpRoofCol,minX,minZ,1/Math.max(fw,4),1/Math.max(fd,4));
+
+        // 3D rooftop penthouses / stair towers / stepped crowns for mid/high-rise buildings (h >= 18m, ~55%)
+        if(h>=18&&fw>=8&&fd>=8&&(((bhHash>>>7)%100)<56)){
+          const crownHash=(bhHash^0x85ebca6b)>>>0;
+          if(h>=34||((bhHash>>>11)%3===0)){
+            // Stepped architectural crown / mechanical penthouse inset from building footprint
+            const inset=h>=45?0.68:0.62;
+            const ch=Math.min(8.5,Math.max(2.6,h*0.085));
+            const crownPts=[];
+            let cMinX=1e9,cMinZ=1e9,cMaxX=-1e9,cMaxZ=-1e9;
+            for(let i=0;i<points.length;i++){
+              const px=cx+(points[i][0]-cx)*inset,pz=cz+(points[i][1]-cz)*inset;
+              crownPts.push([px,pz]);
+              if(px<cMinX)cMinX=px;if(px>cMaxX)cMaxX=px;
+              if(pz<cMinZ)cMinZ=pz;if(pz>cMaxZ)cMaxZ=pz;
+            }
+            const cTone=isGlass?0.90:0.94;
+            extrudeRingWalls(target,crownPts,wallTop,wallTop+ch,cr*cTone,cg*cTone,cb*cTone,uScale,vScale);
+            pickJitteredColor(PAL_ROOF_FLAT,crownHash,tmpCrownCol,0.96);
+            polygon(roofFlatBuf,crownPts,wallTop+ch,tmpCrownCol,cMinX,cMinZ,1/Math.max(cMaxX-cMinX,3),1/Math.max(cMaxZ-cMinZ,3));
+            // Upper mechanical spire core on tall towers (h >= 54m)
+            if(h>=54&&fw>=14&&fd>=14){
+              const ch2=Math.min(4.8,Math.max(2.4,h*0.04));
+              const corePts=points.map(p=>[cx+(p[0]-cx)*0.36,cz+(p[1]-cz)*0.36]);
+              extrudeRingWalls(isGlass?condoBuf:target,corePts,wallTop+ch,wallTop+ch+ch2,cr*0.86,cg*0.86,cb*0.86,uScale,vScale);
+              polygon(roofFlatBuf,corePts,wallTop+ch+ch2,tmpCrownCol,cMinX,cMinZ,1/Math.max(cMaxX-cMinX,3),1/Math.max(cMaxZ-cMinZ,3));
+            }
+          }else{
+            // Classic Taiwanese rooftop stairwell tower / elevator machine room (樓梯間/機房)
+            const pw=Math.min(fw*0.34,6.8),pd=Math.min(fd*0.34,6.0);
+            const ox=(((crownHash&255)/255)-0.5)*fw*0.22;
+            const oz=((((crownHash>>>8)&255)/255)-0.5)*fd*0.22;
+            const px0=cx+ox-pw*0.5,px1=cx+ox+pw*0.5,pz0=cz+oz-pd*0.5,pz1=cz+oz+pd*0.5;
+            const ph=2.6+((crownHash>>>16)%16)*0.12;
+            const phPts=[[px0,pz0],[px1,pz0],[px1,pz1],[px0,pz1]];
+            const phBuf=isCondo?condoBuf:aptBuf;
+            extrudeRingWalls(phBuf,phPts,wallTop,wallTop+ph,Math.min(1,cr*1.04),Math.min(1,cg*1.04),Math.min(1,cb*1.04),12,18);
+            pickJitteredColor(PAL_ROOF_FLAT,crownHash,tmpCrownCol,1.02);
+            polygon(roofFlatBuf,phPts,wallTop+ph,tmpCrownCol,px0,pz0,1/Math.max(pw,2),1/Math.max(pd,2));
+          }
+        }
       }
-      for(let i=0;i<points.length;i++){
-        const a=points[i],b=points[(i+1)%points.length],dx=b[0]-a[0],dz=b[1]-a[1],len=Math.hypot(dx,dz);
-        if(len<.05)continue;
-        const nx=dz/len,nz=-dx/len;
-        const u=len/12.8,v=(wallTop-base)/vScale;
-        triFlat(target,a[0],base,a[1],b[0],base,b[1],b[0],wallTop,b[1],cr,cg,cb,nx,0,nz,0,0,u,0,u,v);
-        triFlat(target,a[0],base,a[1],b[0],wallTop,b[1],a[0],wallTop,a[1],cr,cg,cb,nx,0,nz,0,0,u,v,0,v);
-      }
+      extrudeRingWalls(target,points,base,wallTop,cr,cg,cb,uScale,vScale);
       built++;if(built%260===0)yield;
     }
-    addLayerMesh(group,walls,wall,'Taiwan city facades');
-    addLayerMesh(group,glazed,officeGlass,'Taiwan glass skyscrapers');
-    addLayerMesh(group,techs,techWall,'Taiwan tech & industrial');
-    addLayerMesh(group,roofs,roof,'Taiwan rooftops');
+    addLayerMesh(group,aptBuf,wallApt,'Taiwan tile apartments');
+    addLayerMesh(group,glassBuf,wallGlass,'Taiwan glass towers');
+    addLayerMesh(group,brickBuf,wallBrick,'Taiwan brick townhouses');
+    addLayerMesh(group,condoBuf,wallCondo,'Taiwan modern condos');
+    addLayerMesh(group,techBuf,techWall,'Taiwan tech & industrial');
+    addLayerMesh(group,roofFlatBuf,roofFlat,'Taiwan flat rooftops');
+    addLayerMesh(group,roofPitchedBuf,roofPitched,'Taiwan pitched rooftops');
     group.userData.buildings=built;
     root.add(group);loaded.set(key,group);
     stats.buildings+=built;stats.tiles=loaded.size;stats.maskRevision++;
@@ -960,16 +1360,22 @@ function createTaiwanCity(scene,ground,airports){
   }
   const infillGeo=createInfillBoxGeometry();
   const infillHouseGeo=createInfillPitchedGeometry();
-  const infillWallMat=new THREE.MeshStandardMaterial({color:0xffffff,map:facadeTex,roughness:.88,emissive:0xffe0ac,emissiveMap:facadeNight,emissiveIntensity:0});
-  const infillRoofMat=new THREE.MeshStandardMaterial({color:0xc9d0cb,map:roofTex,roughness:.86});
-  const infillHouseRoofMat=new THREE.MeshStandardMaterial({color:0xb85e44,map:roofTex,roughness:.80});
-  const infillOfficeMat=new THREE.MeshPhysicalMaterial({color:0xffffff,map:officeTex,roughnessMap:officeRough,roughness:.24,metalness:.66,clearcoat:.75,clearcoatRoughness:.20,envMap:reflectedMap,envMapIntensity:1.05,emissive:0xffe2aa,emissiveMap:officeNight,emissiveIntensity:0});
-  const infillTechMat=new THREE.MeshStandardMaterial({color:0xffffff,map:techTex,roughness:.62,metalness:.22});
-  const MAX_RES_INST=5600,MAX_OFF_INST=1600,MAX_TECH_INST=1600;
+  // Vivid multi-archetype suburban infill materials (pitched houses with terracotta & teal-green roofs, glass offices & sci-park tech)
+  const infillWallMat=new THREE.MeshStandardMaterial({color:0xffffff,map:aptTex,roughness:0.78,metalness:0.04,emissive:0xffe2ad,emissiveMap:aptNight,emissiveIntensity:0});
+  const infillBrickWallMat=new THREE.MeshStandardMaterial({color:0xffffff,map:brickTex,roughness:0.86,metalness:0.02,emissive:0xffd794,emissiveMap:brickNight,emissiveIntensity:0});
+  const infillRoofMat=new THREE.MeshStandardMaterial({color:0x9eb8a8,map:roofFlatTex,roughness:0.82,metalness:0.08});
+  const infillHouseRoofMat=new THREE.MeshStandardMaterial({color:0xd86b4c,map:roofPitchedTex,roughness:0.72,metalness:0.10});
+  const infillTealRoofMat=new THREE.MeshStandardMaterial({color:0x428f7e,map:roofPitchedTex,roughness:0.68,metalness:0.18});
+  const infillOfficeMat=new THREE.MeshPhysicalMaterial({color:0xffffff,map:glassTex,roughnessMap:glassRough,roughness:0.24,metalness:0.58,clearcoat:0.82,clearcoatRoughness:0.14,envMap:reflectedMap,envMapIntensity:1.1,emissive:0xffe6b8,emissiveMap:glassNight,emissiveIntensity:0});
+  const infillTechMat=new THREE.MeshStandardMaterial({color:0xffffff,map:techTex,roughness:0.42,metalness:0.44,emissive:0xdcf0ff,emissiveMap:techNight,emissiveIntensity:0});
+  const INFILL_WARM_PAL=['#f0e6d2','#e6d5b8','#c97859','#dfb08c','#d6b685','#ebd9a7','#d49280','#ce7050','#cc8e52','#d48974','#ebe4d8','#d1a65a'].map(h=>new THREE.Color(h));
+  const INFILL_COOL_PAL=['#b5cbb8','#b8cad8','#e6e8ea','#eef0f3','#f0e6d2','#dfd2bc','#e4dfd5','#d4c2a8'].map(h=>new THREE.Color(h));
+  const MAX_RES_INST=3600,MAX_RES_ALT_INST=2400,MAX_OFF_INST=1600,MAX_TECH_INST=1600;
   const infillRes=new THREE.InstancedMesh(infillHouseGeo,[infillWallMat,infillHouseRoofMat],MAX_RES_INST);
+  const infillResAlt=new THREE.InstancedMesh(infillHouseGeo,[infillBrickWallMat,infillTealRoofMat],MAX_RES_ALT_INST);
   const infillOffice=new THREE.InstancedMesh(infillGeo,[infillOfficeMat,infillRoofMat],MAX_OFF_INST);
   const infillTech=new THREE.InstancedMesh(infillGeo,[infillTechMat,infillRoofMat],MAX_TECH_INST);
-  for(const im of [infillRes,infillOffice,infillTech]){
+  for(const im of [infillRes,infillResAlt,infillOffice,infillTech]){
     im.count=0;im.frustumCulled=false;im.receiveShadow=true;im.name='Taiwan multi-million infill';
     root.add(im);
   }
@@ -995,7 +1401,7 @@ function createTaiwanCity(scene,ground,airports){
     const maxR=Math.min(range,9000),maxR2=maxR*maxR;
     const tx0=Math.floor((x-maxR)/tileSz),tx1=Math.floor((x+maxR)/tileSz);
     const tz0=Math.floor((z-maxR)/tileSz),tz1=Math.floor((z+maxR)/tileSz);
-    let nRes=0,nOff=0,nTech=0;
+    let nRes=0,nResAlt=0,nOff=0,nTech=0;
     const BC=typeof BuildingCollision!=='undefined'?BuildingCollision:null;
     if(BC)BC.clearGroup('tw:infill');
     for(let tx=tx0;tx<=tx1;tx++){
@@ -1030,27 +1436,34 @@ function createTaiwanCity(scene,ground,airports){
             const bh=(kind===2?(8.5+r1*8.5):(hTier>=5?(18+r1*26):(dens>=2?(11+r1*13):(8.5+r1*6.5))));
             const bw=kind===2?(16+r2*18):(dens>=3?(12+r2*12):(8.5+r2*7.5));
             const bd=kind===2?(14+r3*14):(dens>=3?(11+r3*10):(8.0+r3*6.5));
-            const col=palette[(seed>>>24)%palette.length];
+            const ih=hashBuilding(bx,bz,seed>>>24);
             dummyObj.position.set(bx,gy-1.8,bz);
             dummyObj.rotation.set(0,-ang+((seed&1)?0:Math.PI*0.5),0);
             dummyObj.scale.set(bw,bh+1.8,bd);
             dummyObj.updateMatrix();
             if(BC&&d2<2500*2500){const hr=Math.max(bw,bd)*.42;BC.add('tw:infill',bx-hr,bz-hr,bx+hr,bz+hr,gy+bh,gy-2);}
             if(kind===2&&nTech<MAX_TECH_INST){
-              infillTech.setMatrixAt(nTech,dummyObj.matrix);infillTech.setColorAt(nTech,col);nTech++;
+              pickJitteredColor(PAL_TECH,ih,tmpWallCol,1);
+              infillTech.setMatrixAt(nTech,dummyObj.matrix);infillTech.setColorAt(nTech,tmpWallCol);nTech++;
             }else if((kind===1||bh>=28)&&nOff<MAX_OFF_INST){
-              infillOffice.setMatrixAt(nOff,dummyObj.matrix);infillOffice.setColorAt(nOff,col);nOff++;
+              pickJitteredColor((ih&1)?PAL_GLASS:PAL_CONDO,ih,tmpWallCol,1);
+              infillOffice.setMatrixAt(nOff,dummyObj.matrix);infillOffice.setColorAt(nOff,tmpWallCol);nOff++;
+            }else if(((ih>>>4)%10)<4&&nResAlt<MAX_RES_ALT_INST){
+              pickJitteredColor(INFILL_COOL_PAL,ih,tmpWallCol,1);
+              infillResAlt.setMatrixAt(nResAlt,dummyObj.matrix);infillResAlt.setColorAt(nResAlt,tmpWallCol);nResAlt++;
             }else if(nRes<MAX_RES_INST){
-              infillRes.setMatrixAt(nRes,dummyObj.matrix);infillRes.setColorAt(nRes,col);nRes++;
+              pickJitteredColor(INFILL_WARM_PAL,ih,tmpWallCol,1);
+              infillRes.setMatrixAt(nRes,dummyObj.matrix);infillRes.setColorAt(nRes,tmpWallCol);nRes++;
             }
           }
         }
       }
     }
     infillRes.count=nRes;infillRes.instanceMatrix.needsUpdate=true;if(infillRes.instanceColor)infillRes.instanceColor.needsUpdate=true;
+    infillResAlt.count=nResAlt;infillResAlt.instanceMatrix.needsUpdate=true;if(infillResAlt.instanceColor)infillResAlt.instanceColor.needsUpdate=true;
     infillOffice.count=nOff;infillOffice.instanceMatrix.needsUpdate=true;if(infillOffice.instanceColor)infillOffice.instanceColor.needsUpdate=true;
     infillTech.count=nTech;infillTech.instanceMatrix.needsUpdate=true;if(infillTech.instanceColor)infillTech.instanceColor.needsUpdate=true;
-    stats.activeInfill=nRes+nOff+nTech;
+    stats.activeInfill=nRes+nResAlt+nOff+nTech;
   }
 
   let roadsMeta=null,roadIndexReq=false;
@@ -1128,13 +1541,27 @@ function createTaiwanCity(scene,ground,airports){
     root.visible=near;if(!near)return;
     const mobile=touchControls.mode.value==='mobile';
     const range=mobile?5000:quality==='ultra'?12000:quality==='high'?9600:7400;
-    const nightWall=(1-day)*.78,nightOff=Math.pow(1-day,1.25)*1.28,envInt=.28+day*1.15;
-    wall.emissiveIntensity=nightWall;
-    infillWallMat.emissiveIntensity=nightWall;
-    darkGlass.emissiveIntensity=(1-day)*.92;
-    officeGlass.emissiveIntensity=nightOff;
-    infillOfficeMat.emissiveIntensity=nightOff;
-    officeGlass.envMapIntensity=infillOfficeMat.envMapIntensity=envInt;
+    const sunHeight=Math.max(0,Math.min(1,day));
+    const dusk=1-sunHeight;
+    const nightApt=Math.pow(dusk,1.15)*0.86;
+    const nightBrick=Math.pow(dusk,1.15)*0.80;
+    const nightCondo=Math.pow(dusk,1.10)*0.92;
+    const nightGlass=Math.pow(dusk,1.25)*1.28;
+    const nightTech=Math.pow(dusk,1.10)*0.70;
+    const envInt=0.28+sunHeight*1.15;
+    wallApt.emissiveIntensity=nightApt;
+    wallBrick.emissiveIntensity=nightBrick;
+    wallCondo.emissiveIntensity=nightCondo;
+    wallGlass.emissiveIntensity=nightGlass;
+    techWall.emissiveIntensity=nightTech;
+    wall.emissiveIntensity=nightApt;
+    infillWallMat.emissiveIntensity=nightApt;
+    infillBrickWallMat.emissiveIntensity=nightBrick;
+    infillOfficeMat.emissiveIntensity=nightGlass;
+    infillTechMat.emissiveIntensity=nightTech;
+    darkGlass.emissiveIntensity=dusk*0.92;
+    officeGlass.emissiveIntensity=nightGlass;
+    wallGlass.envMapIntensity=officeGlass.envMapIntensity=infillOfficeMat.envMapIntensity=envInt;
     roadMat.roughness=wet?.28:.84;roadMat.metalness=wet?.22:.02;
     roadMat.emissiveIntensity=Math.pow(1-day,1.25)*(wet?1.25:1.05);
     beaconMat.emissiveIntensity=(Math.sin(clock*4.5)>0?2.1:.15)*(0.45+(1-day)*1.4);

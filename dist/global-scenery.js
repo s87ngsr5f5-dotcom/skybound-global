@@ -36,128 +36,575 @@ function createGlobalScenery(scene, ground, airports = []) {
     return tex;
   }
 
-  // 1. Mid-rise apartment / commercial facade texture + night window emissive map
-  const wallDayTex = makeCanvasTex(256, 256, (g, w, h) => {
-    g.fillStyle = '#dde2e6';
-    g.fillRect(0, 0, w, h);
-    for (let y = 0; y < h; y += 28) {
-      g.fillStyle = 'rgba(20,30,40,0.18)';
-      g.fillRect(0, y, w, 4);
-      for (let x = 5; x < w; x += 22) {
-        const shade = ((x * 7 + y * 13) % 17) < 8 ? '#465869' : '#607588';
-        g.fillStyle = shade;
-        g.fillRect(x, y + 6, 13, 16);
-        g.fillStyle = 'rgba(255,255,255,0.32)';
-        g.fillRect(x, y + 22, 13, 2);
-      }
-    }
-  }, 1, 2);
+  // =========================================================================
+  // 5-Archetype Photorealistic PBR Wall Facades (256x256) + 2 Roof Materials
+  // =========================================================================
 
-  const wallNightTex = makeCanvasTex(256, 256, (g, w, h) => {
-    g.fillStyle = '#05070a';
-    g.fillRect(0, 0, w, h);
-    for (let y = 0; y < h; y += 28) {
-      for (let x = 5; x < w; x += 22) {
-        const s = (x * 31 + y * 53) % 23;
-        if (s < 12) {
-          g.fillStyle = s < 5 ? '#ffe3a2' : s < 9 ? '#ffc978' : '#cce6ff';
-          g.fillRect(x + 1, y + 7, 11, 14);
-        }
-      }
-    }
-  }, 1, 2);
-
-  // 2. High-rise glass curtain wall texture + night office floor map
-  const glassDayTex = makeCanvasTex(256, 256, (g, w, h) => {
+  // Archetype 0 — Modern Glass Curtain-Wall Tower (day + night emissive)
+  const archGlassDayTex = makeCanvasTex(256, 256, (g, w, h) => {
     const grad = g.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, '#5c84a4');
-    grad.addColorStop(0.5, '#82aecb');
-    grad.addColorStop(1, '#486d8b');
+    grad.addColorStop(0, '#c6d6e4');
+    grad.addColorStop(0.35, '#e8f2fa');
+    grad.addColorStop(0.65, '#bed0e0');
+    grad.addColorStop(1, '#dce9f4');
     g.fillStyle = grad;
     g.fillRect(0, 0, w, h);
-    for (let y = 0; y < h; y += 18) {
-      g.fillStyle = 'rgba(12,24,36,0.38)';
-      g.fillRect(0, y, w, 3);
-      for (let x = 0; x < w; x += 16) {
-        g.fillStyle = 'rgba(225,242,255,0.25)';
-        g.fillRect(x + 1, y + 4, 13, 13);
+    // Diagonal sky-reflection sheen bands
+    g.save();
+    g.fillStyle = 'rgba(255,255,255,0.24)';
+    g.beginPath(); g.moveTo(0, 48); g.lineTo(132, 0); g.lineTo(188, 0); g.lineTo(0, 108); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(235,248,255,0.18)';
+    g.beginPath(); g.moveTo(64, 256); g.lineTo(256, 84); g.lineTo(256, 138); g.lineTo(126, 256); g.closePath(); g.fill();
+    g.restore();
+    // 8 stories x 8 curtain-wall bays with spandrel bands & vertical mullions
+    const floorH = 32, bayW = 32;
+    for (let fy = 0; fy < h; fy += floorH) {
+      // Darker metallic spandrel band between floors
+      g.fillStyle = 'rgba(24,36,48,0.44)';
+      g.fillRect(0, fy, w, 7);
+      g.fillStyle = 'rgba(255,255,255,0.34)';
+      g.fillRect(0, fy + 7, w, 2);
+      for (let bx = 0; bx < w; bx += bayW) {
+        const s = (bx * 13 + fy * 29) % 19;
+        // Subtle interior ceiling / Venetian blind depth variation per glass pane
+        g.fillStyle = s < 5 ? 'rgba(20,38,54,0.24)' : s < 11 ? 'rgba(245,252,255,0.16)' : 'rgba(38,58,76,0.12)';
+        g.fillRect(bx + 3, fy + 9, bayW - 5, floorH - 10);
+        // Subtle upper blind band on some panes
+        if (s % 4 === 0) {
+          g.fillStyle = 'rgba(235,242,248,0.28)';
+          g.fillRect(bx + 3, fy + 9, bayW - 5, 7);
+        }
+        // Vertical anodized aluminum mullion + 1px highlight
+        g.fillStyle = 'rgba(34,44,54,0.62)';
+        g.fillRect(bx, fy, 3, floorH);
+        g.fillStyle = 'rgba(255,255,255,0.36)';
+        g.fillRect(bx + 3, fy, 1, floorH);
       }
     }
-  }, 1, 3);
+  }, 1, 1);
 
-  const glassNightTex = makeCanvasTex(256, 256, (g, w, h) => {
-    g.fillStyle = '#04080e';
+  const archGlassNightTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#04070d';
     g.fillRect(0, 0, w, h);
-    for (let y = 0; y < h; y += 18) {
-      const bandLit = ((y * 19) % 7) < 4;
-      for (let x = 0; x < w; x += 16) {
-        const s = (x * 17 + y * 41) % 19;
-        if (bandLit && s < 13) {
-          g.fillStyle = s < 6 ? '#ffebb4' : s < 10 ? '#a8dcff' : '#ffd280';
-          g.fillRect(x + 2, y + 4, 12, 12);
+    const floorH = 32, bayW = 32;
+    for (let fy = 0; fy < h; fy += floorH) {
+      const floorHash = ((fy * 19 + 7) % 11);
+      const floorActive = floorHash < 7;
+      for (let bx = 0; bx < w; bx += bayW) {
+        const s = (bx * 23 + fy * 41) % 29;
+        const lit = floorActive ? (s < 19) : (s < 5);
+        if (lit) {
+          g.fillStyle = s < 7 ? '#ffebb2' : s < 13 ? '#b8e2ff' : '#ffd280';
+          g.fillRect(bx + 4, fy + 10, bayW - 7, floorH - 12);
+          g.fillStyle = 'rgba(255,255,255,0.35)';
+          g.fillRect(bx + 4, fy + 10, bayW - 7, 4);
         }
       }
     }
-  }, 1, 3);
+  }, 1, 1);
 
-  // 3. Residential house wall + window texture
-  const houseDayTex = makeCanvasTex(128, 128, (g, w, h) => {
-    g.fillStyle = '#ece6dc';
+  // Archetype 1 — Warm Brick / Masonry Urban Apartment (day + night emissive)
+  const archBrickDayTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#ddd6ce';
     g.fillRect(0, 0, w, h);
-    for (let y = 14; y < h; y += 42) {
-      g.fillStyle = 'rgba(0,0,0,0.06)';
-      g.fillRect(0, y - 3, w, 2);
-      for (let x = 10; x < w; x += 30) {
-        g.fillStyle = '#3b4854';
-        g.fillRect(x, y, 14, 18);
-        g.fillStyle = '#e5e0d5';
-        g.fillRect(x + 6, y, 2, 18);
-        g.fillRect(x, y + 8, 14, 2);
+    // Running-bond brick / ashlar masonry courses (bright neutral so vertexColors tint vividly)
+    for (let y = 0; y < h; y += 8) {
+      const row = (y >> 3);
+      const off = (row & 1) ? 10 : 0;
+      for (let x = -10; x < w; x += 20) {
+        const v = ((x * 11 + y * 17) & 15) - 7;
+        const c = Math.max(198, Math.min(238, 220 + v));
+        g.fillStyle = `rgb(${c},${c - 4},${c - 9})`;
+        g.fillRect(x + off + 1, y + 1, 18, 6);
+      }
+      g.fillStyle = 'rgba(72,62,54,0.16)';
+      g.fillRect(0, y, w, 1);
+    }
+    // 3 upper apartment stories + 1 ground-floor retail storefront
+    const floors = [8, 68, 128];
+    for (let fi = 0; fi < floors.length; fi++) {
+      const fy = floors[fi];
+      // Horizontal carved stone cornice ledge
+      g.fillStyle = 'rgba(255,252,246,0.58)';
+      g.fillRect(0, fy - 5, w, 4);
+      g.fillStyle = 'rgba(42,36,30,0.28)';
+      g.fillRect(0, fy - 1, w, 3);
+      for (let bx = 12; bx < w - 12; bx += 48) {
+        // Stone lintel above window
+        g.fillStyle = 'rgba(246,242,235,0.72)';
+        g.fillRect(bx - 2, fy + 6, 30, 4);
+        // Recessed dark window frame & glass
+        g.fillStyle = '#2d3742';
+        g.fillRect(bx, fy + 10, 26, 34);
+        const paneTint = ((bx + fi * 31) % 3 === 0) ? '#46586a' : '#3a4b5c';
+        g.fillStyle = paneTint;
+        g.fillRect(bx + 2, fy + 12, 22, 30);
+        // Window muntin crossbars
+        g.fillStyle = '#c8c4bc';
+        g.fillRect(bx + 12, fy + 12, 2, 30);
+        g.fillRect(bx + 2, fy + 25, 22, 2);
+        // Protruding stone sill + under-shadow
+        g.fillStyle = '#ede8df';
+        g.fillRect(bx - 3, fy + 44, 32, 4);
+        g.fillStyle = 'rgba(30,24,20,0.28)';
+        g.fillRect(bx - 2, fy + 48, 30, 3);
+        // Occasional warm striped fabric awning on mid windows
+        if (((bx + fi * 17) % 5) === 0) {
+          g.fillStyle = fi === 1 ? 'rgba(155,58,48,0.82)' : 'rgba(46,92,74,0.82)';
+          g.fillRect(bx - 2, fy + 10, 30, 8);
+        }
+      }
+    }
+    // Ground-floor cornice + warm retail storefront band
+    g.fillStyle = '#e8e2d8';
+    g.fillRect(0, 188, w, 6);
+    g.fillStyle = 'rgba(35,28,22,0.34)';
+    g.fillRect(0, 194, w, 4);
+    g.fillStyle = '#c6beb4';
+    g.fillRect(0, 198, w, 58);
+    for (let sx = 10; sx < w - 16; sx += 82) {
+      g.fillStyle = '#333b44';
+      g.fillRect(sx, 206, 66, 44);
+      g.fillStyle = '#6c7c88';
+      g.fillRect(sx + 3, 209, 60, 38);
+      g.fillStyle = 'rgba(255,232,188,0.28)';
+      g.fillRect(sx + 6, 212, 54, 24);
+      // Shop awning strip
+      g.fillStyle = (sx % 164 === 10) ? 'rgba(156,64,52,0.85)' : 'rgba(54,84,108,0.85)';
+      g.fillRect(sx - 2, 202, 70, 9);
+    }
+  }, 1, 1);
+
+  const archBrickNightTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#040507';
+    g.fillRect(0, 0, w, h);
+    const floors = [8, 68, 128];
+    for (let fi = 0; fi < floors.length; fi++) {
+      const fy = floors[fi];
+      for (let bx = 12; bx < w - 12; bx += 48) {
+        const s = (bx * 29 + fy * 17) % 19;
+        if (s < 10) {
+          g.fillStyle = s < 4 ? '#ffdfa0' : s < 8 ? '#ffc26e' : '#ffeec4';
+          g.fillRect(bx + 3, fy + 13, 20, 28);
+        }
+      }
+    }
+    // Warm lit ground-floor storefronts
+    for (let sx = 10; sx < w - 16; sx += 82) {
+      g.fillStyle = '#ffe09c';
+      g.fillRect(sx + 4, 212, 58, 34);
+    }
+  }, 1, 1);
+
+  // Archetype 2 — Contemporary Stucco / Balcony Condo (day + night emissive)
+  const archCondoDayTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#eae8e3';
+    g.fillRect(0, 0, w, h);
+    // Subtle architectural stucco panel seams
+    g.fillStyle = 'rgba(60,68,76,0.10)';
+    for (let x = 0; x < w; x += 64) g.fillRect(x, 0, 2, h);
+    // 4 crisp stories with cantilevered balcony slabs, glass/steel railings & sliding doors
+    const floorH = 64;
+    for (let fy = 0; fy < h; fy += floorH) {
+      // Deep shadow cast beneath cantilevered balcony slab above
+      g.fillStyle = 'rgba(22,30,38,0.34)';
+      g.fillRect(0, fy + 8, w, 9);
+      for (let bx = 8; bx < w - 8; bx += 64) {
+        // Large recessed dark sliding glass window/door behind balcony
+        g.fillStyle = '#2c3c4c';
+        g.fillRect(bx + 4, fy + 12, 42, 42);
+        g.fillStyle = '#536c82';
+        g.fillRect(bx + 6, fy + 14, 18, 38);
+        g.fillStyle = '#445c70';
+        g.fillRect(bx + 26, fy + 14, 18, 38);
+        // Subtle diagonal window sheen
+        g.fillStyle = 'rgba(220,242,255,0.22)';
+        g.fillRect(bx + 8, fy + 16, 10, 14);
+        // Semi-transparent glass balcony railing + steel handrail
+        g.fillStyle = 'rgba(185,212,228,0.42)';
+        g.fillRect(bx, fy + 38, 50, 18);
+        g.fillStyle = '#485664';
+        g.fillRect(bx, fy + 36, 50, 2);
+        g.fillRect(bx, fy + 38, 2, 18);
+        g.fillRect(bx + 24, fy + 38, 2, 18);
+        g.fillRect(bx + 48, fy + 38, 2, 18);
+      }
+      // Crisp white cantilevered concrete balcony slab
+      g.fillStyle = '#f4f3ef';
+      g.fillRect(0, fy + 56, w, 8);
+      g.fillStyle = 'rgba(255,255,255,0.55)';
+      g.fillRect(0, fy + 56, w, 2);
+    }
+  }, 1, 1);
+
+  const archCondoNightTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#040609';
+    g.fillRect(0, 0, w, h);
+    const floorH = 64;
+    for (let fy = 0; fy < h; fy += floorH) {
+      for (let bx = 8; bx < w - 8; bx += 64) {
+        const s = (bx * 19 + fy * 37) % 23;
+        if (s < 11) {
+          g.fillStyle = s < 5 ? '#ffe3a4' : s < 9 ? '#ffcb78' : '#d2eaff';
+          g.fillRect(bx + 6, fy + 15, 38, 24);
+          // Soft diffused glow through glass railing
+          g.fillStyle = 'rgba(255,216,144,0.45)';
+          g.fillRect(bx + 6, fy + 40, 38, 13);
+        }
       }
     }
   }, 1, 1);
 
-  const roofDetailTex = makeCanvasTex(128, 128, (g, w, h) => {
-    g.fillStyle = '#6f7982';
+  // Archetype 3 — Residential Clapboard / Villa / Townhouse (day + night emissive)
+  const archHouseDayTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#edeae4';
     g.fillRect(0, 0, w, h);
-    g.strokeStyle = '#4c545c';
-    g.lineWidth = 8;
-    g.strokeRect(4, 4, w - 8, h - 8);
-    g.fillStyle = '#8b959e';
-    g.fillRect(24, 24, 32, 26);
-    g.fillRect(68, 64, 34, 34);
-    g.fillStyle = '#404850';
-    g.fillRect(28, 28, 10, 18);
-    g.fillRect(42, 28, 10, 18);
+    // Horizontal clapboard siding / subtle plaster texture courses
+    for (let y = 0; y < h; y += 10) {
+      g.fillStyle = (y % 20 === 0) ? 'rgba(255,255,255,0.22)' : 'rgba(60,55,48,0.06)';
+      g.fillRect(0, y, w, 8);
+      g.fillStyle = 'rgba(42,38,34,0.14)';
+      g.fillRect(0, y + 8, w, 2);
+    }
+    // Trim band separating 1st and 2nd story
+    g.fillStyle = 'rgba(255,255,255,0.68)';
+    g.fillRect(0, 122, w, 6);
+    g.fillStyle = 'rgba(35,32,28,0.20)';
+    g.fillRect(0, 128, w, 3);
+    // Upper-story paired windows with crisp trim & shutters
+    const drawResWindow = (wx, wy, ww, wh, shutters = true) => {
+      if (shutters) {
+        g.fillStyle = '#475563';
+        g.fillRect(wx - 11, wy, 9, wh);
+        g.fillRect(wx + ww + 2, wy, 9, wh);
+      }
+      g.fillStyle = '#f5f4f0';
+      g.fillRect(wx - 3, wy - 3, ww + 6, wh + 6);
+      g.fillStyle = '#334250';
+      g.fillRect(wx, wy, ww, wh);
+      g.fillStyle = '#4a5f72';
+      g.fillRect(wx + 2, wy + 2, ww - 4, wh - 4);
+      g.fillStyle = '#f2f0eb';
+      g.fillRect(wx + Math.floor(ww * 0.5) - 1, wy, 2, wh);
+      g.fillRect(wx, wy + Math.floor(wh * 0.5) - 1, ww, 2);
+    };
+    drawResWindow(28, 34, 36, 52, true);
+    drawResWindow(110, 34, 36, 52, true);
+    drawResWindow(192, 34, 36, 52, true);
+    // Lower-story windows + warm wooden front door in center
+    drawResWindow(28, 152, 38, 54, true);
+    drawResWindow(190, 152, 38, 54, true);
+    // Front door with white frame & transom window
+    g.fillStyle = '#f5f3ee';
+    g.fillRect(108, 152, 40, 100);
+    g.fillStyle = '#6b4532';
+    g.fillRect(113, 170, 30, 82);
+    g.fillStyle = '#4b5f72';
+    g.fillRect(113, 156, 30, 10);
+    g.fillStyle = '#855840';
+    g.fillRect(117, 176, 10, 28);
+    g.fillRect(130, 176, 10, 28);
+    g.fillRect(117, 210, 10, 32);
+    g.fillRect(130, 210, 10, 32);
+    // Stone foundation plinth
+    g.fillStyle = 'rgba(92,88,82,0.34)';
+    g.fillRect(0, 240, w, 16);
   }, 1, 1);
 
-  // Unit pitched-roof house geometry: walls (y: -0.5..0.18) + 3D gable roof (y: 0.18..0.52) with baked roof/wall shading
-  function createPitchedHouseGeometry() {
+  const archHouseNightTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#040507';
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = '#ffd988';
+    g.fillRect(30, 36, 32, 48);
+    g.fillStyle = '#ffc76e';
+    g.fillRect(194, 36, 32, 48);
+    g.fillStyle = '#ffe5a4';
+    g.fillRect(30, 154, 34, 50);
+    g.fillStyle = '#ffd582';
+    g.fillRect(192, 154, 34, 50);
+    // Warm porch transom light
+    g.fillStyle = '#ffdf9a';
+    g.fillRect(114, 157, 28, 9);
+  }, 1, 1);
+
+  // Archetype 4 — Industrial / Logistics Warehouse (day + night emissive)
+  const archIndDayTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#d8dee4';
+    g.fillRect(0, 0, w, h);
+    // Corrugated steel vertical wall ribs
+    for (let x = 0; x < w; x += 6) {
+      g.fillStyle = 'rgba(255,255,255,0.28)';
+      g.fillRect(x, 0, 2, h);
+      g.fillStyle = 'rgba(40,50,60,0.18)';
+      g.fillRect(x + 3, 0, 2, h);
+    }
+    // Roofline flashing band + upper clerestory strip windows
+    g.fillStyle = '#5a6570';
+    g.fillRect(0, 0, w, 12);
+    g.fillStyle = '#3c4e5e';
+    g.fillRect(0, 24, w, 28);
+    for (let x = 4; x < w; x += 32) {
+      g.fillStyle = '#688296';
+      g.fillRect(x, 27, 26, 22);
+      g.fillStyle = 'rgba(220,240,255,0.24)';
+      g.fillRect(x + 2, 29, 22, 7);
+    }
+    // Horizontal structural steel girt beam
+    g.fillStyle = 'rgba(54,64,74,0.45)';
+    g.fillRect(0, 134, w, 7);
+    // Structural columns every 64px
+    for (let x = 0; x < w; x += 64) {
+      g.fillStyle = '#8b959e';
+      g.fillRect(x, 12, 8, h - 12);
+      g.fillStyle = 'rgba(30,38,46,0.25)';
+      g.fillRect(x + 8, 12, 3, h - 12);
+    }
+    // Lower concrete plinth + ribbed roll-up loading dock doors
+    g.fillStyle = '#bcc2c8';
+    g.fillRect(0, 214, w, 42);
+    for (let dx = 16; dx < w - 32; dx += 64) {
+      g.fillStyle = '#424a52';
+      g.fillRect(dx, 162, 42, 92);
+      g.fillStyle = '#aeb6be';
+      g.fillRect(dx + 3, 166, 36, 86);
+      for (let ry = 172; ry < 250; ry += 9) {
+        g.fillStyle = 'rgba(42,48,54,0.30)';
+        g.fillRect(dx + 3, ry, 36, 2);
+      }
+      // Yellow/dark safety dock bumpers
+      g.fillStyle = '#d8a630';
+      g.fillRect(dx - 3, 212, 3, 38);
+      g.fillRect(dx + 42, 212, 3, 38);
+    }
+  }, 1, 1);
+
+  const archIndNightTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#040608';
+    g.fillRect(0, 0, w, h);
+    // Lit clerestory strip windows
+    for (let x = 4; x < w; x += 32) {
+      g.fillStyle = (x % 64 === 4) ? '#d6ecff' : '#ffe29c';
+      g.fillRect(x + 1, 28, 24, 20);
+    }
+    // Subtle loading dock apron security lights
+    for (let dx = 16; dx < w - 32; dx += 64) {
+      g.fillStyle = '#ffd98a';
+      g.fillRect(dx + 16, 155, 10, 4);
+    }
+  }, 1, 1);
+
+  // Roof Material 1 — Flat Gravel / Concrete Membrane + Parapet Rim + AC / Skylights
+  const archFlatRoofTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#c8cdd2';
+    g.fillRect(0, 0, w, h);
+    // Subtle gravel / waterproof membrane texture + seam grid
+    for (let y = 0; y < h; y += 8) {
+      for (let x = 0; x < w; x += 8) {
+        const v = ((x * 19 + y * 37) % 19) - 9;
+        const c = 196 + v;
+        g.fillStyle = `rgb(${c},${c + 1},${c + 2})`;
+        g.fillRect(x, y, 8, 8);
+      }
+    }
+    g.strokeStyle = 'rgba(70,76,82,0.22)';
+    g.lineWidth = 2;
+    for (let i = 64; i < w; i += 64) {
+      g.beginPath(); g.moveTo(i, 0); g.lineTo(i, h); g.stroke();
+      g.beginPath(); g.moveTo(0, i); g.lineTo(w, i); g.stroke();
+    }
+    // Parapet rim border
+    g.strokeStyle = 'rgba(78,84,92,0.52)';
+    g.lineWidth = 10;
+    g.strokeRect(5, 5, w - 10, h - 10);
+    g.strokeStyle = 'rgba(240,244,248,0.45)';
+    g.lineWidth = 2;
+    g.strokeRect(11, 11, w - 22, h - 22);
+    // Rooftop HVAC units, cooling fan grilles & skylight
+    const drawHvac = (hx, hy, hw, hh) => {
+      g.fillStyle = 'rgba(30,36,42,0.34)';
+      g.fillRect(hx + 4, hy + 4, hw, hh);
+      g.fillStyle = '#b4bcc4';
+      g.fillRect(hx, hy, hw, hh);
+      g.strokeStyle = '#68727c';
+      g.lineWidth = 2;
+      g.strokeRect(hx, hy, hw, hh);
+      g.fillStyle = '#48525c';
+      g.fillRect(hx + 6, hy + 6, Math.floor(hw * 0.42), hh - 12);
+    };
+    drawHvac(32, 34, 52, 36);
+    drawHvac(154, 148, 56, 44);
+    // Glass skylight panel
+    g.fillStyle = '#5a7286';
+    g.fillRect(142, 42, 62, 34);
+    g.strokeStyle = '#d4dce2';
+    g.lineWidth = 3;
+    g.strokeRect(142, 42, 62, 34);
+  }, 1, 1);
+
+  // Roof Material 2 — Overlapping Clay / Shingle / Slate Roof Tile Courses
+  const archPitchedRoofTex = makeCanvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#d4d0ca';
+    g.fillRect(0, 0, w, h);
+    const courseH = 16;
+    const tileW = 16;
+    for (let y = 0; y < h; y += courseH) {
+      const row = Math.floor(y / courseH);
+      const off = (row & 1) ? 8 : 0;
+      for (let x = -tileW; x < w; x += tileW) {
+        const s = ((x * 13 + y * 29) % 23) - 11;
+        const base = Math.max(194, Math.min(238, 218 + s));
+        g.fillStyle = `rgb(${base},${base - 2},${base - 4})`;
+        g.fillRect(x + off, y, tileW - 1, courseH - 2);
+        // Subtle vertical tile ridge highlight & flute shadow
+        g.fillStyle = 'rgba(255,255,255,0.22)';
+        g.fillRect(x + off + 2, y + 1, 3, courseH - 4);
+        g.fillStyle = 'rgba(28,24,22,0.24)';
+        g.fillRect(x + off + tileW - 2, y, 2, courseH);
+      }
+      // Overlapping row lip drop-shadow
+      g.fillStyle = 'rgba(22,18,16,0.34)';
+      g.fillRect(0, y + courseH - 3, w, 3);
+      g.fillStyle = 'rgba(255,255,255,0.18)';
+      g.fillRect(0, y, w, 1);
+    }
+  }, 1, 1);
+
+  // Aliases kept for bespoke landmarks compatibility
+  const wallDayTex = archBrickDayTex;
+  const wallNightTex = archBrickNightTex;
+  const glassDayTex = archGlassDayTex;
+  const glassNightTex = archGlassNightTex;
+  const houseDayTex = archHouseDayTex;
+  const roofDetailTex = archFlatRoofTex;
+
+  // 5-Archetype PBR Wall Materials (all vertexColors: true for per-building / OSM / instanced tinting)
+  const archGlassMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: archGlassDayTex,
+    emissive: 0xffe6ad,
+    emissiveMap: archGlassNightTex,
+    emissiveIntensity: 0.10,
+    roughness: 0.22,
+    metalness: 0.62,
+    vertexColors: true
+  });
+  const archBrickMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: archBrickDayTex,
+    emissive: 0xffd28c,
+    emissiveMap: archBrickNightTex,
+    emissiveIntensity: 0,
+    roughness: 0.86,
+    metalness: 0.03,
+    vertexColors: true
+  });
+  const archCondoMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: archCondoDayTex,
+    emissive: 0xffd896,
+    emissiveMap: archCondoNightTex,
+    emissiveIntensity: 0,
+    roughness: 0.66,
+    metalness: 0.12,
+    vertexColors: true
+  });
+  const archHouseMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: archHouseDayTex,
+    emissive: 0xffd28c,
+    emissiveMap: archHouseNightTex,
+    emissiveIntensity: 0,
+    roughness: 0.82,
+    metalness: 0.02,
+    vertexColors: true
+  });
+  const archIndMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: archIndDayTex,
+    emissive: 0xdceeff,
+    emissiveMap: archIndNightTex,
+    emissiveIntensity: 0,
+    roughness: 0.50,
+    metalness: 0.42,
+    vertexColors: true
+  });
+  const ARCH_WALL_MATS = [archGlassMat, archBrickMat, archCondoMat, archHouseMat, archIndMat];
+
+  // 2 Distinct Roof PBR Materials
+  const archFlatRoofMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: archFlatRoofTex,
+    roughness: 0.84,
+    metalness: 0.08,
+    vertexColors: true
+  });
+  const archPitchedRoofMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: archPitchedRoofTex,
+    roughness: 0.78,
+    metalness: 0.06,
+    vertexColors: true
+  });
+
+  // Helper: unit BoxGeometry with baked vertex colors (vertical subtle AO) so vertexColors:true materials render cleanly on InstancedMesh
+  function makeColoredUnitBox(vRepeat = 1, bottomAo = 0.88, roofShade = 0.86) {
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    const pos = geo.attributes.position;
+    const nrm = geo.attributes.normal;
+    const uv = geo.attributes.uv;
+    const cols = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const ny = nrm ? nrm.getY(i) : 0;
+      const y = pos.getY(i);
+      const shade = ny > 0.5 ? roofShade : (y < 0 ? bottomAo : 1.0);
+      cols[i * 3] = shade;
+      cols[i * 3 + 1] = shade;
+      cols[i * 3 + 2] = shade;
+      if (uv && vRepeat !== 1 && Math.abs(ny) < 0.5) {
+        uv.setY(i, uv.getY(i) * vRepeat);
+      }
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+    return geo;
+  }
+
+  // Helper: push a triangle guaranteed to face expected outward normal direction
+  function pushOrientedTri(pos, nrm, uvs, col, ax, ay, az, bx, by, bz, cx, cy, cz, u0, v0, u1, v1, u2, v2, ex, ey, ez, r, g, b) {
+    const e1x = bx - ax, e1y = by - ay, e1z = bz - az;
+    const e2x = cx - ax, e2y = cy - ay, e2z = cz - az;
+    let nx = e1y * e2z - e1z * e2y;
+    let ny = e1z * e2x - e1x * e2z;
+    let nz = e1x * e2y - e1y * e2x;
+    const dot = nx * ex + ny * ey + nz * ez;
+    if (dot < 0) {
+      pos.push(ax, ay, az, cx, cy, cz, bx, by, bz);
+      uvs.push(u0, v0, u2, v2, u1, v1);
+      nx = -nx; ny = -ny; nz = -nz;
+    } else {
+      pos.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+      uvs.push(u0, v0, u1, v1, u2, v2);
+    }
+    const nLen = Math.hypot(nx, ny, nz) || 1;
+    nx /= nLen; ny /= nLen; nz /= nLen;
+    for (let i = 0; i < 3; i++) { nrm.push(nx, ny, nz); col.push(r, g, b); }
+  }
+
+  // Unit Gable House Walls (4 walls + 2 triangular gable peaks, walls y:-0.5..0.18, peak y:0.52)
+  function createUnitGableWallGeometry() {
     const geo = new THREE.BufferGeometry();
     const hw = 0.5, hd = 0.5, y0 = -0.5, yEave = 0.18, yPeak = 0.52;
     const pos = [], nrm = [], uvs = [], col = [];
-    function quad(ax, ay, az, bx, by, bz, cx, cy, dz, dx, dy, dzz, nx, ny, nz, r, g, b, uMax = 1, vMax = 1) {
-      pos.push(ax, ay, az, bx, by, bz, cx, cy, dz, ax, ay, az, cx, cy, dz, dx, dy, dzz);
-      for (let i = 0; i < 6; i++) { nrm.push(nx, ny, nz); col.push(r, g, b); }
-      uvs.push(0, 0, uMax, 0, uMax, vMax, 0, 0, uMax, vMax, 0, vMax);
-    }
-    function tri(ax, ay, az, bx, by, bz, cx, cy, cz, nx, ny, nz, r, g, b) {
-      pos.push(ax, ay, az, bx, by, bz, cx, cy, cz);
-      for (let i = 0; i < 3; i++) { nrm.push(nx, ny, nz); col.push(r, g, b); }
-      uvs.push(0, 0, 1, 0, 0.5, 1);
-    }
-    // 4 walls (bright neutral so instanceColor tints walls cleanly)
-    quad(-hw, y0, hd, hw, y0, hd, hw, yEave, hd, -hw, yEave, hd, 0, 0, 1, 1.0, 1.0, 1.0);
-    quad(hw, y0, -hd, -hw, y0, -hd, -hw, yEave, -hd, hw, yEave, -hd, 0, 0, -1, 0.94, 0.94, 0.94);
-    quad(hw, y0, hd, hw, y0, -hd, hw, yEave, -hd, hw, yEave, hd, 1, 0, 0, 0.96, 0.96, 0.96);
-    quad(-hw, y0, -hd, -hw, y0, hd, -hw, yEave, hd, -hw, yEave, -hd, -1, 0, 0, 0.92, 0.92, 0.92);
+    const quad = (ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz, ex, ey, ez, sh) => {
+      pushOrientedTri(pos, nrm, uvs, col, ax, ay, az, bx, by, bz, cx, cy, cz, 0, 0, 1, 0, 1, 1, ex, ey, ez, sh, sh, sh);
+      pushOrientedTri(pos, nrm, uvs, col, ax, ay, az, cx, cy, cz, dx, dy, dz, 0, 0, 1, 1, 0, 1, ex, ey, ez, sh, sh, sh);
+    };
+    quad(-hw, y0, hd, hw, y0, hd, hw, yEave, hd, -hw, yEave, hd, 0, 0, 1, 1.0);
+    quad(hw, y0, -hd, -hw, y0, -hd, -hw, yEave, -hd, hw, yEave, -hd, 0, 0, -1, 0.94);
+    quad(hw, y0, hd, hw, y0, -hd, hw, yEave, -hd, hw, yEave, hd, 1, 0, 0, 0.96);
+    quad(-hw, y0, -hd, -hw, y0, hd, -hw, yEave, hd, -hw, yEave, -hd, -1, 0, 0, 0.92);
     // Front & back gable triangles
-    tri(-hw, yEave, hd, hw, yEave, hd, 0, yPeak, hd, 0, 0, 1, 0.95, 0.95, 0.95);
-    tri(hw, yEave, -hd, -hw, yEave, -hd, 0, yPeak, -hd, 0, 0, -1, 0.90, 0.90, 0.90);
-    // 2 sloped roof planes with slight overhang and darker terracotta/slate contrast
-    const ow = 0.54, od = 0.53;
-    quad(0, yPeak, od, ow, yEave, od, ow, yEave, -od, 0, yPeak, -od, 0.55, 0.83, 0, 0.62, 0.46, 0.40);
-    quad(-ow, yEave, od, 0, yPeak, od, 0, yPeak, -od, -ow, yEave, -od, -0.55, 0.83, 0, 0.58, 0.43, 0.37);
+    pushOrientedTri(pos, nrm, uvs, col, -hw, yEave, hd, hw, yEave, hd, 0, yPeak, hd, 0, 0.7, 1, 0.7, 0.5, 1, 0, 0, 1, 0.96, 0.96, 0.96);
+    pushOrientedTri(pos, nrm, uvs, col, hw, yEave, -hd, -hw, yEave, -hd, 0, yPeak, -hd, 0, 0.7, 1, 0.7, 0.5, 1, 0, 0, -1, 0.91, 0.91, 0.91);
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
@@ -165,49 +612,91 @@ function createGlobalScenery(scene, ground, airports = []) {
     return geo;
   }
 
-  const houseGeo = createPitchedHouseGeometry();
+  // Unit Gable Roof Cap (overhanging 2-slope tiled roof matched to unitGableWallGeo, independent roof color!)
+  function createUnitGableRoofCapGeometry() {
+    const geo = new THREE.BufferGeometry();
+    const ow = 0.56, od = 0.55, yEave = 0.16, yPeak = 0.53;
+    const pos = [], nrm = [], uvs = [], col = [];
+    const quad = (ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz, ex, ey, ez, sh) => {
+      pushOrientedTri(pos, nrm, uvs, col, ax, ay, az, bx, by, bz, cx, cy, cz, 0, 0, 1.4, 0, 1.4, 1.2, ex, ey, ez, sh, sh, sh);
+      pushOrientedTri(pos, nrm, uvs, col, ax, ay, az, cx, cy, cz, dx, dy, dz, 0, 0, 1.4, 1.2, 0, 1.2, ex, ey, ez, sh, sh, sh);
+    };
+    quad(ow, yEave, od, ow, yEave, -od, 0, yPeak, -od, 0, yPeak, od, 0.6, 0.8, 0, 1.0);
+    quad(-ow, yEave, -od, -ow, yEave, od, 0, yPeak, od, 0, yPeak, -od, -0.6, 0.8, 0, 0.94);
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return geo;
+  }
+
+  // Unit Hip Roof Cap (4-sided overhanging hipped/mansard roof from y=0.5 to y=0.86, sits atop unitBoxGeo)
+  function createUnitHipRoofCapGeometry(yBase = 0.49, yPeak = 0.84, ridgeFrac = 0.24) {
+    const geo = new THREE.BufferGeometry();
+    const ow = 0.55, od = 0.55;
+    const pos = [], nrm = [], uvs = [], col = [];
+    // +X slope
+    pushOrientedTri(pos, nrm, uvs, col, ow, yBase, od, ow, yBase, -od, 0, yPeak, -ridgeFrac, 0, 0, 1.4, 0, 1.0, 1.1, 0.6, 0.8, 0, 1.0, 1.0, 1.0);
+    pushOrientedTri(pos, nrm, uvs, col, ow, yBase, od, 0, yPeak, -ridgeFrac, 0, yPeak, ridgeFrac, 0, 0, 1.0, 1.1, 0.4, 1.1, 0.6, 0.8, 0, 1.0, 1.0, 1.0);
+    // -X slope
+    pushOrientedTri(pos, nrm, uvs, col, -ow, yBase, -od, -ow, yBase, od, 0, yPeak, ridgeFrac, 0, 0, 1.4, 0, 1.0, 1.1, -0.6, 0.8, 0, 0.94, 0.94, 0.94);
+    pushOrientedTri(pos, nrm, uvs, col, -ow, yBase, -od, 0, yPeak, ridgeFrac, 0, yPeak, -ridgeFrac, 0, 0, 1.0, 1.1, 0.4, 1.1, -0.6, 0.8, 0, 0.94, 0.94, 0.94);
+    // +Z hip end
+    pushOrientedTri(pos, nrm, uvs, col, -ow, yBase, od, ow, yBase, od, 0, yPeak, ridgeFrac, 0, 0, 1.2, 0, 0.6, 1.0, 0, 0.75, 0.66, 0.97, 0.97, 0.97);
+    // -Z hip end
+    pushOrientedTri(pos, nrm, uvs, col, ow, yBase, -od, -ow, yBase, -od, 0, yPeak, -ridgeFrac, 0, 0, 1.2, 0, 0.6, 1.0, 0, 0.75, -0.66, 0.91, 0.91, 0.91);
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return geo;
+  }
+
+  const unitBoxGeo = makeColoredUnitBox(1, 0.88, 0.86);
+  const unitMidBoxGeo = makeColoredUnitBox(1.5, 0.88, 0.86);
+  const unitTallBoxGeo = makeColoredUnitBox(2.8, 0.86, 0.84);
+  const unitGableWallGeo = createUnitGableWallGeometry();
+  const unitGableRoofCapGeo = createUnitGableRoofCapGeometry();
+  const unitHipRoofCapGeo = createUnitHipRoofCapGeometry(0.49, 0.86, 0.24);
+  const unitMansardRoofGeo = createUnitHipRoofCapGeometry(0.49, 0.68, 0.34);
+  const houseGeo = unitGableWallGeo;
+  const lampGeo = new THREE.BoxGeometry(1.4, 0.9, 1.4);
+  const beaconGeo = new THREE.SphereGeometry(0.95, 8, 6);
+
   const roadMat = new THREE.MeshStandardMaterial({ color: 0x32373e, roughness: 0.86, side: THREE.DoubleSide });
   const stripeMat = new THREE.MeshBasicMaterial({ color: 0xefe4b8, side: THREE.DoubleSide });
   const lampMat = new THREE.MeshBasicMaterial({ color: 0xffdd94 });
   const beaconMat = new THREE.MeshBasicMaterial({ color: 0xff2e24 });
 
-  const houseMat = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    map: houseDayTex,
-    emissive: 0xffd28c,
-    emissiveMap: wallNightTex,
+  // Landmark / non-vertex-colored compatibility materials (used by 52 GPS landmarks & bespoke monuments)
+  const houseMat = archHouseMat;
+  const bldgWallMat = new THREE.MeshStandardMaterial({
+    color: 0xe8dfd2,
+    map: archBrickDayTex,
+    emissive: 0xffd694,
+    emissiveMap: archBrickNightTex,
     emissiveIntensity: 0,
-    vertexColors: true,
-    roughness: 0.82,
+    roughness: 0.84,
     metalness: 0.04
   });
-  const bldgWallMat = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    map: wallDayTex,
-    emissive: 0xffd694,
-    emissiveMap: wallNightTex,
-    emissiveIntensity: 0,
-    roughness: 0.76,
-    metalness: 0.08
-  });
-  const roofMat = new THREE.MeshStandardMaterial({ color: 0xd8dee4, map: roofDetailTex, roughness: 0.82 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0xd0d6dc, map: archFlatRoofTex, roughness: 0.84 });
   const indWallMat = new THREE.MeshStandardMaterial({
     color: 0xc2cbd2,
-    map: wallDayTex,
-    emissive: 0xffd694,
-    emissiveMap: wallNightTex,
+    map: archIndDayTex,
+    emissive: 0xdceeff,
+    emissiveMap: archIndNightTex,
     emissiveIntensity: 0,
-    roughness: 0.72,
-    metalness: 0.22
+    roughness: 0.50,
+    metalness: 0.42
   });
-  const indRoofMat = new THREE.MeshStandardMaterial({ color: 0x7e8994, map: roofDetailTex, roughness: 0.68, metalness: 0.24 });
+  const indRoofMat = new THREE.MeshStandardMaterial({ color: 0x7e8994, map: archFlatRoofTex, roughness: 0.68, metalness: 0.24 });
   const landmarkGlassMat = new THREE.MeshStandardMaterial({
-    color: 0xd8ecff,
-    map: glassDayTex,
-    metalness: 0.54,
-    roughness: 0.19,
+    color: 0x9ac2df,
+    map: archGlassDayTex,
+    metalness: 0.62,
+    roughness: 0.22,
     emissive: 0xffe6ad,
-    emissiveMap: glassNightTex,
+    emissiveMap: archGlassNightTex,
     emissiveIntensity: 0.12
   });
   const monumentGoldMat = new THREE.MeshStandardMaterial({
@@ -219,24 +708,10 @@ function createGlobalScenery(scene, ground, airports = []) {
   });
   const treeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.88 });
 
-  // Cloned OSM materials with per-vertex RGB color tinting (1:1 real building:colour & roof:colour)
-  const osmWallMat = typeof bldgWallMat.clone === 'function' ? bldgWallMat.clone() : new THREE.MeshStandardMaterial({
-    color: 0xffffff, map: wallDayTex, emissive: 0xffd694, emissiveMap: wallNightTex, emissiveIntensity: 0, roughness: 0.76, metalness: 0.08
-  });
-  osmWallMat.vertexColors = true;
-  if (osmWallMat.color && typeof osmWallMat.color.setHex === 'function') osmWallMat.color.setHex(0xffffff);
-
-  const osmGlassMat = typeof landmarkGlassMat.clone === 'function' ? landmarkGlassMat.clone() : new THREE.MeshStandardMaterial({
-    color: 0xffffff, map: glassDayTex, metalness: 0.54, roughness: 0.19, emissive: 0xffe6ad, emissiveMap: glassNightTex, emissiveIntensity: 0.12
-  });
-  osmGlassMat.vertexColors = true;
-  if (osmGlassMat.color && typeof osmGlassMat.color.setHex === 'function') osmGlassMat.color.setHex(0xffffff);
-
-  const osmRoofMat = typeof roofMat.clone === 'function' ? roofMat.clone() : new THREE.MeshStandardMaterial({
-    color: 0xffffff, map: roofDetailTex, roughness: 0.82
-  });
-  osmRoofMat.vertexColors = true;
-  if (osmRoofMat.color && typeof osmRoofMat.color.setHex === 'function') osmRoofMat.color.setHex(0xffffff);
+  // OSM aliases pointing directly to the new 5-archetype PBR system
+  const osmWallMat = archBrickMat;
+  const osmGlassMat = archGlassMat;
+  const osmRoofMat = archFlatRoofMat;
 
   const osmPierMat = new THREE.MeshStandardMaterial({ color: 0x9aa2aa, roughness: 0.88, metalness: 0.06 });
   const osmTrafficMat = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true });
@@ -270,6 +745,11 @@ function createGlobalScenery(scene, ground, airports = []) {
   }
   const osmTrafficGeo = createOsmTrafficVehicleGeometry();
   const osmTreeGeo = new THREE.DodecahedronGeometry ? new THREE.DodecahedronGeometry(1, 1) : new THREE.SphereGeometry(1, 7, 5);
+  const sharedGeos = new Set([
+    houseGeo, unitBoxGeo, unitMidBoxGeo, unitTallBoxGeo,
+    unitGableWallGeo, unitGableRoofCapGeo, unitHipRoofCapGeo, unitMansardRoofGeo,
+    lampGeo, beaconGeo, osmTrafficGeo, osmTreeGeo
+  ]);
 
   function insideTaiwanDetailed(lat, lon) {
     return lat >= 21.8 && lat <= 25.4 && lon >= 119.3 && lon <= 122.1;
@@ -353,46 +833,230 @@ function createGlobalScenery(scene, ground, airports = []) {
     for (let i = 0; i < lp.length; i++) linePosArr.push(lp[i]);
   }
 
-  function getRegionalPalette(country, airportRegion) {
+  // =========================================================================
+  // Ultra-Authentic Global Regional Color Palettes (20-26 Distinct Colors / Region)
+  // =========================================================================
+  const REGIONAL_PALETTES = {
+    europe: {
+      // Western / Central Europe: Haussmann limestone, Parisian cream, London brick, ochre, sage, rose, zinc & terracotta roofs
+      brick: [0xece3d0, 0xe4d8c0, 0xd8b272, 0xc97154, 0xb25442, 0xc47d54, 0xd49a8e, 0xdccab2],
+      condo: [0xefe9dc, 0xbcc8b8, 0xead48c, 0xe2d4c2, 0xcbd5dc, 0xdcb8a6],
+      house: [0xece3d0, 0xe4d8c0, 0xd8b272, 0xc97154, 0xb25442, 0xc47d54, 0xbcc8b8, 0xead48c, 0xd49a8e, 0xf2ede2],
+      glass: [0x6e96b6, 0x86aec8, 0x5c809c, 0x9ab4c2, 0x73999e, 0xb49c7c],
+      ind: [0xc6ced4, 0xb6bec4, 0xcac2b6, 0x8d9ca8],
+      flatRoof: [0x606b74, 0x737b82, 0x847a72, 0x535e68],
+      pitchedRoof: [0xb5563e, 0x4d5f70, 0x464d54, 0xa24d38, 0x6b4b3e, 0x566470],
+      brickBias: 0.68,
+      pitchedChance: 0.72,
+      historicLowRise: true
+    },
+    mediterranean: {
+      // Southern Europe / Mediterranean: Sun-drenched terracotta, peach, apricot, warm ochre, whitewash, lavender-cream, clay roofs
+      brick: [0xe8c49e, 0xd89268, 0xcf6e4c, 0xe2b66a, 0xefe3ce, 0xdcb09a, 0xd2845e],
+      condo: [0xf4eee2, 0xf0cfa8, 0xe8b896, 0xece0c4, 0xded4df, 0xf2d99b],
+      house: [0xf5f0e6, 0xeec49c, 0xe5a87e, 0xd97d56, 0xe6be72, 0xead9c4, 0xe4ccd2, 0xf0d696, 0xd69378],
+      glass: [0x6ea0be, 0x84b4cc, 0x6296a8, 0xb8a27c, 0x90b2c8],
+      ind: [0xd8cfc2, 0xc6bdb0, 0xb8c2c8, 0xc8b29c],
+      flatRoof: [0xc4b098, 0xb59e86, 0x968e86, 0xa89888],
+      pitchedRoof: [0xc95a36, 0xb84e30, 0xd46d42, 0xa64a32, 0xc06844, 0x8e4a38],
+      brickBias: 0.64,
+      pitchedChance: 0.74,
+      historicLowRise: true
+    },
+    north_america: {
+      // North America: Brownstone/red brick, colorful suburban clapboard siding, sapphire/bronze/silver/emerald glass skyscrapers
+      brick: [0xa85242, 0x8f5140, 0xbe6e52, 0xc99c7c, 0x9c624e, 0xd6c4b0, 0xb5684c],
+      condo: [0xe6e2da, 0xcfd8df, 0xdccbb8, 0xc5d2c8, 0xd8d2c8, 0xb8c6d2],
+      house: [0xeef0f2, 0x7c9bb5, 0x8ea894, 0xe5cf8e, 0xad5349, 0xd8cab4, 0xadbac4, 0xe2d4be, 0x9e7d68, 0xcfdad2],
+      glass: [0x5886b2, 0x4a769e, 0x7aa4c4, 0xa68e6c, 0x5c9690, 0x94aab8],
+      ind: [0xc4ccd2, 0xb2bcc4, 0xc8c0b4, 0x8c9aa6, 0xb69c8a],
+      flatRoof: [0x5e656c, 0x767c82, 0x8b857e, 0x525960],
+      pitchedRoof: [0x454b52, 0x5e4a3c, 0x745844, 0x3b444e, 0x6a5c52, 0x844e3c],
+      brickBias: 0.56,
+      pitchedChance: 0.76,
+      historicLowRise: false
+    },
+    east_asia: {
+      // East Asia (Japan / Korea / China / Taiwan): Porcelain white, ivory, pastel peach/mint/sky condos, dark charcoal modern homes, brick shophouses
+      brick: [0xdcc8b4, 0xc47e62, 0xb86850, 0xe2d6c2, 0xc9a882, 0xb28a72],
+      condo: [0xf4f2ec, 0xeee6d6, 0xebd2c4, 0xcce0d6, 0xc8dceb, 0xe6dfd2, 0xd6d4dc],
+      house: [0xf2f0ea, 0xebe3d4, 0x4a5058, 0xd8c6b2, 0xe8d0c0, 0xcbdad2, 0xc4d4e2, 0x625a54, 0xdfd4be],
+      glass: [0x5a94a8, 0x4c82a8, 0x6aa8a0, 0x8ab2ca, 0xa8b8c4, 0x5c7fa6],
+      ind: [0xcbd2d8, 0xb4bec6, 0xd4cdc2, 0x8a9aa8],
+      flatRoof: [0x7e878e, 0x6a737b, 0x90969a, 0x5c666e],
+      pitchedRoof: [0x3c434c, 0x4e5864, 0xa64e3c, 0x3c6b5a, 0x5a4c44, 0x38526c],
+      brickBias: 0.34,
+      pitchedChance: 0.64,
+      historicLowRise: false
+    },
+    middle_east: {
+      // Middle East: Sunlit desert limestone, warm sandstone, whitewashed villas, ochre-gold, rose-terracotta, gleaming silver/turquoise/gold glass
+      brick: [0xede2cc, 0xdbc298, 0xcfa86b, 0xc9886e, 0xe4cfa8, 0xd2b488],
+      condo: [0xf2eee6, 0xede2cc, 0xe4d2b4, 0xdec09a, 0xe8d8c2, 0xd8b498],
+      house: [0xf2eee6, 0xede2cc, 0xdbc298, 0xcfa86b, 0xc9886e, 0xe8d9be, 0xdec4a0, 0xf0e5d2],
+      glass: [0x9eb8c8, 0x5aa6b4, 0xc8ad72, 0x5688b4, 0xb4c4ce, 0x76b0be],
+      ind: [0xd8ccb8, 0xc8baa2, 0xbec6cc, 0xc4ae92],
+      flatRoof: [0xdac9ae, 0xcab696, 0xbfa988, 0xe2d5be],
+      pitchedRoof: [0xb86846, 0xc68256, 0x9c6a4a, 0x8a745c],
+      brickBias: 0.44,
+      pitchedChance: 0.22,
+      historicLowRise: false
+    },
+    latin_america: {
+      // Latin America: Vibrant colonial ochre, coral-terracotta, turquoise-mint, cobalt-pastel, sunlit yellow, blush pink, whitewash, terracotta roofs
+      brick: [0xdfae5a, 0xd47058, 0xc46048, 0xe4c686, 0xd88872, 0xce9662],
+      condo: [0xefeae0, 0x7bbcb4, 0x7a9ec9, 0xecd27c, 0xdfa096, 0xe8d4b8, 0x98c4aa],
+      house: [0xdfae5a, 0xd47058, 0x7bbcb4, 0x7a9ec9, 0xecd27c, 0xdfa096, 0xefeae0, 0xe8945e, 0xb6a0cc, 0x92bf8a],
+      glass: [0x5894b2, 0x6aa8b8, 0x4c7ea2, 0x86aec4, 0xa89a74],
+      ind: [0xd2c8ba, 0xb8c4ca, 0xc8b29a, 0x92a4b0],
+      flatRoof: [0xa6988a, 0x8e867e, 0xb89c84, 0x767c82],
+      pitchedRoof: [0xc45836, 0xb24a2e, 0xd06a42, 0x9c4832, 0x84503c],
+      brickBias: 0.48,
+      pitchedChance: 0.58,
+      historicLowRise: false
+    },
+    se_asia: {
+      // Southeast Asia: Tropical white, warm cream, saffron/ochre, mint-pastel, coral-pink, sky-blue, terracotta & emerald roofs, teal/sapphire glass
+      brick: [0xe6c896, 0xd48668, 0xe8d8be, 0xce9e64, 0xc87458, 0xdcb898],
+      condo: [0xf4f0e6, 0xebe0c8, 0xb8dcc8, 0xf0c2b4, 0xbad6ec, 0xf2dc9a, 0xe2dcd0],
+      house: [0xf4f0e6, 0xebe0c8, 0xe6b85e, 0xaed4be, 0xecaaa0, 0x9ec4e0, 0xe8cda2, 0xd88e6e, 0xf0e4be],
+      glass: [0x4c94a6, 0x5886b6, 0x62a89c, 0x7cb0c4, 0x96b2c2, 0xb2a072],
+      ind: [0xc6d0d6, 0xb6c2c8, 0xd2c6b4, 0x869ea8],
+      flatRoof: [0x8c8a84, 0x747c82, 0x9e9488, 0x667076],
+      pitchedRoof: [0xc25638, 0x3a7a5c, 0xb04830, 0x4a6882, 0x98503a, 0x2f6c52],
+      brickBias: 0.36,
+      pitchedChance: 0.62,
+      historicLowRise: false
+    },
+    south_asia: {
+      // South Asia: Tropical cream, saffron/ochre, sandstone pink, terracotta, mint-pastel, sky-blue, vibrant roof accents
+      brick: [0xdca272, 0xc87456, 0xe2b872, 0xd89078, 0xc46648, 0xe8d2b2],
+      condo: [0xf2eadc, 0xedd29a, 0xbcd8cc, 0xebb4a6, 0xb6d2e8, 0xe8dcc8],
+      house: [0xf2eadc, 0xebba62, 0xe89e8c, 0x9cc4de, 0xb0d4be, 0xd87c5a, 0xf0dc96, 0xe4c6ae, 0xc2b2d4],
+      glass: [0x548eb0, 0x4e969e, 0x72a6c0, 0xa89872, 0x88a8bc],
+      ind: [0xd0c6b8, 0xb8c2c8, 0xc6b096, 0x8c9ca6],
+      flatRoof: [0xa69888, 0x8e867e, 0xb6a492, 0x7a8086],
+      pitchedRoof: [0xc05236, 0xa84630, 0x487664, 0x5c6c7c, 0x94503c],
+      brickBias: 0.50,
+      pitchedChance: 0.44,
+      historicLowRise: false
+    },
+    oceania: {
+      // Oceania (Australia / NZ): Red/terracotta brick, crisp white coastal villas, sandstone, colorbond slate/green/terracotta roofs
+      brick: [0xb85e46, 0xc87858, 0xdfcca8, 0xa6543e, 0xd4a67e, 0xc28a68],
+      condo: [0xf2f0eb, 0xe4dccb, 0xcad6dc, 0xd6dfd6, 0xead8c0, 0xbccad4],
+      house: [0xf4f2ee, 0xc2664c, 0xe6dac4, 0xb8c8d2, 0xc6d4c4, 0xead49c, 0xd29c7a, 0xdee4e8, 0xb25842],
+      glass: [0x5c90b6, 0x74aac6, 0x4e7ea4, 0x62a09a, 0x98b2c2],
+      ind: [0xc4ccd2, 0xb0bcc4, 0xcac2b4, 0x8296a2],
+      flatRoof: [0x6c747c, 0x848a90, 0x989088, 0x5c646c],
+      pitchedRoof: [0xb45238, 0x47525c, 0x3f6250, 0x5a6872, 0x984a36, 0x6a584c],
+      brickBias: 0.52,
+      pitchedChance: 0.78,
+      historicLowRise: false
+    },
+    africa: {
+      // Africa: Warm earth-ochre, whitewash, terracotta, red earth, sandy plaster, corrugated iron & bright colored roofs
+      brick: [0xd8a268, 0xc46e4c, 0xe4c69c, 0xb86242, 0xce8e5a, 0xdfc092],
+      condo: [0xf2ece0, 0xe8d4b2, 0xdcb488, 0xd4a288, 0xc8d8d0, 0xe8cf8e],
+      house: [0xf0e8da, 0xdda25c, 0xc86e4c, 0xe6c896, 0xd6967a, 0xa4c8c0, 0xe8d284, 0xb87852, 0x94b2c8],
+      glass: [0x6296b4, 0x76a8bc, 0xb89c6c, 0x548a94, 0x92aab8],
+      ind: [0xc8beb0, 0xb4bcc2, 0xc4a488, 0x8e9ca4],
+      flatRoof: [0xba9e82, 0x9e8a76, 0x88847e, 0xc8b298],
+      pitchedRoof: [0xb64a34, 0x3b6e56, 0x4a6684, 0x9c6244, 0x767e86, 0xc6623a],
+      brickBias: 0.52,
+      pitchedChance: 0.54,
+      historicLowRise: false
+    }
+  };
+
+  function resolveGlobalRegion(country, airportRegion, lat, lon) {
+    const code = country?.code || '';
+    if (code) {
+      if (code === 'ES' || code === 'IT' || code === 'MED_IS' || code === 'GR_BK' || code === 'TR') return 'mediterranean';
+      if (code === 'FR') return (Number.isFinite(lat) && lat < 44.2) ? 'mediterranean' : 'europe';
+      if (code === 'GB' || code === 'IE' || code === 'DE' || code === 'CH' || code === 'PL_CE' || code === 'RO_UA' || code === 'FI_BA' || code === 'SC' || code === 'EE') return 'europe';
+      if (code === 'US' || code === 'CA' || code === 'AK' || code === 'HI') return 'north_america';
+      if (code === 'MX' || code === 'CU_CB' || code === 'CO' || code === 'PE_BO' || code === 'BR' || code === 'AR') return 'latin_america';
+      if (code === 'AE' || code === 'IL_JO' || code === 'IR') return 'middle_east';
+      if (code === 'IN' || code === 'LK' || code === 'PK_AF' || code === 'BD_MM') return 'south_asia';
+      if (code === 'SEA' || code === 'MY' || code === 'PH' || code === 'PH_S' || code === 'ID_B' || code === 'ID_S' || code === 'ID_J' || code === 'ID_SUL' || code === 'PG') return 'se_asia';
+      if (code === 'JP' || code === 'JP_KYU' || code === 'JP_SHK' || code === 'JP_HKD' || code === 'KR' || code === 'KR_CJU' || code === 'CN' || code === 'CN_HN' || code === 'TW') return 'east_asia';
+      if (code === 'AU' || code === 'AU_TAS' || code === 'NZ') return 'oceania';
+      if (code === 'EG' || code === 'MA_DZ' || code === 'LY' || code === 'NA_AF' || code === 'KE_EA' || code === 'ZA' || code === 'MG') return 'africa';
+    }
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      if (lat >= 35 && lat <= 72 && lon >= -12 && lon <= 45) return lat < 44 ? 'mediterranean' : 'europe';
+      if (lat >= 12 && lat <= 40 && lon >= 34 && lon <= 63) return 'middle_east';
+      if (lat >= -36 && lat <= 36 && lon >= -18 && lon <= 52) return 'africa';
+      if (lat >= 5 && lat <= 36 && lon >= 63 && lon <= 93) return 'south_asia';
+      if (lat >= -11 && lat <= 22 && lon >= 93 && lon <= 142) return 'se_asia';
+      if (lat >= 20 && lat <= 54 && lon >= 98 && lon <= 150) return 'east_asia';
+      if (lat < -10 && lon >= 110 && lon <= 180) return 'oceania';
+      if (lat >= 24 && lon <= -52) return 'north_america';
+      if (lat < 24 && lon <= -30) return 'latin_america';
+    }
     const b = country?.biome || 'temperate';
-    if (airportRegion === 'eu' || b === 'mediterranean') {
-      return {
-        apt: [0xe6dac8, 0xd8cbb8, 0xdfd3c2, 0xc9d0d6, 0xe2c9b4],
-        house: [0xf0e4d2, 0xe5d4be, 0xead8c3, 0xdccab6, 0xf2eae0],
-        glass: [0x82a4be, 0x6f92ae, 0x9ab6cc],
-        ind: [0x9da7b0, 0x8b959e]
-      };
-    }
-    if (airportRegion === 'me' || b === 'arid') {
-      return {
-        apt: [0xe8d9c0, 0xdec8a8, 0xd4bc98, 0xefe3ce],
-        house: [0xf2e6d0, 0xe6d4b7, 0xdec8a6, 0xeadbc2],
-        glass: [0x8ab4c8, 0xbfa87a, 0x76a2bc],
-        ind: [0xc2b6a2, 0xafa38e]
-      };
-    }
-    if (airportRegion === 'na') {
-      return {
-        apt: [0xd4dce2, 0xc4ced6, 0xd8c8bc, 0xccd4dc, 0xbfb4aa],
-        house: [0xebe6de, 0xd8dee4, 0xe2d8cc, 0xcfd8e0, 0xe6dcd2],
-        glass: [0x6e98ba, 0x5c86a8, 0x88b0ce],
-        ind: [0x929da6, 0x828e98]
-      };
-    }
-    if (airportRegion === 'sea' || b === 'tropical') {
-      return {
-        apt: [0xebe4d8, 0xd8e4de, 0xe8d8ce, 0xdce4ea],
-        house: [0xf2eadc, 0xe4dfd2, 0xead8c8, 0xdde5de],
-        glass: [0x689eb2, 0x7cb0c4, 0x5c8ea2],
-        ind: [0x96a2aa, 0x85929a]
-      };
-    }
-    return {
-      apt: [0xdce0e5, 0xced4dc, 0xe2ddd4, 0xc6ced6],
-      house: [0xeae3d8, 0xded7cb, 0xe4dcd0, 0xd4d8dc],
-      glass: [0x789ec0, 0x688eae, 0x90b2ce],
-      ind: [0x98a2ac, 0x88939e]
+    if (airportRegion === 'eu' || b === 'mediterranean') return (Number.isFinite(lat) && lat < 44) ? 'mediterranean' : 'europe';
+    if (airportRegion === 'me' || b === 'arid') return 'middle_east';
+    if (airportRegion === 'na') return 'north_america';
+    if (airportRegion === 'sea' || b === 'tropical') return 'se_asia';
+    if (airportRegion === 'ea') return 'east_asia';
+    if (airportRegion === 'oc') return 'oceania';
+    if (airportRegion === 'sa' || airportRegion === 'la') return 'latin_america';
+    if (airportRegion === 'af') return 'africa';
+    return 'east_asia';
+  }
+
+  function rgbToHsl01(r, g, b) {
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) * 0.5;
+    if (max === min) return [0, 0, l];
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h = 0;
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    return [h / 6, s, l];
+  }
+
+  function hsl01ToRgb(h, s, l) {
+    if (s <= 0.0001) return [l, l, l];
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 0.5) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
     };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    return [hue2rgb(p, q, h + 1 / 3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1 / 3)];
+  }
+
+  // Deterministic per-building HSL jitter (±8-12% variation so no two neighboring structures look identical)
+  function jitterRgbHsl(rgb, seed, hSpan = 0.028, sSpan = 0.11, lSpan = 0.095) {
+    const [h, s, l] = rgbToHsl01(rgb[0], rgb[1], rgb[2]);
+    const jh = (hash2(seed * 1.37 + 11.3, seed * 0.71 + 3.7) - 0.5) * 2 * hSpan;
+    const js = (hash2(seed * 2.13 + 7.1, seed * 1.91 + 19.3) - 0.5) * 2 * sSpan;
+    const jl = (hash2(seed * 3.07 + 23.9, seed * 0.53 + 5.9) - 0.5) * 2 * lSpan;
+    const nh = ((h + jh) % 1 + 1) % 1;
+    const ns = Math.min(0.86, Math.max(0.03, s * (1 + js) + js * 0.18));
+    const nl = Math.min(0.95, Math.max(0.16, l * (1 + jl)));
+    return hsl01ToRgb(nh, ns, nl);
+  }
+
+  function jitterHex(hex, seed, hSpan = 0.028, sSpan = 0.11, lSpan = 0.095) {
+    const rgb = [((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255];
+    const [r, g, b] = jitterRgbHsl(rgb, seed, hSpan, sSpan, lSpan);
+    return (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
+  }
+
+  function getRegionalPalette(country, airportRegion, lat, lon) {
+    const regId = resolveGlobalRegion(country, airportRegion, lat, lon);
+    const p = REGIONAL_PALETTES[regId] || REGIONAL_PALETTES.north_america;
+    return { ...p, id: regId, apt: p.brick };
   }
 
   function getTreeTone(biome, r) {
@@ -437,7 +1101,10 @@ function createGlobalScenery(scene, ground, airports = []) {
     group.userData.hadSat = hasSatPhoto;
     group.userData.osmRev = liveOsmRevision;
     const posArr = [], linePosArr = [];
-    const houses = [], apts = [], glassTowers = [], warehouses = [], lamps = [], beacons = [], trees = [];
+    // Separate multi-archetype & dual-color roof batches (fast InstancedMesh batching!)
+    const gableHouses = [], hipHouses = [], flatHouses = [];
+    const brickApts = [], condoApts = [], mansardRoofs = [];
+    const glassTowers = [], warehouses = [], lamps = [], beacons = [], trees = [];
     const x0 = col * TILE, z0 = row * TILE;
     const hubAp = hubInfo.airport;
     const cbdSide = Math.sign(hubAp?.apron || 1);
@@ -452,9 +1119,10 @@ function createGlobalScenery(scene, ground, airports = []) {
     const isSuburbanTile = !isUrbanTile && hubDist < 38000;
     const biome = country?.biome || 'temperate';
     const regionCode = hubAp?.region || (biome === 'arid' ? 'me' : biome === 'mediterranean' ? 'eu' : 'na');
-    const pal = getRegionalPalette(country, regionCode);
-    const isEuropean = regionCode === 'eu' || biome === 'mediterranean';
-    const isMiddleEast = regionCode === 'me' || biome === 'arid';
+    const pal = getRegionalPalette(country, regionCode, ll.lat, ll.lon);
+    const isEuropean = pal.historicLowRise;
+    const isMiddleEast = pal.id === 'middle_east';
+    const pickJitter = (arr, seed, idx) => jitterHex(arr[Math.abs(idx) % arr.length], seed);
 
     // 1. Only draw procedural road strips when offline/no Google Satellite photo is available (otherwise real Google Satellite roads shine cleanly!)
     if (!hasSatPhoto) {
@@ -526,7 +1194,7 @@ function createGlobalScenery(scene, ground, airports = []) {
         const allowSuburban = landUse === 'suburban' || (!hasSatPhoto && isSuburbanTile);
 
         if (allowUrban && (blockCbdDist < 2600 || (isMetroCore && blockSeed > 0.45))) {
-          // Region-Distinct Downtown CBD (European Haussmann courtyard blocks vs American/Asian/Dubai glass skylines!)
+          // Region-Distinct Downtown CBD (European Haussmann limestone & mansard blocks vs global glass/brick/condo skylines!)
           const lotCount = isEuropean ? 6 : 5;
           for (let k = 0; k < lotCount; k++) {
             const rA = hash2(col * 37 + bc * 13 + k, row * 41 + br * 17);
@@ -538,23 +1206,36 @@ function createGlobalScenery(scene, ground, airports = []) {
             if (lg < 1.2 || classifyLandUse(lx, lz, lg) === 'water') continue;
             const w = 18 + hash2(k, bc + col) * 20;
             const d = 18 + hash2(br + row, k) * 20;
-            // European historic centers favor elegant 6-8 story limestone blocks; NA/Asia/ME build taller glass cores
+            const bSeed = col * 131 + row * 97 + bc * 29 + br * 17 + k * 7;
             const maxH = isEuropean ? 42 : isMiddleEast ? 135 : 110;
             const h = (isEuropean ? 18 : 22) + Math.pow(hash2(col + k, row - k + bc), 1.6) * (blockCbdDist < 1800 ? maxH : maxH * 0.55);
-            const tone = pal.apt[(k + bc + br) % pal.apt.length];
-            if (h > 48 && !isEuropean) {
+            const rot = districtAngle + ((k & 1) ? 0 : Math.PI * 0.5);
+            const useBrick = hash2(bSeed, 13.7) < pal.brickBias;
+            const podList = useBrick ? brickApts : condoApts;
+            const podTone = pickJitter(useBrick ? pal.brick : pal.condo, bSeed, k + bc + br);
+            if (h > 44 && (!isEuropean || (k === 0 && h > 48))) {
               const podH = Math.min(15, h * 0.24);
-              apts.push({ x: lx, y: lg + podH * 0.5 - 0.5, z: lz, w: w * 1.18, h: podH, d: d * 1.18, rot: districtAngle, tone });
-              glassTowers.push({ x: lx, y: lg + h * 0.5 - 0.5, z: lz, w: w * 0.86, h, d: d * 0.86, tone: pal.glass[k % pal.glass.length] });
-              const crownH = h * 0.18;
-              glassTowers.push({ x: lx, y: lg + h + crownH * 0.5 - 0.8, z: lz, w: w * 0.55, h: crownH, d: d * 0.55, tone: pal.glass[k % pal.glass.length] });
+              const glassTone = pickJitter(pal.glass, bSeed + 3, k + bc);
+              podList.push({ x: lx, y: lg + podH * 0.5 - 0.5, z: lz, w: w * 1.18, h: podH, d: d * 1.18, rot: districtAngle, tone: podTone });
+              glassTowers.push({ x: lx, y: lg + h * 0.5 - 0.5, z: lz, w: w * 0.86, h, d: d * 0.86, rot: districtAngle, tone: glassTone });
+              const crownH = h * (0.14 + hash2(bSeed, 31.1) * 0.10);
+              const crownScale = 0.52 + hash2(bSeed, 41.7) * 0.16;
+              glassTowers.push({ x: lx, y: lg + h + crownH * 0.5 - 0.8, z: lz, w: w * crownScale, h: crownH, d: d * crownScale, rot: districtAngle, tone: jitterHex(glassTone, bSeed + 9, 0.012, 0.06, 0.06) });
               if (h > 68) beacons.push({ x: lx, y: lg + h + crownH + 1.2, z: lz });
             } else {
-              apts.push({ x: lx, y: lg + h * 0.5 - 0.5, z: lz, w, h, d, rot: districtAngle + ((k & 1) ? 0 : Math.PI * 0.5), tone });
+              podList.push({ x: lx, y: lg + h * 0.5 - 0.5, z: lz, w, h, d, rot, tone: podTone });
+              if (isEuropean && hash2(bSeed, 53.3) < 0.72) {
+                // Authentic Parisian zinc / terracotta mansard & hipped roof over historic mid-rise block
+                mansardRoofs.push({ x: lx, y: lg + h * 0.5 - 0.5, z: lz, w, h, d, rot, tone: pickJitter(pal.pitchedRoof, bSeed + 5, k + br) });
+              } else if (h >= 24) {
+                // Recessed rooftop mechanical penthouse for varied urban skyline silhouettes
+                const ph = Math.min(6.5, h * 0.16);
+                condoApts.push({ x: lx, y: lg + h + ph * 0.5 - 0.6, z: lz, w: w * 0.44, h: ph, d: d * 0.44, rot, tone: pickJitter(pal.flatRoof, bSeed + 17, k) });
+              }
             }
           }
         } else if (allowUrban && (blockHubDist < 2400 ? blockSeed < 0.35 : blockSeed < 0.16)) {
-          // Logistics / Port / Airport Commercial Park Block
+          // Logistics / Port / Airport Commercial Park Block (corrugated steel warehouses)
           for (let wIdx = 0; wIdx < 3; wIdx++) {
             const wx = bx0 + 44 + (wIdx % 2) * (blockSize * 0.44);
             const wz = bz0 + 44 + Math.floor(wIdx / 2) * (blockSize * 0.44);
@@ -564,10 +1245,11 @@ function createGlobalScenery(scene, ground, airports = []) {
             const ww = 34 + hash2(wIdx, col) * 24;
             const wd = 24 + hash2(row, wIdx) * 18;
             const wh = 9.5 + (wIdx % 2) * 3.5;
-            warehouses.push({ x: wx, y: wg + wh * 0.5 - 0.5, z: wz, w: ww, h: wh, d: wd, tone: pal.ind[wIdx % pal.ind.length] });
+            const wSeed = col * 71 + row * 59 + bc * 13 + br * 19 + wIdx * 5;
+            warehouses.push({ x: wx, y: wg + wh * 0.5 - 0.5, z: wz, w: ww, h: wh, d: wd, rot: districtAngle, tone: pickJitter(pal.ind, wSeed, wIdx + bc) });
           }
         } else if (allowUrban || allowSuburban) {
-          // Organic Regional Residential Neighborhood (respects satellite land-use & slopes, varied street angles!)
+          // Organic Regional Residential Neighborhood (multi-color clapboard/stucco houses + brick & balcony apartments!)
           const rows = allowUrban ? 3 : 2;
           const colsPerRow = allowUrban ? 4 : 3;
           for (let rr = 0; rr < rows; rr++) {
@@ -580,16 +1262,39 @@ function createGlobalScenery(scene, ground, airports = []) {
               const hg = ground(hx, hz);
               const ptUse = classifyLandUse(hx, hz, hg);
               if (hg < 1.2 || ptUse === 'water' || ptUse === 'forest' || ptUse === 'mountain') continue;
+              const lotSeed = col * 113 + row * 89 + bc * 31 + br * 23 + rr * 11 + cc * 5;
+              const rot = districtAngle + (((cc + rr) & 1) ? 0 : Math.PI * 0.5);
               const isMidRiseLot = allowUrban && ((rr + cc + bc) % 3 === 0);
               if (isMidRiseLot) {
                 const ah = (isEuropean ? 15 : 12) + hash2(cc + col, rr + row) * (isEuropean ? 14 : 20);
                 const aw = 16 + (cc % 3) * 5, ad = 14 + (rr % 3) * 5;
-                apts.push({ x: hx, y: hg + ah * 0.5 - 0.5, z: hz, w: aw, h: ah, d: ad, rot: districtAngle + (((cc + rr) & 1) ? 0 : Math.PI * 0.5), tone: pal.apt[(cc + rr + bc) % pal.apt.length] });
+                const useBrick = hash2(lotSeed, 19.1) < pal.brickBias;
+                const list = useBrick ? brickApts : condoApts;
+                const tone = pickJitter(useBrick ? pal.brick : pal.condo, lotSeed, cc + rr + bc);
+                list.push({ x: hx, y: hg + ah * 0.5 - 0.5, z: hz, w: aw, h: ah, d: ad, rot, tone });
+                if (isEuropean && hash2(lotSeed, 47.3) < 0.65) {
+                  mansardRoofs.push({ x: hx, y: hg + ah * 0.5 - 0.5, z: hz, w: aw, h: ah, d: ad, rot, tone: pickJitter(pal.pitchedRoof, lotSeed + 7, cc + br) });
+                } else if (ah >= 24) {
+                  const ph = 3.8;
+                  condoApts.push({ x: hx, y: hg + ah + ph * 0.5 - 0.6, z: hz, w: aw * 0.42, h: ph, d: ad * 0.42, rot, tone: pickJitter(pal.flatRoof, lotSeed + 13, rr) });
+                }
               } else {
                 const hh = 7.2 + hash2(cc, rr + row) * 4.5;
                 const hw = 10.5 + ((cc + bc) % 4) * 2.4;
                 const hd = 9.5 + ((rr + br) % 3) * 2.4;
-                houses.push({ x: hx, y: hg + hh * 0.5 - 0.4, z: hz, w: hw, h: hh, d: hd, rot: districtAngle + (((cc + rr) & 1) ? 0 : Math.PI * 0.5), tone: pal.house[(cc + rr + bc + br) % pal.house.length] });
+                const wallTone = pickJitter(pal.house, lotSeed, cc + rr + bc + br);
+                const roofTone = pickJitter(pal.pitchedRoof, lotSeed + 17, cc * 3 + rr + bc);
+                const roofRoll = hash2(lotSeed, 61.9);
+                if (roofRoll > pal.pitchedChance) {
+                  // Flat-roofed stucco villa (common in Middle East, North Africa, parts of Latin America & Asia)
+                  flatHouses.push({ x: hx, y: hg + hh * 0.42 - 0.4, z: hz, w: hw, h: hh * 0.84, d: hd, rot, tone: wallTone });
+                } else if (roofRoll < pal.pitchedChance * 0.55) {
+                  // Gabled house with independent wall color + tiled pitched roof color
+                  gableHouses.push({ x: hx, y: hg + hh * 0.5 - 0.4, z: hz, w: hw, h: hh, d: hd, rot, wallTone, roofTone });
+                } else {
+                  // Hipped-roof house with independent wall color + 4-sided tiled hip roof color
+                  hipHouses.push({ x: hx, y: hg + hh * 0.42 - 0.4, z: hz, w: hw, h: hh * 0.84, d: hd, rot, wallTone, roofTone });
+                }
               }
             }
           }
@@ -624,96 +1329,107 @@ function createGlobalScenery(scene, ground, airports = []) {
       lg.setAttribute('position', new THREE.Float32BufferAttribute(linePosArr, 3));
       group.add(new THREE.Mesh(lg, stripeMat));
     }
+
     const dummy = new THREE.Object3D();
-    if (houses.length) {
-      const hInst = new THREE.InstancedMesh(houseGeo, houseMat, houses.length);
-      houses.forEach((h, idx) => {
-        dummy.position.set(h.x, h.y, h.z);
-        dummy.rotation.set(0, h.rot || 0, 0);
-        dummy.scale.set(h.w, h.h, h.d);
-        dummy.updateMatrix();
-        hInst.setMatrixAt(idx, dummy.matrix);
-        if (typeof hInst.setColorAt === 'function') hInst.setColorAt(idx, new THREE.Color(h.tone));
-      });
-      hInst.castShadow = true;
-      hInst.receiveShadow = true;
-      group.add(hInst);
-    }
-    if (apts.length) {
-      const aInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), [bldgWallMat, bldgWallMat, roofMat, roofMat, bldgWallMat, bldgWallMat], apts.length);
-      apts.forEach((b, idx) => {
+    const tmpCol = new THREE.Color();
+    const emitInst = (items, geo, mat, getColorHex, cast = true, recv = true) => {
+      if (!items.length) return;
+      const inst = new THREE.InstancedMesh(geo, mat, items.length);
+      for (let idx = 0; idx < items.length; idx++) {
+        const b = items[idx];
         dummy.position.set(b.x, b.y, b.z);
         dummy.rotation.set(0, b.rot || 0, 0);
         dummy.scale.set(b.w, b.h, b.d);
         dummy.updateMatrix();
-        aInst.setMatrixAt(idx, dummy.matrix);
-        if (typeof aInst.setColorAt === 'function') aInst.setColorAt(idx, new THREE.Color(b.tone));
-      });
-      aInst.castShadow = true;
-      aInst.receiveShadow = true;
-      group.add(aInst);
+        inst.setMatrixAt(idx, dummy.matrix);
+        if (getColorHex && typeof inst.setColorAt === 'function') {
+          tmpCol.setHex(getColorHex(b));
+          inst.setColorAt(idx, tmpCol);
+        }
+      }
+      if (inst.instanceMatrix) inst.instanceMatrix.needsUpdate = true;
+      if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+      inst.castShadow = cast;
+      inst.receiveShadow = recv;
+      group.add(inst);
+    };
+
+    // Dual-color Gabled Residential Houses (walls + overhanging tiled gable roofs)
+    if (gableHouses.length) {
+      emitInst(gableHouses, unitGableWallGeo, archHouseMat, h => h.wallTone, true, true);
+      emitInst(gableHouses, unitGableRoofCapGeo, archPitchedRoofMat, h => h.roofTone, true, true);
     }
+    // Dual-color Hipped Residential Houses (walls + 4-sided tiled hip roofs)
+    if (hipHouses.length) {
+      emitInst(hipHouses, unitBoxGeo, [archHouseMat, archHouseMat, archFlatRoofMat, archFlatRoofMat, archHouseMat, archHouseMat], h => h.wallTone, true, true);
+      emitInst(hipHouses, unitHipRoofCapGeo, archPitchedRoofMat, h => h.roofTone, true, true);
+    }
+    // Flat-roofed Residential Villas (Middle East / arid / modern tropical)
+    if (flatHouses.length) {
+      emitInst(flatHouses, unitBoxGeo, [archHouseMat, archHouseMat, archFlatRoofMat, archFlatRoofMat, archHouseMat, archHouseMat], h => h.tone, true, true);
+    }
+    // Archetype 1: Warm Brick / Masonry Urban Apartments
+    if (brickApts.length) {
+      emitInst(brickApts, unitMidBoxGeo, [archBrickMat, archBrickMat, archFlatRoofMat, archFlatRoofMat, archBrickMat, archBrickMat], b => b.tone, true, true);
+    }
+    // Archetype 2: Contemporary Stucco / Balcony Condos
+    if (condoApts.length) {
+      emitInst(condoApts, unitMidBoxGeo, [archCondoMat, archCondoMat, archFlatRoofMat, archFlatRoofMat, archCondoMat, archCondoMat], b => b.tone, true, true);
+    }
+    // European Historic Mansard / Hipped Mid-Rise Roofs
+    if (mansardRoofs.length) {
+      emitInst(mansardRoofs, unitMansardRoofGeo, archPitchedRoofMat, b => b.tone, true, true);
+    }
+    // Archetype 4: Industrial / Logistics Corrugated Steel Warehouses
     if (warehouses.length) {
-      const wInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), [indWallMat, indWallMat, indRoofMat, indRoofMat, indWallMat, indWallMat], warehouses.length);
-      warehouses.forEach((b, idx) => {
-        dummy.position.set(b.x, b.y, b.z);
-        dummy.rotation.set(0, 0, 0);
-        dummy.scale.set(b.w, b.h, b.d);
-        dummy.updateMatrix();
-        wInst.setMatrixAt(idx, dummy.matrix);
-        if (typeof wInst.setColorAt === 'function') wInst.setColorAt(idx, new THREE.Color(b.tone));
-      });
-      wInst.castShadow = true;
-      wInst.receiveShadow = true;
-      group.add(wInst);
+      emitInst(warehouses, unitBoxGeo, [archIndMat, archIndMat, archFlatRoofMat, archFlatRoofMat, archIndMat, archIndMat], b => b.tone, true, true);
     }
+    // Archetype 0: Modern Glass Curtain-Wall Skyscrapers
     if (glassTowers.length) {
-      const gInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), [landmarkGlassMat, landmarkGlassMat, roofMat, roofMat, landmarkGlassMat, landmarkGlassMat], glassTowers.length);
-      glassTowers.forEach((b, idx) => {
-        dummy.position.set(b.x, b.y, b.z);
-        dummy.rotation.set(0, 0, 0);
-        dummy.scale.set(b.w, b.h, b.d);
-        dummy.updateMatrix();
-        gInst.setMatrixAt(idx, dummy.matrix);
-        if (b.tone && typeof gInst.setColorAt === 'function') gInst.setColorAt(idx, new THREE.Color(b.tone));
-      });
-      gInst.castShadow = true;
-      gInst.receiveShadow = true;
-      group.add(gInst);
+      emitInst(glassTowers, unitTallBoxGeo, [archGlassMat, archGlassMat, archFlatRoofMat, archFlatRoofMat, archGlassMat, archGlassMat], b => b.tone, true, true);
     }
     if (trees.length) {
-      const crownGeo = new THREE.DodecahedronGeometry ? new THREE.DodecahedronGeometry(1, 1) : new THREE.SphereGeometry(1, 7, 5);
-      const tInst = new THREE.InstancedMesh(crownGeo, treeMat, trees.length);
-      trees.forEach((t, idx) => {
+      const tInst = new THREE.InstancedMesh(osmTreeGeo, treeMat, trees.length);
+      for (let idx = 0; idx < trees.length; idx++) {
+        const t = trees[idx];
         dummy.position.set(t.x, t.y, t.z);
         dummy.rotation.set(0, 0, 0);
         dummy.scale.set(t.r, t.r * 0.85, t.r);
         dummy.updateMatrix();
         tInst.setMatrixAt(idx, dummy.matrix);
-        if (typeof tInst.setColorAt === 'function') tInst.setColorAt(idx, new THREE.Color(t.color));
-      });
+        if (typeof tInst.setColorAt === 'function') {
+          tmpCol.setHex(t.color);
+          tInst.setColorAt(idx, tmpCol);
+        }
+      }
+      if (tInst.instanceMatrix) tInst.instanceMatrix.needsUpdate = true;
+      if (tInst.instanceColor) tInst.instanceColor.needsUpdate = true;
       group.add(tInst);
     }
     if (lamps.length) {
-      const lInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1.4, 0.9, 1.4), lampMat, lamps.length);
-      lamps.forEach((l, idx) => {
+      const lInst = new THREE.InstancedMesh(lampGeo, lampMat, lamps.length);
+      for (let idx = 0; idx < lamps.length; idx++) {
+        const l = lamps[idx];
         dummy.position.set(l.x, l.y, l.z);
         dummy.rotation.set(0, 0, 0);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
         lInst.setMatrixAt(idx, dummy.matrix);
-      });
+      }
+      if (lInst.instanceMatrix) lInst.instanceMatrix.needsUpdate = true;
       group.add(lInst);
     }
     if (beacons.length) {
-      const bInst = new THREE.InstancedMesh(new THREE.SphereGeometry(0.95, 8, 6), beaconMat, beacons.length);
-      beacons.forEach((b, idx) => {
+      const bInst = new THREE.InstancedMesh(beaconGeo, beaconMat, beacons.length);
+      for (let idx = 0; idx < beacons.length; idx++) {
+        const b = beacons[idx];
         dummy.position.set(b.x, b.y, b.z);
         dummy.rotation.set(0, 0, 0);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
         bInst.setMatrixAt(idx, dummy.matrix);
-      });
+      }
+      if (bInst.instanceMatrix) bInst.instanceMatrix.needsUpdate = true;
       group.add(bInst);
     }
 
@@ -1591,7 +2307,7 @@ function createGlobalScenery(scene, ground, airports = []) {
       if (oldVal && typeof oldVal === 'object' && oldVal.isObject3D) {
         root.remove(oldVal);
         oldVal.traverse(o => {
-          if (o.geometry && o.geometry !== osmTrafficGeo && o.geometry !== osmTreeGeo) {
+          if (o.geometry && !sharedGeos.has(o.geometry)) {
             o.geometry.dispose();
           }
         });
@@ -1637,44 +2353,81 @@ function createGlobalScenery(scene, ground, airports = []) {
     const hubAp = cellCenter ? nearestHubInfo(cellCenter.x, cellCenter.z).airport : null;
     const biome = country?.biome || 'temperate';
     const regionCode = hubAp?.region || (biome === 'arid' ? 'me' : biome === 'mediterranean' ? 'eu' : 'na');
-    const pal = getRegionalPalette(country, regionCode);
-    const isEuropean = regionCode === 'eu' || biome === 'mediterranean';
-    const isMiddleEast = regionCode === 'me' || biome === 'arid';
-    const isJapan = Number.isFinite(cellLat) && Number.isFinite(cellLon) && cellLat >= 24 && cellLat <= 46 && cellLon >= 123 && cellLon <= 148;
+    const pal = getRegionalPalette(country, regionCode, cellLat, cellLon);
 
-    // 1. Extrude real OSM buildings with true building:colour, roof:colour, height & stepped rooftops
-    const wPos = [], wNrm = [], wUv = [], wCol = [];
-    const gPos = [], gNrm = [], gUv = [], gCol = [];
-    const rPos = [], rNrm = [], rUv = [], rCol = [];
+    // 1. Extrude real OSM buildings across 5 PBR wall archetypes + 2 distinct roof meshes (<= 7 building draw calls/cell!)
+    const makeBuf = () => ({ pos: [], nrm: [], uv: [], col: [] });
+    const archBufs = [makeBuf(), makeBuf(), makeBuf(), makeBuf(), makeBuf()];
+    const flatRoofBuf = makeBuf();
+    const pitchedRoofBuf = makeBuf();
+    const ARCH_KEYS = ['glass', 'brick', 'condo', 'house', 'ind'];
+    const ARCH_UV_SCALE = [
+      [16, 22], // 0: Glass curtain wall
+      [15, 13], // 1: Brick / masonry urban apartment
+      [16, 13], // 2: Contemporary stucco / balcony condo
+      [11, 7.5], // 3: Residential clapboard / villa / townhouse
+      [20, 10]  // 4: Industrial / logistics warehouse
+    ];
     let bldgCount = 0;
     let cellMinX = 1e12, cellMaxX = -1e12, cellMinZ = 1e12, cellMaxZ = -1e12;
 
-    const pushWallQuad = (posArr, nrmArr, uvArr, colArr, ax, az, bx, bz, yBot, yTop, nx, nz, uLen, vRep, rgb) => {
-      posArr.push(ax, yBot, az, bx, yBot, bz, bx, yTop, bz, ax, yBot, az, bx, yTop, bz, ax, yTop, az);
-      for (let k = 0; k < 6; k++) {
-        nrmArr.push(nx, 0, nz);
-        colArr.push(rgb[0], rgb[1], rgb[2]);
-      }
-      uvArr.push(0, 0, uLen, 0, uLen, vRep, 0, 0, uLen, vRep, 0, vRep);
+    const pushWallQuad = (buf, ax, az, bx, bz, yBot, yTop, nx, nz, uLen, vRep, rgb, botAo = 0.90) => {
+      const rB = rgb[0] * botAo, gB = rgb[1] * botAo, bB = rgb[2] * botAo;
+      const rT = rgb[0], gT = rgb[1], bT = rgb[2];
+      buf.pos.push(ax, yBot, az, bx, yBot, bz, bx, yTop, bz, ax, yBot, az, bx, yTop, bz, ax, yTop, az);
+      for (let k = 0; k < 6; k++) buf.nrm.push(nx, 0, nz);
+      buf.col.push(rB, gB, bB, rB, gB, bB, rT, gT, bT, rB, gB, bB, rT, gT, bT, rT, gT, bT);
+      buf.uv.push(0, 0, uLen, 0, uLen, vRep, 0, 0, uLen, vRep, 0, vRep);
     };
 
-    const pushRoofTri = (p0x, p0z, p1x, p1z, p2x, p2z, yTop, rgb) => {
-      rPos.push(p0x, yTop, p0z, p2x, yTop, p2z, p1x, yTop, p1z);
-      rNrm.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
-      rUv.push(p0x * 0.04, p0z * 0.04, p2x * 0.04, p2z * 0.04, p1x * 0.04, p1z * 0.04);
-      for (let k = 0; k < 3; k++) rCol.push(rgb[0], rgb[1], rgb[2]);
+    const pushWallTri = (buf, ax, ay, az, bx, by, bz, cx, cy, cz, ex, ey, ez, u0, v0, u1, v1, u2, v2, rgb) => {
+      pushOrientedTri(buf.pos, buf.nrm, buf.uv, buf.col, ax, ay, az, bx, by, bz, cx, cy, cz, u0, v0, u1, v1, u2, v2, ex, ey, ez, rgb[0], rgb[1], rgb[2]);
     };
 
-    const pushPenthouseBox = (cx, cz, hx, hz, yBot, yTop, wallRgb, roofRgb) => {
+    const pushFlatRoofTri = (p0x, p0z, p1x, p1z, p2x, p2z, yTop, rgb) => {
+      flatRoofBuf.pos.push(p0x, yTop, p0z, p2x, yTop, p2z, p1x, yTop, p1z);
+      flatRoofBuf.nrm.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+      flatRoofBuf.uv.push(p0x * 0.045, p0z * 0.045, p2x * 0.045, p2z * 0.045, p1x * 0.045, p1z * 0.045);
+      for (let k = 0; k < 3; k++) flatRoofBuf.col.push(rgb[0], rgb[1], rgb[2]);
+    };
+
+    const pushPitchedTri = (ax, ay, az, bx, by, bz, cx, cy, cz, u0, v0, u1, v1, u2, v2, rgb) => {
+      pushOrientedTri(pitchedRoofBuf.pos, pitchedRoofBuf.nrm, pitchedRoofBuf.uv, pitchedRoofBuf.col, ax, ay, az, bx, by, bz, cx, cy, cz, u0, v0, u1, v1, u2, v2, 0, 1, 0, rgb[0], rgb[1], rgb[2]);
+    };
+
+    const pushPenthouseBox = (buf, cx, cz, hx, hz, yBot, yTop, wallRgb, roofRgb) => {
       const x0 = cx - hx, x1 = cx + hx, z0 = cz - hz, z1 = cz + hz;
-      const vRep = Math.max(0.5, (yTop - yBot) / 8);
-      const uX = Math.max(0.5, (hx * 2) / 10), uZ = Math.max(0.5, (hz * 2) / 10);
-      pushWallQuad(wPos, wNrm, wUv, wCol, x0, z1, x1, z1, yBot, yTop, 0, 1, uX, vRep, wallRgb);
-      pushWallQuad(wPos, wNrm, wUv, wCol, x1, z0, x0, z0, yBot, yTop, 0, -1, uX, vRep, wallRgb);
-      pushWallQuad(wPos, wNrm, wUv, wCol, x1, z1, x1, z0, yBot, yTop, 1, 0, uZ, vRep, wallRgb);
-      pushWallQuad(wPos, wNrm, wUv, wCol, x0, z0, x0, z1, yBot, yTop, -1, 0, uZ, vRep, wallRgb);
-      pushRoofTri(x0, z0, x0, z1, x1, z1, yTop, roofRgb);
-      pushRoofTri(x0, z0, x1, z1, x1, z0, yTop, roofRgb);
+      const vRep = Math.max(0.5, (yTop - yBot) / 10);
+      const uX = Math.max(0.5, (hx * 2) / 12), uZ = Math.max(0.5, (hz * 2) / 12);
+      pushWallQuad(buf, x0, z1, x1, z1, yBot, yTop, 0, 1, uX, vRep, wallRgb, 0.94);
+      pushWallQuad(buf, x1, z0, x0, z0, yBot, yTop, 0, -1, uX, vRep, wallRgb, 0.94);
+      pushWallQuad(buf, x1, z1, x1, z0, yBot, yTop, 1, 0, uZ, vRep, wallRgb, 0.94);
+      pushWallQuad(buf, x0, z0, x0, z1, yBot, yTop, -1, 0, uZ, vRep, wallRgb, 0.94);
+      pushFlatRoofTri(x0, z0, x0, z1, x1, z1, yTop, roofRgb);
+      pushFlatRoofTri(x0, z0, x1, z1, x1, z0, yTop, roofRgb);
+    };
+
+    const classifyOsmArchetype = (bType, matTag, bh, footArea, hVal) => {
+      if (
+        /^(industrial|warehouse|factory|hangar|manufacture|storage_tank|shed|barn|farm_auxiliary|service)$/.test(bType) ||
+        /^(metal|steel|corrugated|sheet_metal)$/.test(matTag) ||
+        (bType === 'retail' && footArea > 1100 && bh <= 14) ||
+        (footArea > 1800 && bh <= 13 && !/apartments|hotel|residential|house|school|church|cathedral/.test(bType))
+      ) return 4; // Industrial / Logistics Warehouse
+      if (
+        matTag === 'glass' || matTag === 'mirror' || bType === 'skyscraper' ||
+        (bh >= 38 && (!pal.historicLowRise || bh >= 54)) ||
+        (bType === 'office' && bh >= 16) ||
+        ((bType === 'commercial' || bType === 'hotel') && bh >= 24 && hVal < 0.72)
+      ) return 0; // Modern Glass Curtain-Wall Tower
+      if (
+        /^(house|detached|semidetached_house|terrace|bungalow|villa|cabin|farm|chalet)$/.test(bType) ||
+        (bType === 'residential' && bh <= 12.5 && footArea < 440) ||
+        (bType === 'yes' && bh <= 11.5 && footArea < 340)
+      ) return 3; // Residential Clapboard / Villa / Townhouse
+      if (/^(brick|stone|sandstone|limestone|masonry|marble|granite|wood|timber_framing)$/.test(matTag)) return 1;
+      if (/^(concrete|plaster|stucco|cement_block|panel|prefab)$/.test(matTag)) return 2;
+      return hVal < pal.brickBias ? 1 : 2;
     };
 
     for (let wi = 0; wi < buildingWays.length; wi++) {
@@ -1701,53 +2454,73 @@ function createGlobalScenery(scene, ground, airports = []) {
       const gy = ground(cx, cz);
       if (gy < 0.5) continue;
 
-      const tags = w.tags || {};
-      const rawH = typeof tags.height === 'string' ? parseFloat(tags.height.replace(/[^\d.+-]/g, '')) : parseFloat(tags.height);
-      const rawLevels = parseFloat(tags['building:levels']);
-      const parsedH = (Number.isFinite(rawH) && rawH > 0) ? rawH : (Number.isFinite(rawLevels) && rawLevels > 0 ? rawLevels * 3.5 : 0);
-      const bh = parsedH > 2.5 ? Math.min(420, parsedH) : (tags.building === 'apartments' || tags.building === 'commercial' ? 18 : tags.building === 'office' ? 28 : 10.5);
-      const y0 = gy - 1.5, y1 = gy + bh;
-      const matTag = typeof tags['building:material'] === 'string' ? tags['building:material'].trim().toLowerCase() : '';
-      const isGlass = bh > 36 || tags.building === 'office' || tags.building === 'skyscraper' || matTag === 'glass';
-
-      // Signed area to ensure consistent outward wall normals
+      // Signed area to ensure consistent outward wall normals (sArea > 0 => CW in XZ, outward normal = (dz, 0, -dx))
       let sArea = 0;
       for (let i = 0; i < pts.length; i++) {
         const a = pts[i], b = pts[(i + 1) % pts.length];
         sArea += a.x * b.z - b.x * a.z;
       }
-      if (Math.abs(sArea) < 12) continue;
+      const footArea = Math.abs(sArea) * 0.5;
+      if (footArea < 6) continue;
       if (sArea < 0) pts.reverse();
 
-      // Resolve realistic per-building wall & roof RGB colors (explicit OSM tags always take priority 1:1!)
-      const bSeed = Math.abs(Math.floor(cx * 3.1 + cz * 5.7)) + wi;
-      const defaultWallHex = isGlass
-        ? pal.glass[bSeed % pal.glass.length]
-        : (isJapan ? [0xf0eee9, 0xe7e1d6, 0xdce0e4, 0xebe6dc][bSeed % 4] : pal.apt[bSeed % pal.apt.length]);
-      let fallbackWallRgb = hexToRgb01(defaultWallHex);
-      if (matTag && OSM_NAMED_COLORS[matTag.replace(/[\s_-]+/g, '')]) {
-        fallbackWallRgb = OSM_NAMED_COLORS[matTag.replace(/[\s_-]+/g, '')];
-      }
-      const wallRgb = parseOsmColor(tags['building:colour'] || tags['building:color'], fallbackWallRgb);
+      const tags = w.tags || {};
+      const bType = typeof tags.building === 'string' ? tags.building.trim().toLowerCase() : 'yes';
+      const rawH = typeof tags.height === 'string' ? parseFloat(tags.height.replace(/[^\d.+-]/g, '')) : parseFloat(tags.height);
+      const rawLevels = parseFloat(tags['building:levels']);
+      const parsedH = (Number.isFinite(rawH) && rawH > 0) ? rawH : (Number.isFinite(rawLevels) && rawLevels > 0 ? rawLevels * 3.5 : 0);
+      const bSeed = Math.abs(Math.floor(cx * 3.1 + cz * 5.7)) + wi * 13 + 7;
+      const hVal = hash2(bSeed, wi * 7.3 + 1.9);
+      const defaultH = bType === 'apartments' || bType === 'commercial' ? (16 + hVal * 10)
+        : bType === 'office' ? (24 + hVal * 18)
+        : /^(house|detached|semidetached_house|bungalow|villa|terrace)$/.test(bType) ? (6.8 + hVal * 3.6)
+        : /^(industrial|warehouse|factory|retail)$/.test(bType) ? (8.5 + hVal * 4.5)
+        : (footArea < 240 ? (7.4 + hVal * 3.4) : (11.0 + hVal * 6.5));
+      const bh = parsedH > 2.5 ? Math.min(420, parsedH) : defaultH;
+      const y0 = gy - 1.5, y1 = gy + bh;
+      const matTag = typeof tags['building:material'] === 'string' ? tags['building:material'].trim().toLowerCase() : '';
+      const archIdx = classifyOsmArchetype(bType, matTag, bh, footArea, hVal);
+      const archBuf = archBufs[archIdx];
 
-      let fallbackRoofRgb;
-      if (isEuropean && bh < 26) {
-        fallbackRoofRgb = hexToRgb01([0xb85d40, 0xa85238, 0x9c4c36, 0x7a5c52][bSeed % 4]);
-      } else if (isMiddleEast) {
-        fallbackRoofRgb = hexToRgb01([0xd6c3a4, 0xcab696, 0xbfa988][bSeed % 3]);
-      } else if (isJapan) {
-        fallbackRoofRgb = hexToRgb01([0x9ea5ac, 0x8b949c, 0xa8adb2][bSeed % 3]);
+      // Determine whether this building gets a 3D pitched / hipped roof
+      const roofShape = typeof tags['roof:shape'] === 'string' ? tags['roof:shape'].trim().toLowerCase() : '';
+      const explicitPitched = /^(gabled|hipped|pyramidal|half-hipped|mansard|skillion|saltbox|gambrel)$/.test(roofShape);
+      const allowLowRisePitch = roofShape !== 'flat' && archIdx !== 0 && archIdx !== 4 && bh <= 11.5 && footArea >= 18 && footArea <= 560 &&
+        (archIdx === 3 || /^(house|detached|semidetached_house|terrace|bungalow|villa|residential|yes)$/.test(bType)) &&
+        hash2(bSeed, 43.1) < pal.pitchedChance;
+      const allowEuroMidPitch = roofShape !== 'flat' && pal.historicLowRise && archIdx === 1 && bh > 11.5 && bh <= 22 && footArea <= 900 &&
+        hash2(bSeed, 59.3) < 0.52;
+      const wantsPitchedRoof = explicitPitched || allowLowRisePitch || allowEuroMidPitch;
+
+      // Resolve realistic per-building wall & roof RGB colors (explicit OSM tags take priority 1:1; else rich regional palette + HSL jitter!)
+      const rawWallColor = tags['building:colour'] || tags['building:color'];
+      let wallRgb;
+      if (typeof rawWallColor === 'string' && rawWallColor.trim()) {
+        wallRgb = parseOsmColor(rawWallColor, hexToRgb01(pal[ARCH_KEYS[archIdx]][0]));
       } else {
-        fallbackRoofRgb = hexToRgb01(bh >= 26 ? 0x6f7780 : [0x7c838a, 0x6c737a, 0x8b7e74][bSeed % 3]);
+        const palArr = pal[ARCH_KEYS[archIdx]] || pal.brick;
+        let baseRgb = hexToRgb01(palArr[bSeed % palArr.length]);
+        const matNorm = matTag.replace(/[\s_-]+/g, '');
+        if (matNorm && OSM_NAMED_COLORS[matNorm]) {
+          const mRgb = OSM_NAMED_COLORS[matNorm];
+          baseRgb = [baseRgb[0] * 0.45 + mRgb[0] * 0.55, baseRgb[1] * 0.45 + mRgb[1] * 0.55, baseRgb[2] * 0.45 + mRgb[2] * 0.55];
+        }
+        wallRgb = jitterRgbHsl(baseRgb, bSeed, 0.028, 0.11, 0.095);
       }
-      const roofRgb = parseOsmColor(tags['roof:colour'] || tags['roof:color'], fallbackRoofRgb);
 
-      const tPos = isGlass ? gPos : wPos;
-      const tNrm = isGlass ? gNrm : wNrm;
-      const tUv = isGlass ? gUv : wUv;
-      const tCol = isGlass ? gCol : wCol;
-      const vRepeat = Math.max(1, bh / 12);
+      const rawRoofColor = tags['roof:colour'] || tags['roof:color'];
+      let roofRgb;
+      if (typeof rawRoofColor === 'string' && rawRoofColor.trim()) {
+        roofRgb = parseOsmColor(rawRoofColor, hexToRgb01(pal.flatRoof[0]));
+      } else {
+        const roofPalArr = wantsPitchedRoof ? pal.pitchedRoof : pal.flatRoof;
+        roofRgb = jitterRgbHsl(hexToRgb01(roofPalArr[(bSeed + 5) % roofPalArr.length]), bSeed + 17, 0.024, 0.10, 0.09);
+      }
 
+      const [uScale, vScale] = ARCH_UV_SCALE[archIdx];
+      const vRepeat = Math.max(0.65, bh / vScale);
+
+      // Properly front-facing outward walls (sArea > 0 => emit edge b -> a so (b, a, aTop) faces outward (dz, 0, -dx)!)
       for (let i = 0; i < pts.length; i++) {
         const a = pts[i], b = pts[(i + 1) % pts.length];
         if (a.x < cellMinX) cellMinX = a.x; if (a.x > cellMaxX) cellMaxX = a.x;
@@ -1756,54 +2529,131 @@ function createGlobalScenery(scene, ground, airports = []) {
         const len = Math.hypot(dx, dz);
         if (len < 0.4) continue;
         const nx = dz / len, nz = -dx / len;
-        const uLen = Math.max(0.5, len / 14);
-        pushWallQuad(tPos, tNrm, tUv, tCol, a.x, a.z, b.x, b.z, y0, y1, nx, nz, uLen, vRepeat, wallRgb);
+        const uLen = Math.max(0.45, len / uScale);
+        pushWallQuad(archBuf, b.x, b.z, a.x, a.z, y0, y1, nx, nz, uLen, vRepeat, wallRgb, archIdx === 0 ? 0.94 : 0.89);
       }
 
-      // Exact triangulated roof polygon
-      const tris = triangulatePolyXZ(pts);
-      let bestTriArea = -1, bestTriCx = cx, bestTriCz = cz;
-      for (let t = 0; t < tris.length; t += 3) {
-        const p0 = pts[tris[t]], p1 = pts[tris[t + 1]], p2 = pts[tris[t + 2]];
-        pushRoofTri(p0.x, p0.z, p1.x, p1.z, p2.x, p2.z, y1, roofRgb);
-        const ta = Math.abs((p1.x - p0.x) * (p2.z - p0.z) - (p2.x - p0.x) * (p1.z - p0.z)) * 0.5;
-        if (ta > bestTriArea) {
-          bestTriArea = ta;
-          bestTriCx = (p0.x + p1.x + p2.x) / 3;
-          bestTriCz = (p0.z + p1.z + p2.z) / 3;
+      // Roof generation: 3D Gabled / Hipped / Pyramidal pitched roof OR triangulated flat roof
+      let builtPitched = false;
+      if (wantsPitchedRoof && pointInPolyXZ(cx, cz, pts)) {
+        const rawRoofH = typeof tags['roof:height'] === 'string' ? parseFloat(tags['roof:height'].replace(/[^\d.+-]/g, '')) : parseFloat(tags['roof:height']);
+        const spanMin = Math.min(maxX - minX, maxZ - minZ);
+        const roofH = (Number.isFinite(rawRoofH) && rawRoofH > 0.8 && rawRoofH < 14)
+          ? rawRoofH
+          : Math.min(4.8, Math.max(1.7, spanMin * (bh > 11.5 ? 0.20 : 0.25)));
+        const yPeak = y1 + roofH;
+
+        if (pts.length === 4) {
+          // Oriented 4-point Gabled or Hipped roof aligned to the building's true long axis!
+          const l01 = Math.hypot(pts[1].x - pts[0].x, pts[1].z - pts[0].z);
+          const l12 = Math.hypot(pts[2].x - pts[1].x, pts[2].z - pts[1].z);
+          // Reorder (q0,q1,q2,q3) so q0->q1 and q2->q3 are the LONG eaves edges
+          const q = l01 >= l12 ? [pts[0], pts[1], pts[2], pts[3]] : [pts[1], pts[2], pts[3], pts[0]];
+          const longLen = Math.max(l01, l12), shortLen = Math.min(l01, l12);
+          const mAx = (q[0].x + q[3].x) * 0.5, mAz = (q[0].z + q[3].z) * 0.5;
+          const mBx = (q[1].x + q[2].x) * 0.5, mBz = (q[1].z + q[2].z) * 0.5;
+          const isGabled = roofShape === 'gabled' || (roofShape !== 'hipped' && roofShape !== 'pyramidal' && roofShape !== 'mansard' && (bSeed & 1) === 0 && bh <= 11.5);
+          const uLong = Math.max(0.6, longLen / 6.5);
+          const vSlope = Math.max(0.6, Math.hypot(shortLen * 0.5, roofH) / 4.5);
+
+          if (isGabled) {
+            // 2 sloped roof planes into pitchedRoofBuf
+            pushPitchedTri(q[0].x, y1, q[0].z, q[1].x, y1, q[1].z, mBx, yPeak, mBz, 0, 0, uLong, 0, uLong, vSlope, roofRgb);
+            pushPitchedTri(q[0].x, y1, q[0].z, mBx, yPeak, mBz, mAx, yPeak, mAz, 0, 0, uLong, vSlope, 0, vSlope, roofRgb);
+            pushPitchedTri(q[2].x, y1, q[2].z, q[3].x, y1, q[3].z, mAx, yPeak, mAz, 0, 0, uLong, 0, uLong, vSlope, roofRgb);
+            pushPitchedTri(q[2].x, y1, q[2].z, mAx, yPeak, mAz, mBx, yPeak, mBz, 0, 0, uLong, vSlope, 0, vSlope, roofRgb);
+            // 2 matching gable-end wall triangles into the building's wall archetype buffer
+            const gAdx = q[0].x - q[3].x, gAdz = q[0].z - q[3].z, gAl = Math.hypot(gAdx, gAdz) || 1;
+            pushWallTri(archBuf, q[0].x, y1, q[0].z, q[3].x, y1, q[3].z, mAx, yPeak, mAz, gAdz / gAl, 0, -gAdx / gAl, 0, 0.7, gAl / uScale, 0.7, gAl / (uScale * 2), 1, wallRgb);
+            const gBdx = q[2].x - q[1].x, gBdz = q[2].z - q[1].z, gBl = Math.hypot(gBdx, gBdz) || 1;
+            pushWallTri(archBuf, q[2].x, y1, q[2].z, q[1].x, y1, q[1].z, mBx, yPeak, mBz, gBdz / gBl, 0, -gBdx / gBl, 0, 0.7, gBl / uScale, 0.7, gBl / (uScale * 2), 1, wallRgb);
+            builtPitched = true;
+          } else {
+            // 4-sided Hipped / Mansard roof with inset ridge
+            const inset = Math.min(0.36, (shortLen * 0.44) / (longLen || 1));
+            const rAx = mAx + (mBx - mAx) * inset, rAz = mAz + (mBz - mAz) * inset;
+            const rBx = mBx + (mAx - mBx) * inset, rBz = mBz + (mAz - mBz) * inset;
+            const uShort = Math.max(0.5, shortLen / 6.5);
+            pushPitchedTri(q[0].x, y1, q[0].z, q[1].x, y1, q[1].z, rBx, yPeak, rBz, 0, 0, uLong, 0, uLong * (1 - inset), vSlope, roofRgb);
+            pushPitchedTri(q[0].x, y1, q[0].z, rBx, yPeak, rBz, rAx, yPeak, rAz, 0, 0, uLong * (1 - inset), vSlope, uLong * inset, vSlope, roofRgb);
+            pushPitchedTri(q[2].x, y1, q[2].z, q[3].x, y1, q[3].z, rAx, yPeak, rAz, 0, 0, uLong, 0, uLong * (1 - inset), vSlope, roofRgb);
+            pushPitchedTri(q[2].x, y1, q[2].z, rAx, yPeak, rAz, rBx, yPeak, rBz, 0, 0, uLong * (1 - inset), vSlope, uLong * inset, vSlope, roofRgb);
+            pushPitchedTri(q[3].x, y1, q[3].z, q[0].x, y1, q[0].z, rAx, yPeak, rAz, 0, 0, uShort, 0, uShort * 0.5, vSlope, roofRgb);
+            pushPitchedTri(q[1].x, y1, q[1].z, q[2].x, y1, q[2].z, rBx, yPeak, rBz, 0, 0, uShort, 0, uShort * 0.5, vSlope, roofRgb);
+            builtPitched = true;
+          }
+        } else if (pts.length <= 10) {
+          // General convex/near-convex polygon -> Pyramidal / Hipped roof fanning perimeter edges up to centroid peak
+          let allConvex = true;
+          for (let i = 0; i < pts.length; i++) {
+            const a = pts[i], b = pts[(i + 1) % pts.length];
+            const cross = (b.x - a.x) * (cz - a.z) - (b.z - a.z) * (cx - a.x);
+            if (cross <= 1e-4) { allConvex = false; break; }
+          }
+          if (allConvex) {
+            for (let i = 0; i < pts.length; i++) {
+              const a = pts[i], b = pts[(i + 1) % pts.length];
+              const edgeLen = Math.hypot(b.x - a.x, b.z - a.z);
+              const mx = (a.x + b.x) * 0.5, mz = (a.z + b.z) * 0.5;
+              const slopeLen = Math.hypot(cx - mx, cz - mz, roofH);
+              pushPitchedTri(a.x, y1, a.z, b.x, y1, b.z, cx, yPeak, cz, 0, 0, Math.max(0.4, edgeLen / 6.5), 0, Math.max(0.2, edgeLen / 13), Math.max(0.5, slopeLen / 4.5), roofRgb);
+            }
+            builtPitched = true;
+          }
         }
       }
 
-      // Stepped rooftop mechanical penthouse + parapet rim for tall buildings (>= 26m)
-      if (bh >= 26) {
-        const parapetH = Math.min(2.2, 0.9 + bh * 0.012);
-        const rimRgb = [wallRgb[0] * 0.86, wallRgb[1] * 0.86, wallRgb[2] * 0.86];
-        for (let i = 0; i < pts.length; i++) {
-          const a = pts[i], b = pts[(i + 1) % pts.length];
-          const dx = b.x - a.x, dz = b.z - a.z;
-          const len = Math.hypot(dx, dz);
-          if (len < 0.6) continue;
-          const nx = dz / len, nz = -dx / len;
-          pushWallQuad(tPos, tNrm, tUv, tCol, a.x, a.z, b.x, b.z, y1, y1 + parapetH, nx, nz, Math.max(0.4, len / 14), 0.25, rimRgb);
+      if (!builtPitched) {
+        // Exact triangulated flat roof polygon into flatRoofBuf
+        const tris = triangulatePolyXZ(pts);
+        let bestTriArea = -1, bestTriCx = cx, bestTriCz = cz;
+        for (let t = 0; t < tris.length; t += 3) {
+          const p0 = pts[tris[t]], p1 = pts[tris[t + 1]], p2 = pts[tris[t + 2]];
+          pushFlatRoofTri(p0.x, p0.z, p1.x, p1.z, p2.x, p2.z, y1, roofRgb);
+          const ta = Math.abs((p1.x - p0.x) * (p2.z - p0.z) - (p2.x - p0.x) * (p1.z - p0.z)) * 0.5;
+          if (ta > bestTriArea) {
+            bestTriArea = ta;
+            bestTriCx = (p0.x + p1.x + p2.x) / 3;
+            bestTriCz = (p0.z + p1.z + p2.z) / 3;
+          }
         }
 
-        const anchorX = pointInPolyXZ(cx, cz, pts) ? cx : bestTriCx;
-        const anchorZ = pointInPolyXZ(cx, cz, pts) ? cz : bestTriCz;
-        let hx = Math.min(16, Math.max(2.4, (maxX - minX) * 0.22));
-        let hz = Math.min(16, Math.max(2.4, (maxZ - minZ) * 0.22));
-        const fitsInRoof = (ox, oz) =>
-          pointInPolyXZ(anchorX - ox, anchorZ - oz, pts) &&
-          pointInPolyXZ(anchorX + ox, anchorZ - oz, pts) &&
-          pointInPolyXZ(anchorX + ox, anchorZ + oz, pts) &&
-          pointInPolyXZ(anchorX - ox, anchorZ + oz, pts);
-        if (!fitsInRoof(hx, hz)) { hx *= 0.55; hz *= 0.55; }
-        if (hx >= 1.6 && hz >= 1.6 && fitsInRoof(hx, hz)) {
-          const pentH = Math.min(9.5, Math.max(2.8, bh * 0.065));
-          const pentWallRgb = [roofRgb[0] * 0.88, roofRgb[1] * 0.88, roofRgb[2] * 0.88];
-          const pentRoofRgb = [roofRgb[0] * 0.94, roofRgb[1] * 0.94, roofRgb[2] * 0.94];
-          pushPenthouseBox(anchorX, anchorZ, hx, hz, y1, y1 + pentH, pentWallRgb, pentRoofRgb);
-          if (bh >= 65 && hx >= 3.0 && hz >= 3.0) {
-            pushPenthouseBox(anchorX, anchorZ, hx * 0.56, hz * 0.56, y1 + pentH, y1 + pentH * 1.62, rimRgb, pentRoofRgb);
+        // 3D Rooftop Penthouses / Stepped Setback Crowns + Parapet Rim on mid/high-rise buildings (h >= 24m)
+        if (bh >= 24) {
+          const parapetH = Math.min(2.2, 0.85 + bh * 0.012);
+          const rimRgb = [wallRgb[0] * 0.86, wallRgb[1] * 0.86, wallRgb[2] * 0.86];
+          for (let i = 0; i < pts.length; i++) {
+            const a = pts[i], b = pts[(i + 1) % pts.length];
+            const dx = b.x - a.x, dz = b.z - a.z;
+            const len = Math.hypot(dx, dz);
+            if (len < 0.6) continue;
+            const nx = dz / len, nz = -dx / len;
+            pushWallQuad(archBuf, b.x, b.z, a.x, a.z, y1, y1 + parapetH, nx, nz, Math.max(0.4, len / uScale), 0.25, rimRgb, 0.96);
+          }
+
+          const anchorX = pointInPolyXZ(cx, cz, pts) ? cx : bestTriCx;
+          const anchorZ = pointInPolyXZ(cx, cz, pts) ? cz : bestTriCz;
+          let hx = Math.min(18, Math.max(2.4, (maxX - minX) * (archIdx === 0 ? 0.28 : 0.22)));
+          let hz = Math.min(18, Math.max(2.4, (maxZ - minZ) * (archIdx === 0 ? 0.28 : 0.22)));
+          const fitsInRoof = (ox, oz) =>
+            pointInPolyXZ(anchorX - ox, anchorZ - oz, pts) &&
+            pointInPolyXZ(anchorX + ox, anchorZ - oz, pts) &&
+            pointInPolyXZ(anchorX + ox, anchorZ + oz, pts) &&
+            pointInPolyXZ(anchorX - ox, anchorZ + oz, pts);
+          if (!fitsInRoof(hx, hz)) { hx *= 0.58; hz *= 0.58; }
+          if (hx >= 1.6 && hz >= 1.6 && fitsInRoof(hx, hz)) {
+            const pentBuf = archIdx === 0 ? archBufs[0] : archBufs[2];
+            const pentH = Math.min(12.5, Math.max(2.8, bh * (archIdx === 0 ? 0.11 : 0.068)));
+            const pentWallRgb = archIdx === 0
+              ? [wallRgb[0] * 0.94, wallRgb[1] * 0.94, wallRgb[2] * 0.94]
+              : [roofRgb[0] * 0.90, roofRgb[1] * 0.90, roofRgb[2] * 0.90];
+            const pentRoofRgb = [roofRgb[0] * 0.94, roofRgb[1] * 0.94, roofRgb[2] * 0.94];
+            pushPenthouseBox(pentBuf, anchorX, anchorZ, hx, hz, y1, y1 + pentH, pentWallRgb, pentRoofRgb);
+            if (bh >= 52 && hx >= 2.8 && hz >= 2.8) {
+              // Stepped upper crown setback tier for tall towers
+              const crownH = Math.min(10, Math.max(3.2, pentH * 0.72));
+              pushPenthouseBox(pentBuf, anchorX, anchorZ, hx * 0.56, hz * 0.56, y1 + pentH, y1 + pentH + crownH, rimRgb, pentRoofRgb);
+            }
           }
         }
       }
@@ -2032,9 +2882,13 @@ function createGlobalScenery(scene, ground, airports = []) {
       return m;
     };
 
-    makeMerged(wPos, wNrm, wUv, wCol, osmWallMat, 'OSM_Walls_' + cellKey, true, true);
-    makeMerged(gPos, gNrm, gUv, gCol, osmGlassMat, 'OSM_Glass_' + cellKey, true, true);
-    makeMerged(rPos, rNrm, rUv, rCol, osmRoofMat, 'OSM_Roofs_' + cellKey, true, true);
+    const ARCH_MESH_NAMES = ['OSM_Glass_', 'OSM_Brick_', 'OSM_Condo_', 'OSM_House_', 'OSM_Ind_'];
+    for (let ai = 0; ai < archBufs.length; ai++) {
+      const ab = archBufs[ai];
+      makeMerged(ab.pos, ab.nrm, ab.uv, ab.col, ARCH_WALL_MATS[ai], ARCH_MESH_NAMES[ai] + cellKey, true, true);
+    }
+    makeMerged(flatRoofBuf.pos, flatRoofBuf.nrm, flatRoofBuf.uv, flatRoofBuf.col, archFlatRoofMat, 'OSM_FlatRoofs_' + cellKey, true, true);
+    makeMerged(pitchedRoofBuf.pos, pitchedRoofBuf.nrm, pitchedRoofBuf.uv, pitchedRoofBuf.col, archPitchedRoofMat, 'OSM_PitchedRoofs_' + cellKey, true, true);
     makeMerged(hwyPos, hwyNrm, hwyUv, null, roadMat, 'OSM_Highways_' + cellKey, false, true);
     makeMerged(hwyStripePos, null, null, null, stripeMat, 'OSM_HighwayStripes_' + cellKey, false, false);
     makeMerged(pierPos, pierNrm, null, null, osmPierMat, 'OSM_BridgePiers_' + cellKey, true, true);
@@ -2239,8 +3093,11 @@ function createGlobalScenery(scene, ground, airports = []) {
       if (gy < 0.8) continue;
 
       const flagshipH = a.code === 'OMDB' ? 380 : ['KJFK', 'ZSPD', 'VHHH', 'RJTT', 'WSSS', 'KORD', 'ZGGG', 'ZBAA'].includes(a.code) ? 295 : 210;
+      const hubCountry = typeof WorldAtlas !== 'undefined' ? WorldAtlas.countryAt(lon, lat) : null;
+      const hubPal = getRegionalPalette(hubCountry, a.region, lat, lon);
       const towers = [];
-      const podiums = [];
+      const brickPodiums = [];
+      const condoPodiums = [];
       const bcnPts = [];
 
       buildBespokeLandmark(g, a.code, basePt.x, gy, basePt.z, bcnPts);
@@ -2261,53 +3118,62 @@ function createGlobalScenery(scene, ground, airports = []) {
         const h = Math.max(48, flagshipH * distDecay * (0.45 + hash2(k * 11, i * 7) * 0.55));
         const w = 22 + (k % 4) * 5;
         const d = 22 + ((k + 2) % 4) * 5;
-        // Street-level podium
+        const tSeed = i * 197 + k * 23 + 11;
+        const glassTone = jitterHex(hubPal.glass[k % hubPal.glass.length], tSeed);
+        const crownTone = jitterHex(glassTone, tSeed + 5, 0.015, 0.06, 0.06);
+        const useBrickPod = hash2(tSeed, 17.3) < hubPal.brickBias;
+        const podTone = jitterHex((useBrickPod ? hubPal.brick : hubPal.condo)[k % (useBrickPod ? hubPal.brick : hubPal.condo).length], tSeed + 3);
+        // Street-level masonry / stucco podium
         const podH = Math.min(18, h * 0.20);
-        podiums.push({ x: tx, y: tGround + podH * 0.5 - 1, z: tz, w: w * 1.24, h: podH, d: d * 1.24 });
-        // Main glass shaft
-        towers.push({ x: tx, y: tGround + h * 0.5 - 1, z: tz, w, h, d });
+        (useBrickPod ? brickPodiums : condoPodiums).push({ x: tx, y: tGround + podH * 0.5 - 1, z: tz, w: w * 1.24, h: podH, d: d * 1.24, tone: podTone });
+        // Main glass curtain-wall shaft
+        towers.push({ x: tx, y: tGround + h * 0.5 - 1, z: tz, w, h, d, tone: glassTone });
         // Setback upper tier
         const tierH = h * 0.22;
-        towers.push({ x: tx, y: tGround + h + tierH * 0.5 - 1.5, z: tz, w: w * 0.64, h: tierH, d: d * 0.64 });
+        towers.push({ x: tx, y: tGround + h + tierH * 0.5 - 1.5, z: tz, w: w * 0.64, h: tierH, d: d * 0.64, tone: crownTone });
         if (k < 10) {
           const spireH = h * 0.15;
-          towers.push({ x: tx, y: tGround + h + tierH + spireH * 0.5 - 2, z: tz, w: w * 0.16, h: spireH, d: d * 0.16 });
+          towers.push({ x: tx, y: tGround + h + tierH + spireH * 0.5 - 2, z: tz, w: w * 0.16, h: spireH, d: d * 0.16, tone: crownTone });
           bcnPts.push({ x: tx, y: tGround + h + tierH + spireH + 1.2, z: tz });
         } else if (h > 95) {
           bcnPts.push({ x: tx, y: tGround + h + tierH + 1.2, z: tz });
         }
       }
       const dummy = new THREE.Object3D();
-      if (podiums.length) {
-        const pInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), [bldgWallMat, bldgWallMat, roofMat, roofMat, bldgWallMat, bldgWallMat], podiums.length);
-        podiums.forEach((t, idx) => {
+      const tmpCol = new THREE.Color();
+      const addHubInst = (items, geo, mat) => {
+        if (!items.length) return;
+        const inst = new THREE.InstancedMesh(geo, mat, items.length);
+        for (let idx = 0; idx < items.length; idx++) {
+          const t = items[idx];
           dummy.position.set(t.x, t.y, t.z);
+          dummy.rotation.set(0, 0, 0);
           dummy.scale.set(t.w, t.h, t.d);
           dummy.updateMatrix();
-          pInst.setMatrixAt(idx, dummy.matrix);
-        });
-        pInst.castShadow = pInst.receiveShadow = true;
-        g.add(pInst);
-      }
-      if (towers.length) {
-        const tInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), [landmarkGlassMat, landmarkGlassMat, roofMat, roofMat, landmarkGlassMat, landmarkGlassMat], towers.length);
-        towers.forEach((t, idx) => {
-          dummy.position.set(t.x, t.y, t.z);
-          dummy.scale.set(t.w, t.h, t.d);
-          dummy.updateMatrix();
-          tInst.setMatrixAt(idx, dummy.matrix);
-        });
-        tInst.castShadow = tInst.receiveShadow = true;
-        g.add(tInst);
-      }
+          inst.setMatrixAt(idx, dummy.matrix);
+          if (t.tone && typeof inst.setColorAt === 'function') {
+            tmpCol.setHex(t.tone);
+            inst.setColorAt(idx, tmpCol);
+          }
+        }
+        if (inst.instanceMatrix) inst.instanceMatrix.needsUpdate = true;
+        if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+        inst.castShadow = inst.receiveShadow = true;
+        g.add(inst);
+      };
+      addHubInst(brickPodiums, unitMidBoxGeo, [archBrickMat, archBrickMat, archFlatRoofMat, archFlatRoofMat, archBrickMat, archBrickMat]);
+      addHubInst(condoPodiums, unitMidBoxGeo, [archCondoMat, archCondoMat, archFlatRoofMat, archFlatRoofMat, archCondoMat, archCondoMat]);
+      addHubInst(towers, unitTallBoxGeo, [archGlassMat, archGlassMat, archFlatRoofMat, archFlatRoofMat, archGlassMat, archGlassMat]);
       if (bcnPts.length) {
         const bInst = new THREE.InstancedMesh(new THREE.SphereGeometry(1.2, 8, 6), beaconMat, bcnPts.length);
         bcnPts.forEach((b, idx) => {
           dummy.position.set(b.x, b.y, b.z);
+          dummy.rotation.set(0, 0, 0);
           dummy.scale.set(1, 1, 1);
           dummy.updateMatrix();
           bInst.setMatrixAt(idx, dummy.matrix);
         });
+        if (bInst.instanceMatrix) bInst.instanceMatrix.needsUpdate = true;
         g.add(bInst);
       }
       root.add(g);
@@ -2321,12 +3187,16 @@ function createGlobalScenery(scene, ground, airports = []) {
     }
     root.visible = true;
     const nightAmt = Math.max(0, 1 - dayRatio);
-    houseMat.emissiveIntensity = nightAmt * 0.72;
+    // Update all 5 PBR architectural archetype night-window emissive intensities with sun height (dayRatio)
+    archGlassMat.emissiveIntensity = 0.10 + nightAmt * 0.92;
+    archBrickMat.emissiveIntensity = nightAmt * 0.86;
+    archCondoMat.emissiveIntensity = nightAmt * 0.84;
+    archHouseMat.emissiveIntensity = nightAmt * 0.74;
+    archIndMat.emissiveIntensity = nightAmt * 0.58;
+    // Update legacy / bespoke landmark materials
     bldgWallMat.emissiveIntensity = nightAmt * 0.85;
-    osmWallMat.emissiveIntensity = nightAmt * 0.85;
     indWallMat.emissiveIntensity = nightAmt * 0.55;
     landmarkGlassMat.emissiveIntensity = 0.10 + nightAmt * 0.90;
-    osmGlassMat.emissiveIntensity = 0.10 + nightAmt * 0.90;
     monumentGoldMat.emissiveIntensity = 0.14 + nightAmt * 0.75;
     ensureHubSkyline(px, pz);
     ensureRealGPSLandmarks(px, pz);
@@ -2364,7 +3234,7 @@ function createGlobalScenery(scene, ground, airports = []) {
         const old = loaded.get(key);
         if (old) {
           root.remove(old);
-          old.traverse(o => { if (o.geometry && o.geometry !== houseGeo) o.geometry.dispose(); });
+          old.traverse(o => { if (o.geometry && !sharedGeos.has(o.geometry)) o.geometry.dispose(); });
         }
       }
       loaded.set(key, buildTile(c, r));
@@ -2373,7 +3243,7 @@ function createGlobalScenery(scene, ground, airports = []) {
       if (!keep.has(key)) {
         if (grp) {
           root.remove(grp);
-          grp.traverse(o => { if (o.geometry && o.geometry !== houseGeo) o.geometry.dispose(); });
+          grp.traverse(o => { if (o.geometry && !sharedGeos.has(o.geometry)) o.geometry.dispose(); });
         }
         loaded.delete(key);
       }

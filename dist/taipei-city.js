@@ -37,9 +37,6 @@ function createTaipeiCity(scene,ground,airports){
   const ink=night.getContext('2d');ink.fillStyle='#000';ink.fillRect(0,0,256,128);
   for(let i=0;i<4;i++){ink.fillStyle=i===1?'#d7b37c':'#080c10';ink.fillRect(i*64+11,18,40,66);}
   const lights=new THREE.CanvasTexture(night);lights.wrapS=lights.wrapT=THREE.RepeatWrapping;
-  const wall=new THREE.MeshStandardMaterial({color:0xffffff,map:facade,vertexColors:true,roughness:.83,
-    emissiveMap:lights,emissive:0xffd6a2,emissiveIntensity:0});
-  const roof=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.88});
   // Procedural PBR Multi-Lane Asphalt, Curb, Roughness & Illuminated Night Streetlamp Texture
   function makeRoadTextures(){
     const dayC=document.createElement('canvas');dayC.width=512;dayC.height=512;
@@ -108,8 +105,6 @@ function createTaipeiCity(scene,ground,airports){
   const stripe=new THREE.MeshStandardMaterial({color:0xf3efd9,roughness:.82,emissive:0xffebb5,emissiveIntensity:0,side:THREE.DoubleSide});
   const water=new THREE.MeshStandardMaterial({color:0x486f76,roughness:.3,metalness:.2,side:THREE.DoubleSide});
   for(const mat of [asphalt,stripe,water]){mat.polygonOffset=true;mat.polygonOffsetFactor=-3;mat.polygonOffsetUnits=-3;}
-  const palette=['#9b7f6d','#b7ab8e','#8b9f9c','#8896a3','#ad9585','#c8c2b2','#96a08a','#929599'].map(c=>new THREE.Color(c));
-  const roofPalette=['#85675a','#888a81','#496b67','#526675','#96745f','#92958c','#727d66','#626b73'].map(c=>new THREE.Color(c));
   const officeCanvas=document.createElement('canvas');officeCanvas.width=officeCanvas.height=256;
   const oi=officeCanvas.getContext('2d');
   const officeNight=document.createElement('canvas');officeNight.width=officeNight.height=256;
@@ -140,7 +135,7 @@ function createTaipeiCity(scene,ground,airports){
       ni.fillRect(x+7,y+44,50,4);
     }
   }
-  function repeatTexture(canvas,color=false){const t=new THREE.CanvasTexture(canvas);t.wrapS=t.wrapT=THREE.RepeatWrapping;if(color)t.colorSpace=THREE.SRGBColorSpace;return t;}
+  function repeatTexture(canvas,color=false){const t=new THREE.CanvasTexture(canvas);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=8;if(color)t.colorSpace=THREE.SRGBColorSpace;return t;}
   const reflectedCity=document.createElement('canvas');reflectedCity.width=1024;reflectedCity.height=512;
   const reflected=reflectedCity.getContext('2d'),sky=reflected.createLinearGradient(0,0,0,512);
   sky.addColorStop(0,'#1c4270');sky.addColorStop(.36,'#497fa9');sky.addColorStop(.52,'#98bfd4');
@@ -160,6 +155,415 @@ function createTaipeiCity(scene,ground,airports){
   const officeGlass=new THREE.MeshPhysicalMaterial({map:repeatTexture(officeCanvas,true),roughnessMap:repeatTexture(roughCanvas),
     color:0x36586c,metalness:.82,roughness:.22,clearcoat:1.0,clearcoatRoughness:.09,envMap:reflectedMap,envMapIntensity:1.15,
     emissiveMap:repeatTexture(officeNight),emissive:0xffdfab,emissiveIntensity:0,side:THREE.DoubleSide});
+  // Multi-Archetype PBR Facade & Roof System (4 wall styles + 2 roof styles, 256x256 pure 2D Canvas)
+  function makePrng(seed){
+    let s=seed>>>0;
+    return ()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};
+  }
+  function makeCanvasPair(){
+    const dayC=document.createElement('canvas');dayC.width=dayC.height=256;
+    const nightC=document.createElement('canvas');nightC.width=nightC.height=256;
+    const d=dayC.getContext('2d'),n=nightC.getContext('2d');
+    n.fillStyle='#000';n.fillRect(0,0,256,256);
+    return {dayC,nightC,d,n};
+  }
+  // Style 0: Taiwanese Mosaic Tile & Balcony Apartment (磁磚公寓 / 陽台 / 室外機 / 騎樓店面)
+  function makeAptTextures(){
+    const {dayC,nightC,d,n}=makeCanvasPair(),rnd=makePrng(104729);
+    d.fillStyle='#ece9e2';d.fillRect(0,0,256,256);
+    // Fine Taiwanese ceramic mosaic tile grid with mortar joints
+    for(let ty=0;ty<256;ty+=8){
+      const off=(ty/8)%2?6:0;
+      for(let tx=-6;tx<256;tx+=12){
+        const v=226+Math.floor(rnd()*22);
+        d.fillStyle=`rgb(${v+2},${v},${v-4})`;
+        d.fillRect(tx+off+1,ty+1,11,7);
+      }
+    }
+    d.fillStyle='rgba(110,106,98,0.28)';
+    for(let ty=0;ty<256;ty+=8)d.fillRect(0,ty,256,1);
+    // Subtle subtropical rain patina beneath ledges
+    for(let i=0;i<24;i++){
+      const sx=Math.floor(rnd()*256),sy=Math.floor(rnd()*240);
+      d.fillStyle='rgba(78,74,68,0.06)';d.fillRect(sx,sy,2+Math.floor(rnd()*4),10+Math.floor(rnd()*18));
+    }
+    // Floor slab ledges between 4 floors
+    for(let row=0;row<4;row++){
+      const y=row*64;
+      d.fillStyle='#f6f4ef';d.fillRect(0,y,256,3);
+      d.fillStyle='rgba(50,47,42,0.34)';d.fillRect(0,y+3,256,3);
+    }
+    // Rows 0..2: upper residential floors (alternating recessed balconies & grilled windows)
+    for(let row=0;row<3;row++){
+      for(let col=0;col<4;col++){
+        const bx=col*64,by=row*64,isBalcony=(row+col)%2===0;
+        if(isBalcony){
+          // Recessed balcony shadow cavity
+          const rec=d.createLinearGradient(bx+5,by+8,bx+5,by+58);
+          rec.addColorStop(0,'#464c52');rec.addColorStop(.5,'#646a70');rec.addColorStop(1,'#53585e');
+          d.fillStyle=rec;d.fillRect(bx+5,by+8,54,49);
+          // Sliding balcony door inside recess
+          const dg=d.createLinearGradient(bx+9,by+11,bx+43,by+43);
+          dg.addColorStop(0,'#394f5e');dg.addColorStop(.45,'#263844');dg.addColorStop(.55,'#6c8c9e');dg.addColorStop(1,'#2c404d');
+          d.fillStyle=dg;d.fillRect(bx+9,by+11,34,34);
+          d.strokeStyle='#d9dfe4';d.lineWidth=1.5;d.strokeRect(bx+9.5,by+11.5,33,33);
+          d.fillStyle='#d5dce0';d.fillRect(bx+25,by+11,2,34);
+          // Balcony parapet curb + white/silver steel railing
+          d.fillStyle='#dedcd6';d.fillRect(bx+5,by+48,54,9);
+          d.fillStyle='#f4f6f8';d.fillRect(bx+5,by+35,54,2.5);
+          d.fillStyle='rgba(30,34,38,0.30)';d.fillRect(bx+5,by+37.5,54,2);
+          d.fillStyle='#e2e6ea';
+          for(let rx=bx+9;rx<bx+56;rx+=6)d.fillRect(rx,by+36,1.6,12);
+          // Exterior split AC condenser unit mounted on right side of balcony
+          d.fillStyle='#e2e5e8';d.fillRect(bx+44,by+24,13,10);
+          d.fillStyle='#b8bec4';d.fillRect(bx+44,by+33,13,1.5);
+          d.fillStyle='#3b4248';d.beginPath();d.arc(bx+49,by+29,3.5,0,Math.PI*2);d.fill();
+          d.fillStyle='#9aa3ab';d.fillRect(bx+54,by+26,2,6);
+          if((row+col)%4===0){
+            // Tiny potted greenery accent on balcony rail
+            d.fillStyle='#5b8052';d.fillRect(bx+11,by+31,9,4);
+            d.fillStyle='#a86d54';d.fillRect(bx+12,by+34,7,2);
+          }
+          if((row*3+col*5)%7<3){
+            const cool=(row+col)%4===2;
+            n.fillStyle=cool?'#cbe8ff':((row+col)%3?'#ffd490':'#ffe8bc');
+            n.fillRect(bx+11,by+13,30,22);
+            n.fillStyle='rgba(0,0,0,0.35)';n.fillRect(bx+25,by+13,2,22);
+          }
+        }else{
+          // Recessed dark aluminum sliding window + sill + optional iron grille (鐵窗)
+          d.fillStyle='#f2f0ea';d.fillRect(bx+7,by+11,50,36);
+          d.fillStyle='#3b4248';d.fillRect(bx+9,by+13,46,32);
+          const wg=d.createLinearGradient(bx+10,by+14,bx+54,by+44);
+          wg.addColorStop(0,'#4e6a7c');wg.addColorStop(.5,'#2c404e');wg.addColorStop(.58,'#7ea0b2');wg.addColorStop(1,'#324756');
+          d.fillStyle=wg;d.fillRect(bx+10,by+14,44,30);
+          d.fillStyle='#cfd6dc';d.fillRect(bx+31,by+14,2,30);d.fillRect(bx+10,by+28,44,1.5);
+          if((row+col)%3===1){
+            d.fillStyle='rgba(232,238,242,0.52)';
+            for(let gx=bx+14;gx<bx+53;gx+=6)d.fillRect(gx,by+15,1,28);
+            d.fillRect(bx+10,by+21,44,1);d.fillRect(bx+10,by+36,44,1);
+          }
+          // Projecting sill & shadow
+          d.fillStyle='#f5f3ee';d.fillRect(bx+6,by+46,52,3.5);
+          d.fillStyle='rgba(45,42,38,0.32)';d.fillRect(bx+6,by+49.5,52,2.5);
+          // Compact AC unit tucked under right sill
+          if((row+col)%2===1){
+            d.fillStyle='#dfe3e6';d.fillRect(bx+43,by+50,13,10);
+            d.fillStyle='#3d454c';d.beginPath();d.arc(bx+48,by+55,3.2,0,Math.PI*2);d.fill();
+          }
+          if((row*5+col*3)%6<3){
+            const warm=(row+col)%3!==0;
+            n.fillStyle=warm?'#ffd898':'#d2ecff';
+            n.fillRect(bx+11,by+15,42,28);
+            n.fillStyle='rgba(0,0,0,0.42)';n.fillRect(bx+31,by+15,2,28);
+            for(let sy=by+19;sy<by+42;sy+=5)n.fillRect(bx+11,sy,42,1);
+          }
+        }
+      }
+    }
+    // Row 3 (bottom 64px, v=0..0.25): ground-floor retail storefront & 騎樓 arcade strip
+    for(let col=0;col<4;col++){
+      const bx=col*64,by=192;
+      // Arcade columns & plinth
+      d.fillStyle='#e2dfd8';d.fillRect(bx,by+4,7,60);d.fillRect(bx+57,by+4,7,60);
+      d.fillStyle='#b6b2aa';d.fillRect(bx,by+54,7,10);d.fillRect(bx+57,by+54,7,10);
+      // Shopfront signboard fascia & awning shadow
+      d.fillStyle='#f3ede0';d.fillRect(bx+7,by+6,50,10);
+      d.fillStyle=['#c88e68','#6a8f88','#b87a70','#7d8fa4'][col];d.fillRect(bx+10,by+8,44,5);
+      d.fillStyle='rgba(30,28,24,0.45)';d.fillRect(bx+7,by+16,50,4);
+      // Warm-lit retail glass storefront
+      const sg=d.createLinearGradient(bx+8,by+20,bx+8,by+62);
+      sg.addColorStop(0,'#5d5040');sg.addColorStop(.55,'#9c7e58');sg.addColorStop(1,'#c6a16e');
+      d.fillStyle=sg;d.fillRect(bx+8,by+20,48,40);
+      d.fillStyle='#d4d8dc';d.fillRect(bx+31,by+20,2,40);d.fillRect(bx+8,by+34,48,1.5);
+      d.fillStyle='#8c8a84';d.fillRect(bx+7,by+60,50,4);
+      if(col!==2){
+        n.fillStyle=col===1?'#ffe5b0':'#ffc978';
+        n.fillRect(bx+9,by+22,46,36);
+        n.fillStyle='rgba(0,0,0,0.45)';n.fillRect(bx+31,by+22,2,36);n.fillRect(bx+9,by+34,46,2);
+      }
+    }
+    return {map:repeatTexture(dayC,true),emissiveMap:repeatTexture(nightC)};
+  }
+  // Style 1: Modern Glass Curtain-Wall High-Rise (帷幕玻璃高樓)
+  function makeGlassTextures(){
+    const {dayC,nightC,d,n}=makeCanvasPair();
+    d.fillStyle='#2a343d';d.fillRect(0,0,256,256);
+    for(let row=0;row<4;row++){
+      for(let col=0;col<4;col++){
+        const bx=col*64,by=row*64;
+        // Horizontal brushed metallic spandrel band
+        const sp=d.createLinearGradient(bx,by+1,bx,by+16);
+        sp.addColorStop(0,'#8c9ca8');sp.addColorStop(.5,'#6b7c88');sp.addColorStop(1,'#4d5c66');
+        d.fillStyle=sp;d.fillRect(bx+2,by+1,60,14);
+        d.fillStyle='#b8c9d4';d.fillRect(bx+2,by+2,60,1.5);
+        d.fillStyle='#202930';d.fillRect(bx+2,by+15,60,2);
+        // Vision glass panels with coherent diagonal sky sheen (bright so vertex tint shines)
+        const gg=d.createLinearGradient(bx+2,by+17,bx+62,by+62);
+        gg.addColorStop(0,['#c6dfec','#d4e8f4','#b8d4e4','#cce2ef'][(row+col)%4]);
+        gg.addColorStop(.38,'#8db1c4');
+        gg.addColorStop(.52,'#6e94aa');
+        gg.addColorStop(.62,'#b7d5e5');
+        gg.addColorStop(1,'#e2f0f8');
+        d.fillStyle=gg;d.fillRect(bx+2,by+17,60,45);
+        // Subtle interior ceiling & blind depth
+        d.fillStyle='rgba(255,255,255,0.18)';d.fillRect(bx+4,by+19,56,4);
+        if((row+col)%3===0){
+          d.fillStyle='rgba(30,45,58,0.16)';d.fillRect(bx+3,by+18,58,14);
+        }
+        // Crisp center & quarter vertical mullions with specular edge
+        d.fillStyle='#28323b';d.fillRect(bx+31,by+1,2.2,62);
+        d.fillStyle='rgba(235,246,255,0.45)';d.fillRect(bx+33.2,by+17,1,45);
+        d.fillStyle='#35424d';d.fillRect(bx+2,by+43,60,1.4);
+        // Night office lighting
+        if((row*7+col*5)%9<5){
+          const cool=(row+col)%3===0;
+          n.fillStyle=cool?'#d2ecff':'#ffe4b5';
+          n.fillRect(bx+4,by+19,56,41);
+          n.fillStyle=cool?'#f2faff':'#fff6de';
+          n.fillRect(bx+6,by+23,52,3);n.fillRect(bx+6,by+34,52,3);n.fillRect(bx+6,by+47,52,3);
+          n.fillStyle='rgba(0,0,0,0.65)';n.fillRect(bx+31,by+19,2.5,41);
+        }
+      }
+    }
+    // Global diagonal sky reflection streak across curtain grid
+    const sheen=d.createLinearGradient(0,0,256,256);
+    sheen.addColorStop(0,'rgba(255,255,255,0.08)');sheen.addColorStop(.44,'rgba(255,255,255,0)');
+    sheen.addColorStop(.5,'rgba(255,255,255,0.22)');sheen.addColorStop(.56,'rgba(255,255,255,0)');
+    sheen.addColorStop(1,'rgba(255,255,255,0.06)');
+    d.fillStyle=sheen;d.fillRect(0,0,256,256);
+    return {map:repeatTexture(dayC,true),emissiveMap:repeatTexture(nightC)};
+  }
+  // Style 2: Classic Brick / Warm Terracotta / Heritage Shophouse (紅磚 / 老屋街屋)
+  function makeBrickTextures(){
+    const {dayC,nightC,d,n}=makeCanvasPair(),rnd=makePrng(229937);
+    d.fillStyle='#b8afa4';d.fillRect(0,0,256,256); // sand-colored mortar
+    // Running-bond masonry brick courses (bright warm-neutral so vertex palette tints richly)
+    for(let row=0;row<32;row++){
+      const y=row*8,off=(row%2)*8;
+      for(let x=-8;x<256;x+=16){
+        const shade=216+Math.floor(rnd()*30);
+        d.fillStyle=`rgb(${Math.min(255,shade+6)},${shade},${Math.max(0,shade-8)})`;
+        d.fillRect(x+off+1,y+1,14.4,6.4);
+      }
+    }
+    // Classical horizontal cornice moldings between floors
+    for(let row=0;row<4;row++){
+      const y=row*64;
+      d.fillStyle='#f6f2eb';d.fillRect(0,y,256,3.5);
+      d.fillStyle='#d8d0c5';d.fillRect(0,y+3.5,256,3);
+      d.fillStyle='rgba(55,44,36,0.34)';d.fillRect(0,y+6.5,256,3);
+    }
+    // Rows 0..2: classic arched & framed heritage windows with shutters / awnings
+    for(let row=0;row<3;row++){
+      for(let col=0;col<4;col++){
+        const bx=col*64,by=row*64;
+        const arched=(row+col)%2===0;
+        // Decorative stone arch/lintel surround
+        d.fillStyle='#f2ede3';
+        if(arched){
+          d.beginPath();d.arc(bx+32,by+24,18,Math.PI,0);d.lineTo(bx+50,by+50);d.lineTo(bx+14,by+50);d.closePath();d.fill();
+          d.fillStyle='#353f48';
+          d.beginPath();d.arc(bx+32,by+25,14,Math.PI,0);d.lineTo(bx+46,by+48);d.lineTo(bx+18,by+48);d.closePath();d.fill();
+          // Window glass reflection & divided muntins
+          d.fillStyle='#5c7585';d.fillRect(bx+20,by+24,11,22);
+          d.fillStyle='#dad4c8';d.fillRect(bx+31,by+12,2,36);d.fillRect(bx+18,by+25,28,2);d.fillRect(bx+18,by+36,28,1.5);
+        }else{
+          // Framed window with flanking louvered shutters
+          d.fillRect(bx+13,by+11,38,4);
+          d.fillStyle='#a8a095';d.fillRect(bx+6,by+15,9,33);d.fillRect(bx+49,by+15,9,33);
+          d.fillStyle='rgba(48,40,34,0.35)';
+          for(let sy=by+18;sy<by+46;sy+=4){d.fillRect(bx+7,sy,7,1.4);d.fillRect(bx+50,sy,7,1.4);}
+          d.fillStyle='#36414a';d.fillRect(bx+16,by+15,32,33);
+          d.fillStyle='#637d8c';d.fillRect(bx+18,by+17,13,29);
+          d.fillStyle='#dcd5c8';d.fillRect(bx+31,by+15,2,33);d.fillRect(bx+16,by+30,32,1.6);
+          if(col===1){
+            // Sloped canvas window awning
+            d.fillStyle='#eae2d2';d.fillRect(bx+14,by+14,36,7);
+            d.fillStyle='#8c7e70';for(let ax=bx+16;ax<bx+49;ax+=6)d.fillRect(ax,by+14,3,7);
+            d.fillStyle='rgba(35,28,22,0.38)';d.fillRect(bx+15,by+21,34,3);
+          }
+        }
+        // Projecting stone sill + cast shadow
+        d.fillStyle='#f4efe6';d.fillRect(bx+12,by+49,40,3.5);
+        d.fillStyle='rgba(46,38,30,0.36)';d.fillRect(bx+12,by+52.5,40,2.5);
+        if((row*5+col*3)%7<3){
+          n.fillStyle=(row+col)%2?'#ffc978':'#ffe1a6';
+          n.fillRect(bx+19,by+18,26,28);
+          n.fillStyle='rgba(0,0,0,0.5)';n.fillRect(bx+31,by+18,2,28);n.fillRect(bx+19,by+30,26,2);
+        }
+      }
+    }
+    // Row 3 (bottom 64px): warm heritage shophouse arcade base & striped awning
+    for(let col=0;col<4;col++){
+      const bx=col*64,by=192;
+      // Masonry piers
+      d.fillStyle='#dcd4c8';d.fillRect(bx,by+8,9,56);d.fillRect(bx+55,by+8,9,56);
+      d.fillStyle='#efe9de';d.fillRect(bx,by+52,9,12);d.fillRect(bx+55,by+52,9,12);
+      // Striped heritage shophouse awning
+      d.fillStyle='#f2eadc';d.fillRect(bx+9,by+10,46,10);
+      d.fillStyle='#9e826c';for(let ax=bx+10;ax<bx+54;ax+=8)d.fillRect(ax,by+10,4,10);
+      d.fillStyle='rgba(34,24,18,0.44)';d.fillRect(bx+9,by+20,46,4);
+      // Warm-toned wooden shopfront display window
+      const wg=d.createLinearGradient(bx+10,by+24,bx+10,by+60);
+      wg.addColorStop(0,'#5e4c3a');wg.addColorStop(.5,'#a68052');wg.addColorStop(1,'#cfa36a');
+      d.fillStyle=wg;d.fillRect(bx+10,by+24,44,36);
+      d.fillStyle='#e4dccf';d.fillRect(bx+31,by+24,2,36);d.fillRect(bx+10,by+36,44,1.6);
+      d.fillStyle='#8c8276';d.fillRect(bx+9,by+60,46,4);
+      if(col!==3){
+        n.fillStyle=col%2?'#ffca74':'#ffe0a2';
+        n.fillRect(bx+12,by+25,40,33);
+        n.fillStyle='rgba(0,0,0,0.45)';n.fillRect(bx+31,by+25,2,33);
+      }
+    }
+    return {map:repeatTexture(dayC,true),emissiveMap:repeatTexture(nightC)};
+  }
+  // Style 3: Modern Stucco / Granite Condo & Institutional (現代石材豪宅 / 水平深陽台 / 玻璃欄杆)
+  function makeCondoTextures(){
+    const {dayC,nightC,d,n}=makeCanvasPair(),rnd=makePrng(311911);
+    d.fillStyle='#eeede9';d.fillRect(0,0,256,256);
+    // Large honed granite/stone ashlar panels (32x32px) with subtle stone grain
+    for(let py=0;py<256;py+=32){
+      for(let px=0;px<256;px+=32){
+        const v=228+Math.floor(rnd()*16);
+        d.fillStyle=`rgb(${v+1},${v},${v-2})`;d.fillRect(px+1,py+1,30.5,30.5);
+      }
+    }
+    d.fillStyle='rgba(92,96,104,0.24)';
+    for(let i=0;i<256;i+=32){d.fillRect(0,i,256,1);d.fillRect(i,0,1,256);}
+    // Rows 0..2: sleek cantilevered slabs, deep recessed glazing, glass balustrades, vertical fins
+    for(let row=0;row<3;row++){
+      const by=row*64;
+      // Sleek cantilevered horizontal architectural band + deep cast shadow
+      d.fillStyle='#f7f7f4';d.fillRect(0,by,256,9);
+      d.fillStyle='#d8d7d2';d.fillRect(0,by+8,256,2);
+      d.fillStyle='rgba(32,38,44,0.45)';d.fillRect(0,by+10,256,4);
+      for(let col=0;col<4;col++){
+        const bx=col*64;
+        // Crisp vertical architectural stone/metal fin
+        d.fillStyle='#f3f2ee';d.fillRect(bx,by+9,7,55);
+        d.fillStyle='rgba(40,45,52,0.28)';d.fillRect(bx+7,by+10,3,54);
+        // Recessed floor-to-ceiling balcony glazing
+        const cg=d.createLinearGradient(bx+10,by+12,bx+60,by+58);
+        cg.addColorStop(0,'#455b6c');cg.addColorStop(.45,'#2a3b48');cg.addColorStop(.56,'#7393a6');cg.addColorStop(1,'#344858');
+        d.fillStyle=cg;d.fillRect(bx+10,by+12,51,48);
+        d.fillStyle='#2a333c';d.fillRect(bx+34,by+12,2,48);
+        // Translucent modern glass balustrade + brushed stainless handrail
+        d.fillStyle='rgba(182,214,232,0.52)';d.fillRect(bx+10,by+41,51,19);
+        d.fillStyle='#f0f4f8';d.fillRect(bx+10,by+40,51,2.2);
+        d.fillStyle='rgba(235,244,250,0.45)';d.fillRect(bx+10,by+44,51,1.2);
+        d.fillStyle='#cfd8e0';d.fillRect(bx+27,by+41,1.4,19);d.fillRect(bx+44,by+41,1.4,19);
+        if((row*5+col*7)%8<4){
+          const warm=(row+col)%4!==0;
+          n.fillStyle=warm?'#ffe0ab':'#dff1ff';
+          n.fillRect(bx+12,by+15,47,26);
+          n.fillStyle='rgba(0,0,0,0.5)';n.fillRect(bx+34,by+15,2,26);
+        }
+      }
+    }
+    // Row 3 (bottom 64px): clean granite stone-panel podium / lobby base
+    d.fillStyle='#f5f4f0';d.fillRect(0,192,256,8);
+    d.fillStyle='rgba(30,36,42,0.42)';d.fillRect(0,200,256,4);
+    for(let col=0;col<4;col++){
+      const bx=col*64,by=192;
+      d.fillStyle='#e6e4de';d.fillRect(bx,by+8,11,56);d.fillRect(bx+56,by+8,8,56);
+      const lg=d.createLinearGradient(bx+11,by+12,bx+56,by+62);
+      lg.addColorStop(0,'#3b5060');lg.addColorStop(.6,'#627a88');lg.addColorStop(1,'#b29c7a');
+      d.fillStyle=lg;d.fillRect(bx+11,by+12,45,48);
+      d.fillStyle='#dde3e8';d.fillRect(bx+32,by+12,1.8,48);
+      d.fillStyle='#c4c6c8';d.fillRect(bx+11,by+60,45,4);
+      if(col===0||col===2){
+        n.fillStyle='#ffe6b8';n.fillRect(bx+13,by+16,41,42);
+        n.fillStyle='rgba(0,0,0,0.4)';n.fillRect(bx+32,by+16,2,42);
+      }
+    }
+    return {map:repeatTexture(dayC,true),emissiveMap:repeatTexture(nightC)};
+  }
+  // Roof 0: Taiwanese Flat Rooftop (防水塗層 / 混凝土分格 / 不鏽鋼水塔 / 空調主機)
+  function makeRoofFlatTexture(){
+    const c=document.createElement('canvas');c.width=c.height=256;
+    const d=c.getContext('2d'),rnd=makePrng(409913);
+    d.fillStyle='#dfe2df';d.fillRect(0,0,256,256);
+    for(let y=0;y<256;y+=32)for(let x=0;x<256;x+=32){
+      const v=216+Math.floor(rnd()*22);
+      d.fillStyle=`rgb(${v},${v+2},${v})`;d.fillRect(x+1,y+1,30,30);
+    }
+    d.fillStyle='rgba(85,90,88,0.20)';
+    for(let i=0;i<256;i+=32){d.fillRect(0,i,256,1.2);d.fillRect(i,0,1.2,256);}
+    for(let i=0;i<900;i++){
+      const px=Math.floor(rnd()*256),py=Math.floor(rnd()*256);
+      d.fillStyle=i%2?'rgba(255,255,255,0.12)':'rgba(60,64,66,0.10)';d.fillRect(px,py,2,2);
+    }
+    // Iconic Taiwanese stainless-steel cylindrical water tanks (不鏽鋼水塔)
+    for(const [tx,ty,tr] of [[48,54,11],[74,56,9],[192,188,12],[166,192,9]]){
+      d.fillStyle='rgba(32,38,42,0.34)';d.beginPath();d.arc(tx+4,ty+4,tr,0,Math.PI*2);d.fill();
+      const tg=d.createRadialGradient(tx-tr*.3,ty-tr*.3,1,tx,ty,tr);
+      tg.addColorStop(0,'#ffffff');tg.addColorStop(.55,'#d4dce2');tg.addColorStop(1,'#8f9aa3');
+      d.fillStyle=tg;d.beginPath();d.arc(tx,ty,tr,0,Math.PI*2);d.fill();
+      d.strokeStyle='rgba(70,78,86,0.45)';d.lineWidth=1;d.stroke();
+    }
+    // Rooftop HVAC & AC chiller arrays
+    for(const [ax,ay,aw,ah] of [[146,38,34,18],[186,42,20,14],[42,164,30,22],[92,118,26,18]]){
+      d.fillStyle='rgba(34,38,42,0.30)';d.fillRect(ax+3,ay+3,aw,ah);
+      d.fillStyle='#e6eaed';d.fillRect(ax,ay,aw,ah);
+      d.strokeStyle='#9ca4ac';d.lineWidth=1;d.strokeRect(ax+.5,ay+.5,aw-1,ah-1);
+      d.fillStyle='#4a535c';d.beginPath();d.arc(ax+aw*.35,ay+ah*.5,Math.min(aw,ah)*.28,0,Math.PI*2);d.fill();
+      if(aw>=28){d.beginPath();d.arc(ax+aw*.72,ay+ah*.5,Math.min(aw,ah)*.26,0,Math.PI*2);d.fill();}
+    }
+    // Stair skylight / maintenance hatch
+    d.fillStyle='rgba(36,40,44,0.28)';d.fillRect(114,202,28,22);
+    d.fillStyle='#cfd6dc';d.fillRect(111,199,28,22);
+    d.fillStyle='#6c7c88';d.fillRect(115,203,20,14);
+    return repeatTexture(c,true);
+  }
+  // Roof 1: Corrugated Metal Sheet (鐵皮加蓋) & Tile Pitched Roof
+  function makeRoofPitchedTexture(){
+    const c=document.createElement('canvas');c.width=c.height=256;
+    const d=c.getContext('2d'),rnd=makePrng(517721);
+    d.fillStyle='#e6e6e4';d.fillRect(0,0,256,256);
+    // Crisp corrugated standing-seam ribs
+    for(let x=0;x<256;x+=8){
+      d.fillStyle='#f8f8f6';d.fillRect(x,0,2,256);
+      d.fillStyle='#dedfe0';d.fillRect(x+2,0,3,256);
+      d.fillStyle='#aeb3b8';d.fillRect(x+5,0,2,256);
+      d.fillStyle='#cdd0d4';d.fillRect(x+7,0,1,256);
+    }
+    // Horizontal overlapping metal sheet / roof tile courses
+    for(let y=0;y<256;y+=32){
+      d.fillStyle='rgba(52,56,62,0.30)';d.fillRect(0,y,256,2);
+      d.fillStyle='rgba(255,255,255,0.42)';d.fillRect(0,y+2,256,1.5);
+    }
+    // Subtle weathering streaks
+    for(let i=0;i<180;i++){
+      const px=Math.floor(rnd()*256),py=Math.floor(rnd()*256);
+      d.fillStyle=i%2?'rgba(70,68,64,0.08)':'rgba(255,255,255,0.08)';
+      d.fillRect(px,py,3,10+Math.floor(rnd()*18));
+    }
+    return repeatTexture(c,true);
+  }
+  const aptTex=makeAptTextures(),glassTex=makeGlassTextures(),brickTex=makeBrickTextures(),condoTex=makeCondoTextures();
+  const matApt=new THREE.MeshStandardMaterial({color:0xffffff,map:aptTex.map,vertexColors:true,roughness:.78,metalness:.04,
+    emissiveMap:aptTex.emissiveMap,emissive:0xffd9a3,emissiveIntensity:0,side:THREE.DoubleSide});
+  const matGlass=new THREE.MeshStandardMaterial({color:0xffffff,map:glassTex.map,vertexColors:true,roughness:.24,metalness:.58,
+    envMap:reflectedMap,envMapIntensity:.85,emissiveMap:glassTex.emissiveMap,emissive:0xffe4b8,emissiveIntensity:0,side:THREE.DoubleSide});
+  const matBrick=new THREE.MeshStandardMaterial({color:0xffffff,map:brickTex.map,vertexColors:true,roughness:.86,metalness:.02,
+    emissiveMap:brickTex.emissiveMap,emissive:0xffcb82,emissiveIntensity:0,side:THREE.DoubleSide});
+  const matCondo=new THREE.MeshStandardMaterial({color:0xffffff,map:condoTex.map,vertexColors:true,roughness:.62,metalness:.14,
+    envMap:reflectedMap,envMapIntensity:.35,emissiveMap:condoTex.emissiveMap,emissive:0xffdfad,emissiveIntensity:0,side:THREE.DoubleSide});
+  const wallMats=[matApt,matGlass,matBrick,matCondo];
+  const wallNames=['Taipei apartment facades','Taipei glass curtain walls','Taipei brick & shophouse facades','Taipei condo & stone facades'];
+  const wallUVScale=[[12.4,12.4],[12.8,15.2],[11.6,12.8],[13.6,13.6]];
+  const roofFlat=new THREE.MeshStandardMaterial({color:0xffffff,map:makeRoofFlatTexture(),vertexColors:true,roughness:.84,metalness:.08});
+  const roofPitched=new THREE.MeshStandardMaterial({color:0xffffff,map:makeRoofPitchedTexture(),vertexColors:true,roughness:.56,metalness:.24,side:THREE.DoubleSide});
+  // Rich 36-color per-style real-world Taipei wall & roof palettes
+  const stylePalettes=[
+    ['#f0e6d2','#e6d8be','#c97b5d','#d9a08c','#b8cab8','#bccbd6','#d4b483','#d8c3a5','#b86452','#e8d9a8','#c2b4a3','#e2e4e6'].map(c=>new THREE.Color(c)),
+    ['#4a7ea8','#3e7d74','#9ab8cc','#a89378','#3d5c78','#488a8c','#586978','#7aa8c7'].map(c=>new THREE.Color(c)),
+    ['#b55845','#c76e50','#c98c53','#dfd0b8','#d18874','#cfa55b','#9e5a50','#d6c8b2'].map(c=>new THREE.Color(c)),
+    ['#eef0f2','#b5aba0','#6a7078','#d8ccb8','#7a8da1','#9e9284','#e5dcc8','#736d66'].map(c=>new THREE.Color(c))
+  ];
+  const roofFlatPalette=['#4d8562','#3d7a6e','#a85042','#466c8c','#9fa3a6','#525a63','#b58c58','#b8c0c8'].map(c=>new THREE.Color(c));
+  const roofPitchedPalette=['#a85042','#3d7a6e','#466c8c','#b58c58','#525a63','#4d8562','#a85042','#3d7a6e'].map(c=>new THREE.Color(c));
   const landmarks=new THREE.Group();landmarks.name='Taipei landmarks';root.add(landmarks);
   const landmarkSites=[
     {name:'臺北101',lat:25.03396,lon:121.56450,radius:53,height:508,type:'101'},
@@ -411,17 +815,28 @@ function createTaipeiCity(scene,ground,airports){
     g.setAttribute('color',new THREE.Float32BufferAttribute(data.c,3));g.computeBoundingSphere();
     const m=new THREE.Mesh(g,mat);m.name=name;m.receiveShadow=true;group.add(m);
   }
-  function emitUpTri(out,p0,p1,p2,y,cr,cg,cb){
+  function emitUpTri(out,p0,p1,p2,y,cr,cg,cb,uvScale=.055){
     if((p1[1]-p0[1])*(p2[0]-p0[0])-(p1[0]-p0[0])*(p2[1]-p0[1])>0){
-      triFlat(out,p0[0],y,p0[1],p1[0],y,p1[1],p2[0],y,p2[1],cr,cg,cb,0,1,0,p0[0]*.25,p0[1]*.25,p1[0]*.25,p1[1]*.25,p2[0]*.25,p2[1]*.25);
+      triFlat(out,p0[0],y,p0[1],p1[0],y,p1[1],p2[0],y,p2[1],cr,cg,cb,0,1,0,p0[0]*uvScale,p0[1]*uvScale,p1[0]*uvScale,p1[1]*uvScale,p2[0]*uvScale,p2[1]*uvScale);
     }else{
-      triFlat(out,p0[0],y,p0[1],p2[0],y,p2[1],p1[0],y,p1[1],cr,cg,cb,0,1,0,p0[0]*.25,p0[1]*.25,p2[0]*.25,p2[1]*.25,p1[0]*.25,p1[1]*.25);
+      triFlat(out,p0[0],y,p0[1],p2[0],y,p2[1],p1[0],y,p1[1],cr,cg,cb,0,1,0,p0[0]*uvScale,p0[1]*uvScale,p2[0]*uvScale,p2[1]*uvScale,p1[0]*uvScale,p1[1]*uvScale);
     }
   }
-  function polygon(out,points,y,color){
+  function emitSlopedTri(out,ax,ay,az,bx,by,bz,cx,cy,cz,cr,cg,cb,u0,v0,u1,v1,u2,v2){
+    const e1x=bx-ax,e1y=by-ay,e1z=bz-az,e2x=cx-ax,e2y=cy-ay,e2z=cz-az;
+    let nx=e1y*e2z-e1z*e2y,ny=e1z*e2x-e1x*e2z,nz=e1x*e2y-e1y*e2x;
+    const len=Math.hypot(nx,ny,nz);if(len<1e-5)return;
+    nx/=len;ny/=len;nz/=len;
+    if(ny<0){
+      triFlat(out,ax,ay,az,cx,cy,cz,bx,by,bz,cr,cg,cb,-nx,-ny,-nz,u0,v0,u2,v2,u1,v1);
+    }else{
+      triFlat(out,ax,ay,az,bx,by,bz,cx,cy,cz,cr,cg,cb,nx,ny,nz,u0,v0,u1,v1,u2,v2);
+    }
+  }
+  function polygon(out,points,y,color,uvScale=.055){
     const n=points.length,cr=color.r,cg=color.g,cb=color.b;
     if(n===3){
-      emitUpTri(out,points[0],points[1],points[2],y,cr,cg,cb);
+      emitUpTri(out,points[0],points[1],points[2],y,cr,cg,cb,uvScale);
       return;
     }
     if(n===4){
@@ -431,24 +846,111 @@ function createTaipeiCity(scene,ground,airports){
       const c2=(p3[0]-p2[0])*(p0[1]-p3[1])-(p3[1]-p2[1])*(p0[0]-p3[0]);
       const c3=(p0[0]-p3[0])*(p1[1]-p0[1])-(p0[1]-p3[1])*(p1[0]-p0[0]);
       if((c0>=0&&c1>=0&&c2>=0&&c3>=0)||(c0<=0&&c1<=0&&c2<=0&&c3<=0)){
-        emitUpTri(out,p0,p1,p2,y,cr,cg,cb);
-        emitUpTri(out,p0,p2,p3,y,cr,cg,cb);
+        emitUpTri(out,p0,p1,p2,y,cr,cg,cb,uvScale);
+        emitUpTri(out,p0,p2,p3,y,cr,cg,cb,uvScale);
         return;
       }
     }
     const contour=points.map(p=>new THREE.Vector2(p[0],p[1]));
     for(const ids of THREE.ShapeUtils.triangulateShape(contour,[])){
-      emitUpTri(out,points[ids[0]],points[ids[1]],points[ids[2]],y,cr,cg,cb);
+      emitUpTri(out,points[ids[0]],points[ids[1]],points[ids[2]],y,cr,cg,cb,uvScale);
     }
   }
+  function hash2(x,z,s){
+    let n=Math.imul(Math.round(x*13.7)|0,374761393)^Math.imul(Math.round(z*17.3)|0,668265263)^Math.imul(s|0,2147483647);
+    n=Math.imul(n^(n>>>13),1274126177);
+    return ((n^(n>>>16))>>>0)/4294967296;
+  }
+  function polyInfo(points){
+    const n=points.length;
+    let area2=0,cx=0,cz=0,pos=0,neg=0;
+    for(let i=0;i<n;i++){
+      const a=points[i],b=points[(i+1)%n],c=points[(i+2)%n];
+      cx+=a[0];cz+=a[1];
+      area2+=a[0]*b[1]-b[0]*a[1];
+      const cr=(b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]);
+      if(cr>1e-4)pos++;else if(cr<-1e-4)neg++;
+    }
+    const area=Math.abs(area2)*.5;
+    return {signedArea:area2*.5,area,cx:cx/n,cz:cz/n,convex:(pos===0||neg===0)&&area>=12};
+  }
+  function pointInPoly(px,pz,points){
+    let inside=false;
+    for(let i=0,j=points.length-1;i<points.length;j=i++){
+      const xi=points[i][0],zi=points[i][1],xj=points[j][0],zj=points[j][1];
+      if(((zi>pz)!==(zj>pz))&&(px<(xj-xi)*(pz-zi)/((zj-zi)||1e-9)+xi))inside=!inside;
+    }
+    return inside;
+  }
+  function minEdgeDist(px,pz,points){
+    let best=1e9;
+    for(let i=0;i<points.length;i++){
+      const a=points[i],b=points[(i+1)%points.length],dx=b[0]-a[0],dz=b[1]-a[1],l2=dx*dx+dz*dz;
+      if(l2<1e-6)continue;
+      const t=Math.max(0,Math.min(1,((px-a[0])*dx+(pz-a[1])*dz)/l2));
+      const d=Math.hypot(px-(a[0]+dx*t),pz-(a[1]+dz*t));
+      if(d<best)best=d;
+    }
+    return best;
+  }
+  function extrudeWalls(target,points,y0,y1,cr,cg,cb,nSign,uScale,vScale,uOff){
+    const v=(y1-y0)/vScale;
+    for(let i=0;i<points.length;i++){
+      const a=points[i],b=points[(i+1)%points.length],dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz);
+      if(length<.01)continue;
+      const nx=nSign*dz/length,nz=-nSign*dx/length;
+      const u1=uOff+length/uScale;
+      triFlat(target,a[0],y0,a[1],b[0],y0,b[1],b[0],y1,b[1],cr,cg,cb,nx,0,nz,uOff,0,u1,0,u1,v);
+      triFlat(target,a[0],y0,a[1],b[0],y1,b[1],a[0],y1,a[1],cr,cg,cb,nx,0,nz,uOff,0,u1,v,uOff,v);
+    }
+  }
+  function emitHippedRoof(out,points,y0,ridgeH,cx,cz,cr,cg,cb){
+    const yTop=y0+ridgeH;
+    if(points.length===4){
+      const p0=points[0],p1=points[1],p2=points[2],p3=points[3];
+      const d01=Math.hypot(p1[0]-p0[0],p1[1]-p0[1]),d23=Math.hypot(p3[0]-p2[0],p3[1]-p2[1]);
+      const d12=Math.hypot(p2[0]-p1[0],p2[1]-p1[1]),d30=Math.hypot(p0[0]-p3[0],p0[1]-p3[1]);
+      let q0=p0,q1=p1,q2=p2,q3=p3;
+      if(d01+d23<d12+d30){q0=p1;q1=p2;q2=p3;q3=p0;}
+      const mAx=(q3[0]+q0[0])*.5,mAz=(q3[1]+q0[1])*.5,mBx=(q1[0]+q2[0])*.5,mBz=(q1[1]+q2[1])*.5;
+      const rAx=mAx+(mBx-mAx)*.22,rAz=mAz+(mBz-mAz)*.22;
+      const rBx=mBx+(mAx-mBx)*.22,rBz=mBz+(mAz-mBz)*.22;
+      const rLen=Math.hypot(rBx-rAx,rBz-rAz);
+      if(rLen>.75){
+        const sU1=Math.hypot(q1[0]-q0[0],q1[1]-q0[1])/4.5,sU2=Math.hypot(q3[0]-q2[0],q3[1]-q2[1])/4.5;
+        const sU3=Math.hypot(q0[0]-q3[0],q0[1]-q3[1])/4.5,sU4=Math.hypot(q2[0]-q1[0],q2[1]-q1[1])/4.5;
+        const sV=Math.max(.6,Math.hypot(q0[0]-rAx,q0[1]-rAz,ridgeH)/4.5);
+        // Side slope 1 (q0-q1 to rA-rB)
+        emitSlopedTri(out,q0[0],y0,q0[1],q1[0],y0,q1[1],rBx,yTop,rBz,cr,cg,cb,0,0,sU1,0,sU1*.78,sV);
+        emitSlopedTri(out,q0[0],y0,q0[1],rBx,yTop,rBz,rAx,yTop,rAz,cr,cg,cb,0,0,sU1*.78,sV,sU1*.22,sV);
+        // Side slope 2 (q2-q3 to rB-rA)
+        emitSlopedTri(out,q2[0],y0,q2[1],q3[0],y0,q3[1],rAx,yTop,rAz,cr,cg,cb,0,0,sU2,0,sU2*.78,sV);
+        emitSlopedTri(out,q2[0],y0,q2[1],rAx,yTop,rAz,rBx,yTop,rBz,cr,cg,cb,0,0,sU2*.78,sV,sU2*.22,sV);
+        // Hip ends
+        emitSlopedTri(out,q3[0],y0,q3[1],q0[0],y0,q0[1],rAx,yTop,rAz,cr,cg,cb,0,0,sU3,0,sU3*.5,sV);
+        emitSlopedTri(out,q1[0],y0,q1[1],q2[0],y0,q2[1],rBx,yTop,rBz,cr,cg,cb,0,0,sU4,0,sU4*.5,sV);
+        return;
+      }
+    }
+    for(let i=0;i<points.length;i++){
+      const a=points[i],b=points[(i+1)%points.length];
+      const eLen=Math.hypot(b[0]-a[0],b[1]-a[1])/4.5;
+      const sV=Math.max(.5,Math.hypot((a[0]+b[0])*.5-cx,(a[1]+b[1])*.5-cz,ridgeH)/4.5);
+      emitSlopedTri(out,a[0],y0,a[1],b[0],y0,b[1],cx,yTop,cz,cr,cg,cb,0,0,eLen,0,eLen*.5,sV);
+    }
+  }
+  const tmpWallColor=new THREE.Color(),tmpRoofColor=new THREE.Color(),tmpCrownColor=new THREE.Color();
   function* build(key,data){
     const group=new THREE.Group();group.name='Taipei tile '+key;
     group.userData.masks=[];
     const BC=typeof BuildingCollision!=='undefined'?BuildingCollision:null;
     if(BC)BC.clearGroup('tp:'+key);
-    const walls=buffers(),glazed=buffers(),roofs=buffers(),roads=buffers(),curbs=buffers(),lines=buffers(),waters=buffers();
+    const wallBufs=[buffers(),buffers(),buffers(),buffers()];
+    const roofFlatBuf=buffers(),roofPitchedBuf=buffers();
+    const roads=buffers(),curbs=buffers(),lines=buffers(),waters=buffers();
     let built=0;
-    for(const [x,z,h,tone,kind,coords] of data.b){
+    for(let bIdx=0;bIdx<data.b.length;bIdx++){
+      const [x,z,h,tone,kind,coords]=data.b[bIdx];
       if(skipBuilding(x,z))continue;
       const points=[];
       let minX=1e9,minZ=1e9,maxX=-1e9,maxZ=-1e9;
@@ -468,21 +970,110 @@ function createTaipeiCity(scene,ground,airports){
         for(let i=0;i<points.length;i++){const gp=ground(points[i][0],points[i][1]);if(gp<base)base=gp;}
         base-=.25;
       }
-      const top=center+h,color=palette[tone].clone().multiplyScalar(h>75?.76:1);
-      if(BC){const sx=(maxX-minX)*.06,sz=(maxZ-minZ)*.06;BC.add('tp:'+key,minX+sx,minZ+sz,maxX-sx,maxZ-sz,top,base);}
-      const cr=color.r,cg=color.g,cb=color.b;
-      const isGlazed=h>50||kind===1&&h>25;
-      const facadeTarget=isGlazed?glazed:walls;
-      const vScale=isGlazed?12.8:3.2;
-      polygon(roofs,points,top,roofPalette[tone]);
-      for(let i=0;i<points.length;i++){
-        const a=points[i],b=points[(i+1)%points.length],dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz);
-        if(length<.01)continue;
-        const nx=dz/length,nz=-dx/length;
-        const u=length/12.8,v=(top-base)/vScale;
-        triFlat(facadeTarget,a[0],base,a[1],b[0],base,b[1],b[0],top,b[1],cr,cg,cb,nx,0,nz,0,0,u,0,u,v);
-        triFlat(facadeTarget,a[0],base,a[1],b[0],top,b[1],a[0],top,a[1],cr,cg,cb,nx,0,nz,0,0,u,v,0,v);
+      const bw=maxX-minX,bd=maxZ-minZ,info=polyInfo(points);
+      const nSign=info.signedArea>=0?1:-1;
+      // Deterministic multi-archetype classification using height, footprint & coordinate hash
+      const hStyle=hash2(x,z,11+(tone|0)*3+(kind|0)*7);
+      const hCol=hash2(x,z,29+bIdx);
+      const hRoof=hash2(x,z,53+bIdx);
+      const hRoof2=hash2(x,z,79+bIdx);
+      const hCrown=hash2(x,z,101+bIdx);
+      const hCrown2=hash2(x,z,131+bIdx);
+      let style=0;
+      if(h>=34){
+        const r=Math.max(0,Math.min(.999,hStyle-(kind===1?.05:0)));
+        style=r<.60?1:r<.95?3:0;
+      }else if(h>=15){
+        style=hStyle<.45?0:hStyle<.70?3:hStyle<.85?2:1;
+      }else{
+        style=hStyle<.38?2:hStyle<.76?0:hStyle<.90?3:1;
       }
+      // Per-building rich palette color + subtle deterministic HSL jitter so neighbors never look identical
+      const pal=stylePalettes[style];
+      const baseWallCol=pal[Math.floor(hCol*pal.length)%pal.length];
+      const jHue=(hash2(x,z,157)-.5)*.044;
+      const jSat=(hash2(x,z,179)-.5)*.14;
+      const jLit=(hash2(x,z,199)-.5)*.11;
+      tmpWallColor.copy(baseWallCol).offsetHSL(jHue,jSat,jLit);
+      if(h>85)tmpWallColor.multiplyScalar(.92);
+      const cr=tmpWallColor.r,cg=tmpWallColor.g,cb=tmpWallColor.b;
+      const top=center+h;
+      let collisionTop=top;
+      const [uScale,vScale]=wallUVScale[style];
+      const uOff=Math.floor(hash2(x,z,223)*4)*.25;
+      extrudeWalls(wallBufs[style],points,base,top,cr,cg,cb,nSign,uScale,vScale,uOff);
+
+      // 3D Roof & Crown Silhouettes (batched directly into chunk buffers — zero extra draw calls!)
+      const rHue=(hash2(x,z,241)-.5)*.036,rSat=(hash2(x,z,263)-.5)*.12,rLit=(hash2(x,z,283)-.5)*.10;
+      if(h<=14&&hRoof<.45&&info.convex&&points.length<=10&&info.area>=14){
+        // Low-rise 3D pitched/hipped roof cap (1.8m - 3.2m ridge height)
+        const ridgeH=1.8+hRoof2*1.4;
+        const rBase=roofPitchedPalette[Math.floor(hRoof2*roofPitchedPalette.length)%roofPitchedPalette.length];
+        tmpRoofColor.copy(rBase).offsetHSL(rHue,rSat,rLit);
+        emitHippedRoof(roofPitchedBuf,points,top,ridgeH,info.cx,info.cz,tmpRoofColor.r,tmpRoofColor.g,tmpRoofColor.b);
+        collisionTop=top+ridgeH;
+      }else if(h<=14&&hRoof>=.45&&hRoof<.66){
+        // Low-rise colorful flat corrugated-metal roof (鐵皮平頂)
+        const rBase=roofPitchedPalette[Math.floor(hRoof2*roofPitchedPalette.length)%roofPitchedPalette.length];
+        tmpRoofColor.copy(rBase).offsetHSL(rHue,rSat,rLit);
+        polygon(roofPitchedBuf,points,top,tmpRoofColor,.14);
+      }else{
+        // Flat Taiwanese rooftop (emerald waterproof / concrete / slate / solar / ochre)
+        const rBase=roofFlatPalette[Math.floor(hRoof2*roofFlatPalette.length)%roofFlatPalette.length];
+        tmpRoofColor.copy(rBase).offsetHSL(rHue,rSat,rLit);
+        polygon(roofFlatBuf,points,top,tmpRoofColor,.055);
+        // Mid/High-rise 3D stepped setback crowns & rooftop penthouses (~55% of h >= 18m)
+        if(h>=18&&hRoof<.55){
+          const crownStyle=style===1&&h<45?3:style;
+          const [cuS,cvS]=wallUVScale[crownStyle];
+          tmpCrownColor.copy(tmpWallColor).offsetHSL(0,0,hCrown>.5?.05:-.06);
+          if(h>=45&&info.convex&&bw>=12&&bd>=12&&hRoof2<.68){
+            // Stepped setback crown on skyscrapers
+            const inset=.62+hCrown*.16;
+            const crownH=Math.min(18,Math.max(5.5,h*(.10+hCrown*.08)));
+            const insetPts=points.map(p=>[info.cx+(p[0]-info.cx)*inset,info.cz+(p[1]-info.cz)*inset]);
+            extrudeWalls(wallBufs[style],insetPts,top,top+crownH,tmpCrownColor.r,tmpCrownColor.g,tmpCrownColor.b,nSign,uScale,vScale,uOff);
+            polygon(roofFlatBuf,insetPts,top+crownH,tmpRoofColor,.055);
+            collisionTop=top+crownH;
+            if(h>=70&&bw>=16&&bd>=16){
+              const inset2=.56,capH=3.5+hCrown2*3.5;
+              const capPts=insetPts.map(p=>[info.cx+(p[0]-info.cx)*inset2,info.cz+(p[1]-info.cz)*inset2]);
+              extrudeWalls(wallBufs[crownStyle],capPts,top+crownH,top+crownH+capH,tmpCrownColor.r*.92,tmpCrownColor.g*.92,tmpCrownColor.b*.92,nSign,cuS,cvS,uOff);
+              polygon(roofFlatBuf,capPts,top+crownH+capH,tmpRoofColor,.055);
+              collisionTop=top+crownH+capH;
+            }
+          }else if(info.convex&&info.area>=26){
+            // Rooftop mechanical penthouse / stair-tower box (46%-60% inset, 2.5m-6.0m tall)
+            const inset=.46+hCrown*.14,phH=2.5+hCrown2*3.5;
+            const pRef=points[Math.floor(hash2(x,z,307)*points.length)%points.length];
+            const ox=info.cx+(pRef[0]-info.cx)*.22,oz=info.cz+(pRef[1]-info.cz)*.22;
+            const phPts=points.map(p=>[ox+(p[0]-ox)*inset,oz+(p[1]-oz)*inset]);
+            const phCx=ox+(info.cx-ox)*inset,phCz=oz+(info.cz-oz)*inset;
+            extrudeWalls(wallBufs[crownStyle],phPts,top,top+phH,tmpCrownColor.r,tmpCrownColor.g,tmpCrownColor.b,nSign,cuS,cvS,uOff);
+            if(style===0&&h<34&&hCrown2<.30&&phPts.length<=6){
+              // Authentic Taiwanese rooftop metal-sheet penthouse cap (頂樓加蓋)
+              const pRidge=1.3+hCrown*.8;
+              const pCol=roofPitchedPalette[Math.floor(hCrown*roofPitchedPalette.length)%roofPitchedPalette.length];
+              tmpRoofColor.copy(pCol).offsetHSL(rHue,rSat,rLit);
+              emitHippedRoof(roofPitchedBuf,phPts,top+phH,pRidge,phCx,phCz,tmpRoofColor.r,tmpRoofColor.g,tmpRoofColor.b);
+              collisionTop=top+phH+pRidge;
+            }else{
+              polygon(roofFlatBuf,phPts,top+phH,tmpRoofColor,.055);
+              collisionTop=top+phH;
+            }
+          }else if(!info.convex&&pointInPoly(info.cx,info.cz,points)){
+            const rMin=minEdgeDist(info.cx,info.cz,points);
+            if(rMin>=3.0){
+              const half=Math.min(rMin*.65,6.5),phH=2.6+hCrown2*3.0;
+              const phPts=[[info.cx-half,info.cz-half],[info.cx+half,info.cz-half],[info.cx+half,info.cz+half],[info.cx-half,info.cz+half]];
+              extrudeWalls(wallBufs[crownStyle],phPts,top,top+phH,tmpCrownColor.r,tmpCrownColor.g,tmpCrownColor.b,1,cuS,cvS,uOff);
+              polygon(roofFlatBuf,phPts,top+phH,tmpRoofColor,.055);
+              collisionTop=top+phH;
+            }
+          }
+        }
+      }
+      if(BC){const sx=bw*.06,sz=bd*.06;BC.add('tp:'+key,minX+sx,minZ+sz,maxX-sx,maxZ-sz,collisionTop,base);}
       built++;if(built%72===0)yield;
     }
     for(const coords of data.w){
@@ -553,9 +1144,9 @@ function createTaipeiCity(scene,ground,airports){
       }
       if(r%12===0)yield;
     }
-    // Winding may differ between OSM ways; use both sides for facades only.
-    wall.side=THREE.DoubleSide;
-    mesh(group,walls,wall,'OSM footprint facades');mesh(group,glazed,officeGlass,'Taipei glass curtain walls');mesh(group,roofs,roof,'Taipei rooftops');
+    // Winding may differ between OSM ways; all 4 facade styles use DoubleSide and only ~6 building draw calls per tile.
+    for(let s=0;s<4;s++)mesh(group,wallBufs[s],wallMats[s],wallNames[s]);
+    mesh(group,roofFlatBuf,roofFlat,'Taipei flat rooftops');mesh(group,roofPitchedBuf,roofPitched,'Taipei pitched & corrugated roofs');
     mesh(group,roads,asphalt,'Taipei streets and bridges');mesh(group,curbs,concreteCurb,'Taipei curbs and viaduct piers');mesh(group,lines,stripe,'Road markings');mesh(group,waters,water,'Taipei water');
     Object.assign(group.userData,{buildings:built,roads:data.r.length,routes:data.r.filter(r=>r[0]>=11&&r[2].length>=6)});root.add(group);loaded.set(key,group);
     stats.buildings+=built;stats.roads+=data.r.length;stats.tiles=loaded.size;
@@ -626,8 +1217,13 @@ function createTaipeiCity(scene,ground,airports){
     const at=latLon(x,z),near=at.lat>24.90&&at.lat<25.22&&at.lon>121.35&&at.lon<121.74;
     root.visible=near;if(!near)return;
     const mobile=touchControls.mode.value==='mobile',range=mobile?4800:quality==='ultra'?11000:quality==='high'?9000:6500;
-    wall.emissiveIntensity=(1-day)*.68;glass.emissiveIntensity=(1-day)*.95;
-    officeGlass.emissiveIntensity=Math.pow(1-day,1.25)*1.28;officeGlass.envMapIntensity=.25+day*1.15;
+    const nightAmt=1-day,nightCurve=Math.pow(nightAmt,1.2);
+    matApt.emissiveIntensity=nightAmt*.82;
+    matGlass.emissiveIntensity=nightCurve*1.18;matGlass.envMapIntensity=.22+day*.85;
+    matBrick.emissiveIntensity=nightAmt*.78;
+    matCondo.emissiveIntensity=nightCurve*.92;matCondo.envMapIntensity=.12+day*.35;
+    glass.emissiveIntensity=nightAmt*.95;
+    officeGlass.emissiveIntensity=Math.pow(nightAmt,1.25)*1.28;officeGlass.envMapIntensity=.25+day*1.15;
     beaconMat.emissiveIntensity=(1-day)*(Math.sin(clock*4.5)>0?2.1:.15);
     ferrisGreen.emissiveIntensity=.45+(1-day)*1.25;
     asphalt.roughness=wet?.32:.86;asphalt.metalness=wet?.18:.02;

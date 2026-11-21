@@ -883,21 +883,39 @@ function initialize(){
   const realWorldCorridors=typeof createRealWorld100kmCorridors==='function'?createRealWorld100kmCorridors(scene,renderedGround,airports):
     {root:new THREE.Group(),update(){}};
   const buildingGeo = new THREE.BoxGeometry();
+  const cityWallTexCanvas=document.createElement('canvas');
+  cityWallTexCanvas.width=cityWallTexCanvas.height=128;
+  const cwCtx=cityWallTexCanvas.getContext('2d');
+  cwCtx.fillStyle='#f3efe8';cwCtx.fillRect(0,0,128,128);
+  cwCtx.fillStyle='#ded8ce';
+  for(let y=0;y<128;y+=21) cwCtx.fillRect(0,y+18,128,2);
+  for(let row=0;row<6;row++){
+    const wy=3+row*21;
+    for(let col=0;col<5;col++){
+      const wx=5+col*24;
+      cwCtx.fillStyle='#2a343d';cwCtx.fillRect(wx,wy,16,13);
+      cwCtx.fillStyle=(row*3+col*5)%4===0?'#6a8da3':'#48667a';
+      cwCtx.fillRect(wx+2,wy+2,5,9);cwCtx.fillRect(wx+9,wy+2,5,9);
+      cwCtx.fillStyle='#d4dce2';cwCtx.fillRect(wx,wy+12,16,2);
+    }
+  }
+  const cityWallTex=new THREE.CanvasTexture(cityWallTexCanvas);
+  cityWallTex.colorSpace=THREE.SRGBColorSpace;
   const windows=document.createElement('canvas');
-  windows.width=windows.height=64;
+  windows.width=windows.height=128;
   const windowInk=windows.getContext('2d');
-  windowInk.fillStyle='#000';windowInk.fillRect(0,0,64,64);
-  for(let row=0;row<5;row++) for(let col=0;col<5;col++){
+  windowInk.fillStyle='#000';windowInk.fillRect(0,0,128,128);
+  for(let row=0;row<6;row++) for(let col=0;col<5;col++){
     if((row*3+col*7)%5<2) continue;
-    windowInk.fillStyle=(row+col)%3===0?'#ebbf77':'#858b90';
-    windowInk.fillRect(3+col*12,3+row*12,6,5);
+    windowInk.fillStyle=(row+col)%3===0?'#ffda88':(row+col)%2===0?'#f6e5be':'#97b8cc';
+    windowInk.fillRect(7+col*24,5+row*21,12,9);
   }
   const cityWindows=new THREE.CanvasTexture(windows);
   cityWindows.colorSpace=THREE.SRGBColorSpace;
-  const cityWall=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.87,emissive:0xffdb9d,emissiveMap:cityWindows,emissiveIntensity:0});
+  const cityWall=new THREE.MeshStandardMaterial({color:0xffffff,map:cityWallTex,roughness:.76,metalness:.08,emissive:0xffdb9d,emissiveMap:cityWindows,emissiveIntensity:0});
   const liteRoofCanvas=document.createElement('canvas');liteRoofCanvas.width=liteRoofCanvas.height=64;
   const lrc=liteRoofCanvas.getContext('2d');
-  lrc.fillStyle='#437a59';lrc.fillRect(0,0,64,64);
+  lrc.fillStyle='#8b9398';lrc.fillRect(0,0,64,64);
   lrc.fillStyle='#5c5750';
   lrc.fillRect(0,0,64,4);lrc.fillRect(0,60,64,4);lrc.fillRect(0,0,4,64);lrc.fillRect(60,0,4,64);
   lrc.fillStyle='#ccd2d8';lrc.beginPath();lrc.arc(20,22,7,0,Math.PI*2);lrc.fill();
@@ -908,7 +926,11 @@ function initialize(){
   const blocks=new THREE.InstancedMesh(buildingGeo,[cityWall,cityWall,cityRoof,cityRoof,cityWall,cityWall],cityLiteVolumes.length);
   blocks.name='Lightweight airport cities';
   const dummy = new THREE.Object3D();
-  const cityTones=[0xa6a3a1,0xc9c2ad,0x9fa9af,0xada299,0x9dada7,0xc7c8c2,0xa3a7b0];
+  const cityTones=[
+    0xf2e8d5,0xd98a6c,0xc86a52,0xe6d4b5,0x7da4be,0xb9ccb9,0xdca872,0xe9ecee,
+    0xc47d64,0x8ea6b8,0xd6bc8b,0xb45e4c,0xcfd8d0,0x648399,0xe4c6a8,0x8b969e,
+    0xd39482,0x587f85,0xe7d9aa,0xa48e78
+  ];
   blocks.count=0;
   for(const [lat,lon,width,depth,height,tone] of cityLiteVolumes){
     if(taipeiCity.inside(lat,lon)||taiwanCity.inside?.(lat,lon)||worldCity.inside?.(lat,lon))continue;
@@ -923,7 +945,10 @@ function initialize(){
     dummy.scale.set(width,height+3,depth);
     dummy.updateMatrix();
     blocks.setMatrixAt(blocks.count,dummy.matrix);
-    blocks.setColorAt(blocks.count++,new THREE.Color(cityTones[tone]??cityTones[0]));
+    const hHash=Math.abs(Math.imul(Math.floor(lat*10000),73856093)^Math.imul(Math.floor(lon*10000),19349663));
+    const c=new THREE.Color(cityTones[(hHash+(tone|0))%cityTones.length]);
+    c.offsetHSL(((hHash&31)/31-0.5)*0.04,(((hHash>>5)&31)/31-0.5)*0.10,(((hHash>>10)&31)/31-0.5)*0.10);
+    blocks.setColorAt(blocks.count++,c);
   }
   scene.add(blocks);
   function renderedGround(x,z){
@@ -948,7 +973,7 @@ function initialize(){
     if(!detailed||loadingScenery) return;
     loadingScenery=true;
     const assets=['taipei-data.js','forest-cover.js?v=1',
-      'vegetation.js?v=scene28','taiwan-highways.js?v=1','airport-city-data.js?v=2','regional-scenery.js?v=city27'];
+      'vegetation.js?v=scene28','taiwan-highways.js?v=1','airport-city-data.js?v=2','regional-scenery.js?v=city27&arch=098'];
     Promise.all(assets.map(src=>new Promise((resolve,reject)=>{
       const script=document.createElement('script');
       script.src=src;
