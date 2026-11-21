@@ -287,17 +287,39 @@ const WorldAtlas = (() => {
     return exact;
   }
 
-  // Real-World Global 30m SRTM Digital Elevation Model (AWS Mapzen Terrarium z=10 RGB PNGs, CORS-enabled)
+  // Dual-Resolution Real-World Global SRTM Digital Elevation Model (AWS Mapzen Terrarium RGB PNGs, CORS-enabled)
+  // z=10 (~150m/px) global horizon fallback + z=12 (~38m/px) high-resolution elevation within 100 km of every airport
   const demCache = new Map();
+  const demCache12 = new Map();
   const demListeners = new Set();
+  const demQueue12 = [];
+  const demQueued12 = new Set();
   let demLoading = 0;
+  let demLoading12 = 0;
+  let draining12 = false;
+  let demNotifyTimer = null;
+  let lastDem10Key = null;
+  let lastDem12Key = null;
   let demCanvas = null, demCtx = null;
+
+  const airportZoneCache = new Map();
+  let airportZoneCachedRef = null;
+  let airportZoneCachedLen = -1;
 
   function onDemLoad(fn) {
     if (typeof fn === 'function') demListeners.add(fn);
   }
   function notifyDemListeners() {
-    for (const fn of demListeners) { try { fn(); } catch {} }
+    if (demListeners.size === 0) return;
+    if (typeof setTimeout === 'undefined') {
+      for (const fn of demListeners) { try { fn(); } catch {} }
+      return;
+    }
+    if (demNotifyTimer !== null) return;
+    demNotifyTimer = setTimeout(() => {
+      demNotifyTimer = null;
+      for (const fn of demListeners) { try { fn(); } catch {} }
+    }, 100);
   }
   function demLonLatToTileFrac(lon, lat, z = 10) {
     const n = 1 << z;
@@ -310,6 +332,90 @@ const WorldAtlas = (() => {
     return { tx, ty, u: fx - Math.floor(fx), v: fy - Math.floor(fy) };
   }
   const isLowMemDevice = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '') || (navigator.deviceMemory && navigator.deviceMemory <= 4));
+
+  function isInside100kmAirportZone(lon, lat) {
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return false;
+    const airports = typeof allAirports !== 'undefined' && Array.isArray(allAirports)
+      ? allAirports
+      : (typeof window !== 'undefined' && Array.isArray(window.allAirports))
+        ? window.allAirports
+        : (typeof globalThis !== 'undefined' && Array.isArray(globalThis.allAirports))
+          ? globalThis.allAirports
+          : [];
+    if (airports.length === 0) return true;
+    if (airports !== airportZoneCachedRef || airports.length !== airportZoneCachedLen) {
+      airportZoneCache.clear();
+      airportZoneCachedRef = airports;
+      airportZoneCachedLen = airports.length;
+    }
+    const wLon = wrapLon(lon);
+    const cLat = Math.max(-89.9, Math.min(89.9, lat));
+    const bx = Math.round(wLon * 20); // 0.05 deg bucket (~5.5 km)
+    const by = Math.round(cLat * 20);
+    const bKey = (by + 1800) * 7201 + (bx + 3600);
+    const cached = airportZoneCache.get(bKey);
+    if (cached !== undefined) return cached;
+
+    const bLon = bx * 0.05;
+    const bLat = by * 0.05;
+    const cosLat = Math.max(0.15, Math.cos(bLat * Math.PI / 180));
+    const maxDeg = 1.05; // ~105-116 km radius (covers full 100 km airport zone + bucket margin)
+    const maxDeg2 = maxDeg * maxDeg;
+    let inside = false;
+    for (let i = 0; i < airports.length; i++) {
+      const ap = airports[i];
+      if (!ap || typeof ap.lat !== 'number' || typeof ap.lon !== 'number') continue;
+      const dLat = Math.abs(bLat - ap.lat);
+      if (dLat > maxDeg) continue;
+      let dLon = Math.abs(bLon - ap.lon) % 360;
+      if (dLon > 180) dLon = 360 - dLon;
+      const adjLon = dLon * cosLat;
+      if (adjLon > maxDeg) continue;
+      if (dLat * dLat + adjLon * adjLon <= maxDeg2) {
+        inside = true;
+        break;
+      }
+    }
+    if (airportZoneCache.size >= 4096) airportZoneCache.clear();
+    airportZoneCache.set(bKey, inside);
+    return inside;
+  }
+
+  function decodeTerrariumImage(img) {
+    try {
+      if (!demCanvas) {
+        demCanvas = document.createElement('canvas');
+        demCanvas.width = 256; demCanvas.height = 256;
+        demCtx = demCanvas.getContext('2d', { willReadFrequently: true });
+      }
+      if (demCtx && typeof demCtx.getImageData === 'function') {
+        demCtx.clearRect(0, 0, 256, 256);
+        demCtx.drawImage(img, 0, 0, 256, 256);
+        const rgba = demCtx.getImageData(0, 0, 256, 256).data;
+        const elev = new Float32Array(256 * 256);
+        for (let i = 0, p = 0; i < 65536; i++, p += 4) {
+          const h = (rgba[p] * 256 + rgba[p + 1] + rgba[p + 2] / 256) - 32768;
+          elev[i] = h > 0.2 ? h : 0;
+        }
+        return elev;
+      }
+    } catch {}
+    return null;
+  }
+
+  function evictDemCache(cache, maxEntries) {
+    if (cache.size <= maxEntries) return;
+    for (const [k, v] of cache) {
+      if (cache.size <= maxEntries) break;
+      if (v && v.state === 'loading') continue;
+      cache.delete(k);
+    }
+    while (cache.size > maxEntries) {
+      const oldest = cache.keys().next().value;
+      cache.delete(oldest);
+    }
+  }
+
   function requestDEMTile(tx, ty) {
     if (typeof Image === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
     const key = `10:${tx}:${ty}`;
@@ -321,39 +427,93 @@ const WorldAtlas = (() => {
     img.referrerPolicy = 'no-referrer';
     img.onload = () => {
       demLoading = Math.max(0, demLoading - 1);
-      try {
-        if (!demCanvas) {
-          demCanvas = document.createElement('canvas');
-          demCanvas.width = 256; demCanvas.height = 256;
-          demCtx = demCanvas.getContext('2d', { willReadFrequently: true });
-        }
-        if (demCtx && typeof demCtx.getImageData === 'function') {
-          demCtx.clearRect(0, 0, 256, 256);
-          demCtx.drawImage(img, 0, 0, 256, 256);
-          const rgba = demCtx.getImageData(0, 0, 256, 256).data;
-          const elev = new Float32Array(256 * 256);
-          for (let i = 0, p = 0; i < 65536; i++, p += 4) {
-            const h = (rgba[p] * 256 + rgba[p + 1] + rgba[p + 2] / 256) - 32768;
-            elev[i] = h > 0.2 ? h : 0;
-          }
-          demCache.set(key, { state: 'ready', data: elev });
-          const maxDem = isLowMemDevice ? 36 : 84;
-          while (demCache.size > maxDem) {
-            const oldest = demCache.keys().next().value;
-            demCache.delete(oldest);
-          }
-          notifyDemListeners();
-          return;
-        }
-      } catch {}
+      const elev = decodeTerrariumImage(img);
+      const maxDem = isLowMemDevice ? 36 : 84;
+      if (elev) {
+        demCache.delete(key);
+        demCache.set(key, { state: 'ready', data: elev });
+        lastDem10Key = key;
+        evictDemCache(demCache, maxDem);
+        notifyDemListeners();
+        return;
+      }
+      demCache.delete(key);
       demCache.set(key, { state: 'error', data: null });
+      evictDemCache(demCache, maxDem);
     };
     img.onerror = () => {
       demLoading = Math.max(0, demLoading - 1);
+      demCache.delete(key);
       demCache.set(key, { state: 'error', data: null });
+      evictDemCache(demCache, isLowMemDevice ? 36 : 84);
     };
     img.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/10/${tx}/${ty}.png`;
   }
+
+  function drainDEMQueue12() {
+    if (draining12) return;
+    draining12 = true;
+    try {
+      const maxLoading12 = isLowMemDevice ? 4 : 5;
+      while (demLoading12 < maxLoading12 && demQueue12.length > 0) {
+        const next = demQueue12.shift();
+        const key = `12:${next.tx}:${next.ty}`;
+        demQueued12.delete(key);
+        if (!demCache12.has(key)) startDEMTile12(next.tx, next.ty, key);
+      }
+    } finally {
+      draining12 = false;
+    }
+  }
+
+  function startDEMTile12(tx, ty, key) {
+    demCache12.set(key, { state: 'loading', data: null });
+    demLoading12++;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.referrerPolicy = 'no-referrer';
+    img.onload = () => {
+      demLoading12 = Math.max(0, demLoading12 - 1);
+      const elev = decodeTerrariumImage(img);
+      const maxDem12 = isLowMemDevice ? 28 : 68;
+      if (elev) {
+        demCache12.delete(key);
+        demCache12.set(key, { state: 'ready', data: elev });
+        lastDem12Key = key;
+        evictDemCache(demCache12, maxDem12);
+        notifyDemListeners();
+      } else {
+        demCache12.delete(key);
+        demCache12.set(key, { state: 'error', data: null });
+        evictDemCache(demCache12, maxDem12);
+      }
+      drainDEMQueue12();
+    };
+    img.onerror = () => {
+      demLoading12 = Math.max(0, demLoading12 - 1);
+      demCache12.delete(key);
+      demCache12.set(key, { state: 'error', data: null });
+      evictDemCache(demCache12, isLowMemDevice ? 28 : 68);
+      drainDEMQueue12();
+    };
+    img.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/${tx}/${ty}.png`;
+  }
+
+  function requestDEMTile12(tx, ty) {
+    if (typeof Image === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    const key = `12:${tx}:${ty}`;
+    if (demCache12.has(key)) return;
+    const maxLoading12 = isLowMemDevice ? 4 : 5;
+    if (demLoading12 >= maxLoading12) {
+      if (!demQueued12.has(key) && demQueue12.length < 32) {
+        demQueued12.add(key);
+        demQueue12.push({ tx, ty });
+      }
+      return;
+    }
+    startDEMTile12(tx, ty, key);
+  }
+
   function prefetchDEM(lon, lat) {
     const { tx, ty } = demLonLatToTileFrac(lon, lat, 10);
     const n = 1024;
@@ -368,9 +528,93 @@ const WorldAtlas = (() => {
     }
     list.sort((a, b) => a.d - b.d);
     for (const item of list) requestDEMTile(item.tx, item.ty);
+
+    if (isInside100kmAirportZone(lon, lat)) {
+      const { tx: tx12, ty: ty12 } = demLonLatToTileFrac(lon, lat, 12);
+      const n12 = 4096;
+      const r12 = isLowMemDevice ? 1 : 2; // 3x3 mobile, 5x5 desktop
+      const list12 = [];
+      for (let dy = -r12; dy <= r12; dy++) {
+        const ny = ty12 + dy;
+        if (ny < 0 || ny >= n12) continue;
+        for (let dx = -r12; dx <= r12; dx++) {
+          list12.push({ tx: ((tx12 + dx) % n12 + n12) % n12, ty: ny, d: dx * dx + dy * dy });
+        }
+      }
+      list12.sort((a, b) => a.d - b.d);
+      if (demQueue12.length > 0) {
+        demQueue12.length = 0;
+        demQueued12.clear();
+      }
+      for (const item of list12) requestDEMTile12(item.tx, item.ty);
+    }
   }
+
+  function catmullRom(p0, p1, p2, p3, t) {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return 0.5 * (
+      (2 * p1) +
+      (-p0 + p2) * t +
+      (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+      (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+    );
+  }
+  function sampleDemGridBilinear(d, u, v) {
+    const px = Math.max(0, Math.min(254.999, u * 255));
+    const py = Math.max(0, Math.min(254.999, v * 255));
+    const x0 = px | 0, y0 = py | 0;
+    const fx = px - x0, fy = py - y0;
+    const h00 = d[y0 * 256 + x0], h10 = d[y0 * 256 + x0 + 1];
+    const h01 = d[(y0 + 1) * 256 + x0], h11 = d[(y0 + 1) * 256 + x0 + 1];
+    return (h00 * (1 - fx) + h10 * fx) * (1 - fy) + (h01 * (1 - fx) + h11 * fx) * fy;
+  }
+  function sampleDemGridBicubic(d, u, v) {
+    const px = Math.max(0, Math.min(254.999, u * 255));
+    const py = Math.max(0, Math.min(254.999, v * 255));
+    const x0 = px | 0, y0 = py | 0;
+    const fx = px - x0, fy = py - y0;
+    const xm1 = x0 > 0 ? x0 - 1 : 0;
+    const xp1 = x0 + 1;
+    const xp2 = x0 + 2 < 256 ? x0 + 2 : 255;
+    const ym1 = y0 > 0 ? y0 - 1 : 0;
+    const yp1 = y0 + 1;
+    const yp2 = y0 + 2 < 256 ? y0 + 2 : 255;
+    const r0 = ym1 * 256, r1 = y0 * 256, r2 = yp1 * 256, r3 = yp2 * 256;
+    const c0 = catmullRom(d[r0 + xm1], d[r0 + x0], d[r0 + xp1], d[r0 + xp2], fx);
+    const c1 = catmullRom(d[r1 + xm1], d[r1 + x0], d[r1 + xp1], d[r1 + xp2], fx);
+    const c2 = catmullRom(d[r2 + xm1], d[r2 + x0], d[r2 + xp1], d[r2 + xp2], fx);
+    const c3 = catmullRom(d[r3 + xm1], d[r3 + x0], d[r3 + xp1], d[r3 + xp2], fx);
+    const val = catmullRom(c0, c1, c2, c3, fy);
+    const h00 = d[r1 + x0], h10 = d[r1 + xp1];
+    const h01 = d[r2 + x0], h11 = d[r2 + xp1];
+    const minH = Math.min(h00, h10, h01, h11);
+    const maxH = Math.max(h00, h10, h01, h11);
+    const pad = (maxH - minH) * 0.15;
+    const clamped = Math.max(minH - pad, Math.min(maxH + pad, val));
+    return clamped > 0 ? clamped : 0;
+  }
+
   function sampleRealDEM(lon, lat) {
     if (typeof Image === 'undefined') return null;
+    // 1. High-resolution z=12 (~38m/px) DEM within 100 km of airports
+    const { tx: tx12, ty: ty12, u: u12, v: v12 } = demLonLatToTileFrac(lon, lat, 12);
+    const key12 = `12:${tx12}:${ty12}`;
+    const entry12 = demCache12.get(key12);
+    if (entry12) {
+      if (entry12.state === 'ready' && entry12.data) {
+        if (lastDem12Key !== key12) {
+          demCache12.delete(key12);
+          demCache12.set(key12, entry12);
+          lastDem12Key = key12;
+        }
+        return sampleDemGridBicubic(entry12.data, u12, v12);
+      }
+    } else if (isInside100kmAirportZone(lon, lat)) {
+      requestDEMTile12(tx12, ty12);
+    }
+
+    // 2. Fast global z=10 (~150m/px) horizon fallback
     const { tx, ty, u, v } = demLonLatToTileFrac(lon, lat, 10);
     const key = `10:${tx}:${ty}`;
     const entry = demCache.get(key);
@@ -379,14 +623,24 @@ const WorldAtlas = (() => {
       return null;
     }
     if (entry.state !== 'ready' || !entry.data) return null;
-    const px = Math.max(0, Math.min(254.999, u * 255));
-    const py = Math.max(0, Math.min(254.999, v * 255));
-    const x0 = px | 0, y0 = py | 0;
-    const fx = px - x0, fy = py - y0;
-    const d = entry.data;
-    const h00 = d[y0 * 256 + x0], h10 = d[y0 * 256 + x0 + 1];
-    const h01 = d[(y0 + 1) * 256 + x0], h11 = d[(y0 + 1) * 256 + x0 + 1];
-    return (h00 * (1 - fx) + h10 * fx) * (1 - fy) + (h01 * (1 - fx) + h11 * fx) * fy;
+    if (lastDem10Key !== key) {
+      demCache.delete(key);
+      demCache.set(key, entry);
+      lastDem10Key = key;
+    }
+    return sampleDemGridBilinear(entry.data, u, v);
+  }
+
+  function getDemStats() {
+    return {
+      z10Count: demCache.size,
+      z12Count: demCache12.size,
+      z10Loading: demLoading,
+      z12Loading: demLoading12,
+      z12Queued: demQueue12.length,
+      z10Max: isLowMemDevice ? 36 : 84,
+      z12Max: isLowMemDevice ? 28 : 68
+    };
   }
 
   function globalLandElevation(lon, lat, x = 0, z = 0) {
@@ -837,6 +1091,9 @@ const WorldAtlas = (() => {
     sampleRealDEM,
     prefetchDEM,
     onDemLoad,
+    isInside100kmAirportZone,
+    demLonLatToTileFrac,
+    getDemStats,
     greatCircleGeoPoints,
     drawVectorWorld
   };

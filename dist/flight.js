@@ -226,7 +226,8 @@ function initialize(){
   if(renderer.domElement&&typeof renderer.domElement.addEventListener==='function'){
     renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();},false);
   }
-  const detailImage={value:landTexture}, detailImageReady={value:0}, detailBounds={value:new THREE.Vector4(0,0,1800,1800)};
+  const detailImage={value:landTexture}, detailImageReady={value:0}, detailBounds={value:new THREE.Vector4(0,0,1000,1000)};
+  const midDetailImage={value:landTexture}, midDetailReady={value:0}, midDetailBounds={value:new THREE.Vector4(0,0,4800,4800)};
   const terrainMicroTextures=(typeof TerrainMicroDetail!=='undefined'&&!renderer.instrumentOnly)?TerrainMicroDetail.createTextures(THREE,renderer):null;
   const seaRayUniforms={rtEnabled:{value:1},sunDir:{value:new THREE.Vector3(0,1,0)},dayRatio:{value:1},skyTime:{value:0}};
   function terrainPhoto(shader,tile){
@@ -235,6 +236,9 @@ function initialize(){
     shader.uniforms.regionalImage=tile?.image??{value:landTexture};
     shader.uniforms.regionalImageReady=tile?.ready??{value:0};
     shader.uniforms.regionalImageOrigin=tile?.origin??{value:new THREE.Vector2()};
+    shader.uniforms.midDetailImage=midDetailImage;
+    shader.uniforms.midDetailReady=midDetailReady;
+    shader.uniforms.midDetailBounds=midDetailBounds;
     shader.uniforms.detailImage=detailImage;
     shader.uniforms.detailImageReady=detailImageReady;
     shader.uniforms.detailBounds=detailBounds;
@@ -247,8 +251,8 @@ function initialize(){
     shader.uniforms.seaSkyTime=seaRayUniforms.skyTime;
     shader.vertexShader='varying vec2 terrainXZ;\nvarying vec3 terrainWorldPos;\n'+shader.vertexShader.replace('#include <begin_vertex>',
       '#include <begin_vertex>\n terrainWorldPos=(modelMatrix * vec4(transformed,1.0)).xyz;\n terrainXZ=terrainWorldPos.xz;');
-    shader.fragmentShader='varying vec2 terrainXZ;\nvarying vec3 terrainWorldPos;\nuniform sampler2D taipeiImage,regionalImage,detailImage,atlasImage;\n'+
-      'uniform float taipeiImageReady,regionalImageReady,detailImageReady,atlasReady,seaRtEnabled,seaDayRatio,seaSkyTime;\nuniform vec2 regionalImageOrigin;\nuniform vec3 seaSunDir;\nuniform vec4 atlasBounds,detailBounds;\n'+
+    shader.fragmentShader='varying vec2 terrainXZ;\nvarying vec3 terrainWorldPos;\nuniform sampler2D taipeiImage,regionalImage,midDetailImage,detailImage,atlasImage;\n'+
+      'uniform float taipeiImageReady,regionalImageReady,midDetailReady,detailImageReady,atlasReady,seaRtEnabled,seaDayRatio,seaSkyTime;\nuniform vec2 regionalImageOrigin;\nuniform vec3 seaSunDir;\nuniform vec4 atlasBounds,midDetailBounds,detailBounds;\n'+
       shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
         vec2 atlasUV=(terrainXZ-atlasBounds.xy)/atlasBounds.zw;
         if(atlasReady>0.5&&all(greaterThanEqual(atlasUV,vec2(0.0)))&&all(lessThanEqual(atlasUV,vec2(1.0)))){
@@ -262,20 +266,29 @@ function initialize(){
           float visiblePhoto=regional.a*smoothstep(.0006,.002,max(regional.r,max(regional.g,regional.b)))*mix(0.35,1.0,landMask);
           diffuseColor.rgb=mix(diffuseColor.rgb,regional.rgb*1.12,visiblePhoto);
         }
-        if(detailImageReady>0.5){
-          vec2 dUV=(terrainXZ-detailBounds.xy)/detailBounds.zw;
-          float dEdge=min(min(dUV.x,dUV.y),1.0-max(dUV.x,dUV.y));
-          if(dEdge>0.0){
-            vec4 det=texture2D(detailImage,vec2(dUV.x,1.0-dUV.y));
-            float dMask=smoothstep(0.0,0.09,dEdge)*det.a*smoothstep(.0006,.002,max(det.r,max(det.g,det.b)))*mix(0.42,1.0,smoothstep(-0.35,0.45,terrainWorldPos.y));
-            diffuseColor.rgb=mix(diffuseColor.rgb,det.rgb*1.12,dMask);
-          }
-        }
         vec2 imageUV=(terrainXZ-vec2(-20000.0,-18000.0))/vec2(39000.0,33500.0);
         float imageEdge=min(min(imageUV.x,imageUV.y),1.0-max(imageUV.x,imageUV.y));
         if(taipeiImageReady>0.5 && imageEdge>0.0){
           vec3 photo=texture2D(taipeiImage,vec2(imageUV.x,1.0-imageUV.y)).rgb;
           diffuseColor.rgb=mix(diffuseColor.rgb,photo*1.12,smoothstep(0.0,0.035,imageEdge));
+        }
+        if(midDetailReady>0.5){
+          vec2 mUV=(terrainXZ-midDetailBounds.xy)/midDetailBounds.zw;
+          float mEdge=min(min(mUV.x,mUV.y),1.0-max(mUV.x,mUV.y));
+          if(mEdge>0.0){
+            vec4 mid=texture2D(midDetailImage,vec2(mUV.x,1.0-mUV.y));
+            float mMask=smoothstep(0.0,0.10,mEdge)*mid.a*smoothstep(.0006,.002,max(mid.r,max(mid.g,mid.b)))*mix(0.42,1.0,smoothstep(-0.35,0.45,terrainWorldPos.y));
+            diffuseColor.rgb=mix(diffuseColor.rgb,mid.rgb*1.12,mMask);
+          }
+        }
+        if(detailImageReady>0.5){
+          vec2 dUV=(terrainXZ-detailBounds.xy)/detailBounds.zw;
+          float dEdge=min(min(dUV.x,dUV.y),1.0-max(dUV.x,dUV.y));
+          if(dEdge>0.0){
+            vec4 det=texture2D(detailImage,vec2(dUV.x,1.0-dUV.y));
+            float dMask=smoothstep(0.0,0.12,dEdge)*det.a*smoothstep(.0006,.002,max(det.r,max(det.g,det.b)))*mix(0.42,1.0,smoothstep(-0.35,0.45,terrainWorldPos.y));
+            diffuseColor.rgb=mix(diffuseColor.rgb,det.rgb*1.12,dMask);
+          }
         }
         float closeFade=1.0-smoothstep(2800.0,28500.0,length(vViewPosition));
         if(closeFade>0.005){
@@ -356,7 +369,7 @@ function initialize(){
       TerrainMicroDetail.inject(shader,terrainMicroTextures,seaRayUniforms.sunDir);
     }
   }
-  terrainMaterial.customProgramCacheKey=()=>'terrainPhotoV4';
+  terrainMaterial.customProgramCacheKey=()=>'terrainPhotoV5';
   terrainMaterial.onBeforeCompile=shader=>terrainPhoto(shader);
   const satelliteCredit=byId('satelliteCredit');
   if(!renderer.instrumentOnly) loadTaiwanAtlas().then(texture=>{
@@ -366,7 +379,7 @@ function initialize(){
   }).catch(()=>{});
   const taiwanSatellite=renderer.instrumentOnly?null:createTaiwanSatellite(tile=>{
     const material=terrainMaterial.clone();
-    material.customProgramCacheKey=()=>'terrainPhotoV4';
+    material.customProgramCacheKey=()=>'terrainPhotoV5';
     tile.image.value=landTexture;
     material.onBeforeCompile=shader=>terrainPhoto(shader,tile);
     return material;
@@ -375,6 +388,11 @@ function initialize(){
     taiwanSatellite.detailUniforms.image=detailImage;
     taiwanSatellite.detailUniforms.ready=detailImageReady;
     taiwanSatellite.detailUniforms.bounds=detailBounds;
+  }
+  if(taiwanSatellite?.midDetailUniforms){
+    taiwanSatellite.midDetailUniforms.image=midDetailImage;
+    taiwanSatellite.midDetailUniforms.ready=midDetailReady;
+    taiwanSatellite.midDetailUniforms.bounds=midDetailBounds;
   }
   const terrainChunks=new Map();
   const span=11520;
@@ -861,6 +879,8 @@ function initialize(){
   const globalScenery=typeof createGlobalScenery==='function'?createGlobalScenery(scene,renderedGround,airports):
     {root:new THREE.Group(),update(){}};
   const groundDetail=typeof createGroundDetailRing==='function'?createGroundDetailRing(scene,renderedGround,airports):
+    {root:new THREE.Group(),update(){}};
+  const realWorldCorridors=typeof createRealWorld100kmCorridors==='function'?createRealWorld100kmCorridors(scene,renderedGround,airports):
     {root:new THREE.Group(),update(){}};
   const buildingGeo = new THREE.BoxGeometry();
   const windows=document.createElement('canvas');
@@ -7146,6 +7166,8 @@ function initialize(){
       renderingQuality(),activeDay,byId('weather').value==='wet'||byId('weather').value==='storm');
     groundDetail.root.visible=!hangarMode;
     if(!renderer.instrumentOnly&&!hangarMode)groundDetail.update(camera.position.x,camera.position.y,camera.position.z,activeDay,renderingQuality());
+    realWorldCorridors.root.visible=!hangarMode;
+    if(!renderer.instrumentOnly&&!hangarMode)realWorldCorridors.update(camera.position.x,camera.position.z,dt,activeDay,renderingQuality());
     worldCity.root.visible=!hangarMode;
     if(!renderer.instrumentOnly&&!hangarMode)worldCity.update(dt,camera.position.x,camera.position.z,
       renderingQuality(),activeDay,byId('weather').value==='wet'||byId('weather').value==='storm');

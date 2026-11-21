@@ -219,6 +219,58 @@ function createGlobalScenery(scene, ground, airports = []) {
   });
   const treeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.88 });
 
+  // Cloned OSM materials with per-vertex RGB color tinting (1:1 real building:colour & roof:colour)
+  const osmWallMat = typeof bldgWallMat.clone === 'function' ? bldgWallMat.clone() : new THREE.MeshStandardMaterial({
+    color: 0xffffff, map: wallDayTex, emissive: 0xffd694, emissiveMap: wallNightTex, emissiveIntensity: 0, roughness: 0.76, metalness: 0.08
+  });
+  osmWallMat.vertexColors = true;
+  if (osmWallMat.color && typeof osmWallMat.color.setHex === 'function') osmWallMat.color.setHex(0xffffff);
+
+  const osmGlassMat = typeof landmarkGlassMat.clone === 'function' ? landmarkGlassMat.clone() : new THREE.MeshStandardMaterial({
+    color: 0xffffff, map: glassDayTex, metalness: 0.54, roughness: 0.19, emissive: 0xffe6ad, emissiveMap: glassNightTex, emissiveIntensity: 0.12
+  });
+  osmGlassMat.vertexColors = true;
+  if (osmGlassMat.color && typeof osmGlassMat.color.setHex === 'function') osmGlassMat.color.setHex(0xffffff);
+
+  const osmRoofMat = typeof roofMat.clone === 'function' ? roofMat.clone() : new THREE.MeshStandardMaterial({
+    color: 0xffffff, map: roofDetailTex, roughness: 0.82
+  });
+  osmRoofMat.vertexColors = true;
+  if (osmRoofMat.color && typeof osmRoofMat.color.setHex === 'function') osmRoofMat.color.setHex(0xffffff);
+
+  const osmPierMat = new THREE.MeshStandardMaterial({ color: 0x9aa2aa, roughness: 0.88, metalness: 0.06 });
+  const osmTrafficMat = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true });
+
+  // Shared unit highway vehicle geometry (+Z forward: twin warm-white headlights; -Z rear: twin vivid red taillights)
+  function createOsmTrafficVehicleGeometry() {
+    const pos = [], nrm = [], col = [];
+    const pushBox = (cx, cy, cz, w, h, d, r, g, b) => {
+      const hw = w * 0.5, hh = h * 0.5, hd = d * 0.5;
+      const x0 = cx - hw, x1 = cx + hw, y0 = cy - hh, y1 = cy + hh, z0 = cz - hd, z1 = cz + hd;
+      const q = (ax, ay, az, bx, by, bz, dx, dy, dz, ex, ey, ez, nx, ny, nz) => {
+        pos.push(ax, ay, az, bx, by, bz, dx, dy, dz, ax, ay, az, dx, dy, dz, ex, ey, ez);
+        for (let k = 0; k < 6; k++) { nrm.push(nx, ny, nz); col.push(r, g, b); }
+      };
+      q(x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1, 0, 0, 1);
+      q(x1, y0, z0, x0, y0, z0, x0, y1, z0, x1, y1, z0, 0, 0, -1);
+      q(x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1, 1, 0, 0);
+      q(x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, -1, 0, 0);
+      q(x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0, 0, 1, 0);
+    };
+    pushBox(0, 0.72, 0, 2.0, 1.25, 4.2, 0.25, 0.28, 0.34);          // dark vehicle body
+    pushBox(-0.62, 0.72, 2.25, 0.62, 0.46, 0.55, 1.0, 0.98, 0.88); // front-left warm-white headlight
+    pushBox(0.62, 0.72, 2.25, 0.62, 0.46, 0.55, 1.0, 0.98, 0.88);  // front-right warm-white headlight
+    pushBox(-0.62, 0.74, -2.25, 0.62, 0.44, 0.55, 1.0, 0.14, 0.09);// rear-left red taillight
+    pushBox(0.62, 0.74, -2.25, 0.62, 0.44, 0.55, 1.0, 0.14, 0.09); // rear-right red taillight
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return geo;
+  }
+  const osmTrafficGeo = createOsmTrafficVehicleGeometry();
+  const osmTreeGeo = new THREE.DodecahedronGeometry ? new THREE.DodecahedronGeometry(1, 1) : new THREE.SphereGeometry(1, 7, 5);
+
   function insideTaiwanDetailed(lat, lon) {
     return lat >= 21.8 && lat <= 25.4 && lon >= 119.3 && lon <= 122.1;
   }
@@ -248,6 +300,22 @@ function createGlobalScenery(scene, ground, airports = []) {
       if (d < bestDist) { bestDist = d; bestAirport = a; }
     }
     return { dist: bestDist, airport: bestAirport };
+  }
+
+  function nearestAnyAirportDist(x, z) {
+    let bestDist = 1e9;
+    const scan = (list) => {
+      if (!Array.isArray(list)) return;
+      for (let i = 0; i < list.length; i++) {
+        const a = list[i];
+        if (!a || a.carrier || !Number.isFinite(a.x) || !Number.isFinite(a.z)) continue;
+        const d = Math.hypot(x - a.x, z - a.z);
+        if (d < bestDist) bestDist = d;
+      }
+    };
+    scan(airports);
+    if (typeof allAirports !== 'undefined' && allAirports !== airports) scan(allAirports);
+    return bestDist;
   }
 
   function hash2(ix, iz) {
@@ -1280,7 +1348,7 @@ function createGlobalScenery(scene, ground, airports = []) {
       if (realLandmarksBuilt.has(lm.id)) continue;
       const pt = geoPoint(lm.lat, lm.lon);
       if (!pt) continue;
-      if (Math.hypot(px - pt.x, pz - pt.z) > 95000) continue;
+      if (Math.hypot(px - pt.x, pz - pt.z) > 105000) continue;
       realLandmarksBuilt.add(lm.id);
       const grp = buildRealLandmarkAtGPS(lm);
       if (grp) root.add(grp);
@@ -1334,10 +1402,704 @@ function createGlobalScenery(scene, ground, airports = []) {
     return tris;
   }
 
-  // Exact 1:1 Real OpenStreetMap Polygon Extruded Building Streamer (merged into 2 GPU draw calls per cell!)
+  // XZ ray-casting point-in-polygon check for OSM parks, forests & stepped rooftop penthouses
+  function pointInPolyXZ(x, z, pts) {
+    let inside = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const xi = pts[i].x, zi = pts[i].z;
+      const xj = pts[j].x, zj = pts[j].z;
+      const intersect = ((zi > z) !== (zj > z)) && (x < ((xj - xi) * (z - zi)) / ((zj - zi) || 1e-9) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  const OSM_NAMED_COLORS = {
+    white: [0.95, 0.95, 0.94],
+    offwhite: [0.93, 0.91, 0.86],
+    ivory: [0.95, 0.93, 0.86],
+    cream: [0.94, 0.90, 0.80],
+    beige: [0.87, 0.80, 0.69],
+    sand: [0.86, 0.78, 0.63],
+    sandstone: [0.84, 0.74, 0.58],
+    wheat: [0.90, 0.82, 0.66],
+    tan: [0.82, 0.71, 0.55],
+    khaki: [0.78, 0.72, 0.54],
+    buff: [0.88, 0.78, 0.60],
+    ochre: [0.80, 0.56, 0.24],
+    grey: [0.66, 0.68, 0.71],
+    gray: [0.66, 0.68, 0.71],
+    lightgrey: [0.81, 0.83, 0.85],
+    lightgray: [0.81, 0.83, 0.85],
+    silver: [0.79, 0.81, 0.84],
+    darkgrey: [0.40, 0.43, 0.47],
+    darkgray: [0.40, 0.43, 0.47],
+    charcoal: [0.32, 0.35, 0.39],
+    anthracite: [0.30, 0.33, 0.37],
+    black: [0.22, 0.24, 0.27],
+    brown: [0.58, 0.41, 0.31],
+    lightbrown: [0.72, 0.56, 0.43],
+    darkbrown: [0.42, 0.30, 0.22],
+    chocolate: [0.52, 0.34, 0.22],
+    sienna: [0.66, 0.38, 0.24],
+    umber: [0.46, 0.35, 0.26],
+    red: [0.74, 0.34, 0.28],
+    darkred: [0.55, 0.22, 0.20],
+    brick: [0.71, 0.37, 0.29],
+    maroon: [0.52, 0.20, 0.22],
+    crimson: [0.74, 0.24, 0.26],
+    terracotta: [0.80, 0.46, 0.32],
+    orange: [0.85, 0.54, 0.28],
+    coral: [0.86, 0.50, 0.40],
+    salmon: [0.88, 0.56, 0.48],
+    rust: [0.68, 0.34, 0.22],
+    yellow: [0.90, 0.81, 0.47],
+    lightyellow: [0.94, 0.90, 0.68],
+    gold: [0.85, 0.72, 0.36],
+    amber: [0.88, 0.66, 0.28],
+    blue: [0.44, 0.60, 0.78],
+    darkblue: [0.26, 0.39, 0.56],
+    lightblue: [0.68, 0.80, 0.91],
+    skyblue: [0.60, 0.78, 0.92],
+    navy: [0.24, 0.33, 0.48],
+    azure: [0.48, 0.68, 0.86],
+    cyan: [0.48, 0.76, 0.82],
+    teal: [0.34, 0.60, 0.62],
+    green: [0.44, 0.60, 0.47],
+    darkgreen: [0.28, 0.44, 0.32],
+    lightgreen: [0.64, 0.78, 0.62],
+    olive: [0.54, 0.58, 0.36],
+    sage: [0.62, 0.70, 0.58],
+    copper: [0.42, 0.64, 0.56],
+    pink: [0.86, 0.67, 0.68],
+    rose: [0.84, 0.58, 0.60],
+    purple: [0.58, 0.48, 0.66],
+    violet: [0.60, 0.50, 0.70],
+    slate: [0.45, 0.50, 0.56],
+    stone: [0.80, 0.77, 0.71],
+    limestone: [0.85, 0.81, 0.73],
+    marble: [0.92, 0.91, 0.88],
+    granite: [0.62, 0.60, 0.59],
+    concrete: [0.76, 0.78, 0.80],
+    metal: [0.72, 0.76, 0.80],
+    glass: [0.66, 0.80, 0.90]
+  };
+
+  function hexToRgb01(hex) {
+    return [((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255];
+  }
+
+  function parseOsmColor(raw, fallbackRgb) {
+    if (typeof raw === 'string' && raw.trim()) {
+      const s = raw.trim().toLowerCase();
+      if (s[0] === '#') {
+        const hex = s.slice(1);
+        if (/^[0-9a-f]{6}$/.test(hex)) {
+          return [
+            parseInt(hex.slice(0, 2), 16) / 255,
+            parseInt(hex.slice(2, 4), 16) / 255,
+            parseInt(hex.slice(4, 6), 16) / 255
+          ];
+        }
+        if (/^[0-9a-f]{3}$/.test(hex)) {
+          return [
+            parseInt(hex[0] + hex[0], 16) / 255,
+            parseInt(hex[1] + hex[1], 16) / 255,
+            parseInt(hex[2] + hex[2], 16) / 255
+          ];
+        }
+      }
+      const rgbMatch = s.match(/^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)/);
+      if (rgbMatch) {
+        return [
+          Math.min(1, Math.max(0, parseFloat(rgbMatch[1]) / 255)),
+          Math.min(1, Math.max(0, parseFloat(rgbMatch[2]) / 255)),
+          Math.min(1, Math.max(0, parseFloat(rgbMatch[3]) / 255))
+        ];
+      }
+      const norm = s.replace(/[\s_-]+/g, '');
+      if (OSM_NAMED_COLORS[norm]) return OSM_NAMED_COLORS[norm];
+    }
+    return fallbackRgb || [0.86, 0.87, 0.89];
+  }
+
+  // Exact 1:1 Real OpenStreetMap Polygon Extruded Buildings, Highways, Live Traffic & Parks Streamer
   const liveOsmCells = new Map();
+  const liveOsmTraffic = new Map();
+  const osmTrafficDummy = new THREE.Object3D();
   let liveOsmBusy = false;
   let lastOsmCheck = 0;
+
+  function updateOsmTrafficEntry(entry, dt, nightAmt = 0) {
+    const { inst, paths, vehicles } = entry;
+    if (!inst || !vehicles || !vehicles.length) return;
+    const step = Math.min(0.1, Math.max(0, dt || 0));
+    const scaleBoost = 1 + nightAmt * 0.16;
+    for (let i = 0; i < vehicles.length; i++) {
+      const v = vehicles[i];
+      const path = paths[v.pathIdx];
+      if (!path || path.totalLen <= 0.1) continue;
+      v.dist += v.dir * v.speed * step;
+      if (v.dist > path.totalLen) v.dist -= path.totalLen;
+      else if (v.dist < 0) v.dist += path.totalLen;
+      if (v.dist > path.totalLen || v.dist < 0) {
+        v.dist = ((v.dist % path.totalLen) + path.totalLen) % path.totalLen;
+      }
+      // Find active segment along polyline
+      let acc = 0;
+      let segIdx = 0;
+      const segLens = path.segLens;
+      for (let s = 0; s < segLens.length; s++) {
+        if (v.dist <= acc + segLens[s] || s === segLens.length - 1) {
+          segIdx = s;
+          break;
+        }
+        acc += segLens[s];
+      }
+      const segLen = segLens[segIdx] || 1;
+      const t = Math.min(1, Math.max(0, (v.dist - acc) / segLen));
+      const a = path.pts[segIdx], b = path.pts[segIdx + 1];
+      const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+      const hLen = Math.hypot(dx, dz) || 1;
+      const tx = dx / hLen, tz = dz / hLen;
+      // Right-hand lateral offset perpendicular to travel direction
+      const rx = -tz, rz = tx;
+      const px = a.x + dx * t + rx * v.laneOffset;
+      const py = a.y + dy * t + 0.18;
+      const pz = a.z + dz * t + rz * v.laneOffset;
+      const yaw = Math.atan2(tx * v.dir, tz * v.dir);
+      osmTrafficDummy.position.set(px, py, pz);
+      osmTrafficDummy.rotation.set(0, yaw, 0);
+      osmTrafficDummy.scale.set(scaleBoost, scaleBoost, scaleBoost);
+      osmTrafficDummy.updateMatrix();
+      inst.setMatrixAt(i, osmTrafficDummy.matrix);
+    }
+    if (inst.instanceMatrix) inst.instanceMatrix.needsUpdate = true;
+  }
+
+  function updateLiveOsmTraffic(dt, nightAmt = 0) {
+    for (const entry of liveOsmTraffic.values()) {
+      updateOsmTrafficEntry(entry, dt, nightAmt);
+    }
+  }
+
+  function evictOldOsmCells() {
+    const maxLiveOsmCells = isLowMem ? 8 : 20;
+    while (liveOsmCells.size > maxLiveOsmCells) {
+      const oldKey = liveOsmCells.keys().next().value;
+      const oldVal = liveOsmCells.get(oldKey);
+      if (oldVal && typeof oldVal === 'object' && oldVal.isObject3D) {
+        root.remove(oldVal);
+        oldVal.traverse(o => {
+          if (o.geometry && o.geometry !== osmTrafficGeo && o.geometry !== osmTreeGeo) {
+            o.geometry.dispose();
+          }
+        });
+      }
+      liveOsmCells.delete(oldKey);
+      liveOsmTraffic.delete(oldKey);
+      const bi = liveOsmBoxes.findIndex(b => b.key === oldKey);
+      if (bi >= 0) liveOsmBoxes.splice(bi, 1);
+    }
+  }
+
+  function buildOsmCellFromData(cellKey, data, cellLat, cellLon, maxWays) {
+    if (!data || !Array.isArray(data.elements)) { liveOsmCells.set(cellKey, 'empty'); evictOldOsmCells(); return null; }
+    const nodes = new Map();
+    const buildingWays = [];
+    const highwayWays = [];
+    const parkWays = [];
+    for (let i = 0; i < data.elements.length; i++) {
+      const el = data.elements[i];
+      if (el.type === 'node') {
+        nodes.set(el.id, [el.lat, el.lon]);
+      } else if (el.type === 'way' && Array.isArray(el.nodes) && el.nodes.length >= 2 && el.tags) {
+        const t = el.tags;
+        if (t.building && el.nodes.length >= 3) {
+          buildingWays.push(el);
+        } else if (t.highway && /^(motorway|trunk|primary)$/.test(t.highway)) {
+          highwayWays.push(el);
+        } else if ((t.landuse === 'forest' || t.landuse === 'wood' || t.leisure === 'park') && el.nodes.length >= 3) {
+          parkWays.push(el);
+        }
+      }
+    }
+    if (!buildingWays.length && !highwayWays.length && !parkWays.length) {
+      liveOsmCells.set(cellKey, 'empty');
+      evictOldOsmCells();
+      return null;
+    }
+
+    // Regional architectural defaults when explicit OSM colour tags are absent
+    const country = typeof WorldAtlas !== 'undefined' && Number.isFinite(cellLat) && Number.isFinite(cellLon)
+      ? WorldAtlas.countryAt(cellLon, cellLat) : null;
+    const cellCenter = (Number.isFinite(cellLat) && Number.isFinite(cellLon)) ? geoPoint(cellLat, cellLon) : null;
+    const hubAp = cellCenter ? nearestHubInfo(cellCenter.x, cellCenter.z).airport : null;
+    const biome = country?.biome || 'temperate';
+    const regionCode = hubAp?.region || (biome === 'arid' ? 'me' : biome === 'mediterranean' ? 'eu' : 'na');
+    const pal = getRegionalPalette(country, regionCode);
+    const isEuropean = regionCode === 'eu' || biome === 'mediterranean';
+    const isMiddleEast = regionCode === 'me' || biome === 'arid';
+    const isJapan = Number.isFinite(cellLat) && Number.isFinite(cellLon) && cellLat >= 24 && cellLat <= 46 && cellLon >= 123 && cellLon <= 148;
+
+    // 1. Extrude real OSM buildings with true building:colour, roof:colour, height & stepped rooftops
+    const wPos = [], wNrm = [], wUv = [], wCol = [];
+    const gPos = [], gNrm = [], gUv = [], gCol = [];
+    const rPos = [], rNrm = [], rUv = [], rCol = [];
+    let bldgCount = 0;
+    let cellMinX = 1e12, cellMaxX = -1e12, cellMinZ = 1e12, cellMaxZ = -1e12;
+
+    const pushWallQuad = (posArr, nrmArr, uvArr, colArr, ax, az, bx, bz, yBot, yTop, nx, nz, uLen, vRep, rgb) => {
+      posArr.push(ax, yBot, az, bx, yBot, bz, bx, yTop, bz, ax, yBot, az, bx, yTop, bz, ax, yTop, az);
+      for (let k = 0; k < 6; k++) {
+        nrmArr.push(nx, 0, nz);
+        colArr.push(rgb[0], rgb[1], rgb[2]);
+      }
+      uvArr.push(0, 0, uLen, 0, uLen, vRep, 0, 0, uLen, vRep, 0, vRep);
+    };
+
+    const pushRoofTri = (p0x, p0z, p1x, p1z, p2x, p2z, yTop, rgb) => {
+      rPos.push(p0x, yTop, p0z, p2x, yTop, p2z, p1x, yTop, p1z);
+      rNrm.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+      rUv.push(p0x * 0.04, p0z * 0.04, p2x * 0.04, p2z * 0.04, p1x * 0.04, p1z * 0.04);
+      for (let k = 0; k < 3; k++) rCol.push(rgb[0], rgb[1], rgb[2]);
+    };
+
+    const pushPenthouseBox = (cx, cz, hx, hz, yBot, yTop, wallRgb, roofRgb) => {
+      const x0 = cx - hx, x1 = cx + hx, z0 = cz - hz, z1 = cz + hz;
+      const vRep = Math.max(0.5, (yTop - yBot) / 8);
+      const uX = Math.max(0.5, (hx * 2) / 10), uZ = Math.max(0.5, (hz * 2) / 10);
+      pushWallQuad(wPos, wNrm, wUv, wCol, x0, z1, x1, z1, yBot, yTop, 0, 1, uX, vRep, wallRgb);
+      pushWallQuad(wPos, wNrm, wUv, wCol, x1, z0, x0, z0, yBot, yTop, 0, -1, uX, vRep, wallRgb);
+      pushWallQuad(wPos, wNrm, wUv, wCol, x1, z1, x1, z0, yBot, yTop, 1, 0, uZ, vRep, wallRgb);
+      pushWallQuad(wPos, wNrm, wUv, wCol, x0, z0, x0, z1, yBot, yTop, -1, 0, uZ, vRep, wallRgb);
+      pushRoofTri(x0, z0, x0, z1, x1, z1, yTop, roofRgb);
+      pushRoofTri(x0, z0, x1, z1, x1, z0, yTop, roofRgb);
+    };
+
+    for (let wi = 0; wi < buildingWays.length; wi++) {
+      if (bldgCount >= maxWays) break;
+      const w = buildingWays[wi];
+      const pts = [];
+      const rawIds = w.nodes;
+      const endIdx = rawIds[0] === rawIds[rawIds.length - 1] ? rawIds.length - 1 : rawIds.length;
+      for (let i = 0; i < endIdx; i++) {
+        const nd = nodes.get(rawIds[i]);
+        if (nd) pts.push(geoPoint(nd[0], nd[1]));
+      }
+      if (pts.length < 3 || pts.length > 48) continue;
+      let cx = 0, cz = 0;
+      let minX = 1e12, maxX = -1e12, minZ = 1e12, maxZ = -1e12;
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i];
+        cx += p.x; cz += p.z;
+        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+        if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
+      }
+      cx /= pts.length; cz /= pts.length;
+      if (inAirportClearance(cx, cz, 140)) continue;
+      const gy = ground(cx, cz);
+      if (gy < 0.5) continue;
+
+      const tags = w.tags || {};
+      const rawH = typeof tags.height === 'string' ? parseFloat(tags.height.replace(/[^\d.+-]/g, '')) : parseFloat(tags.height);
+      const rawLevels = parseFloat(tags['building:levels']);
+      const parsedH = (Number.isFinite(rawH) && rawH > 0) ? rawH : (Number.isFinite(rawLevels) && rawLevels > 0 ? rawLevels * 3.5 : 0);
+      const bh = parsedH > 2.5 ? Math.min(420, parsedH) : (tags.building === 'apartments' || tags.building === 'commercial' ? 18 : tags.building === 'office' ? 28 : 10.5);
+      const y0 = gy - 1.5, y1 = gy + bh;
+      const matTag = typeof tags['building:material'] === 'string' ? tags['building:material'].trim().toLowerCase() : '';
+      const isGlass = bh > 36 || tags.building === 'office' || tags.building === 'skyscraper' || matTag === 'glass';
+
+      // Signed area to ensure consistent outward wall normals
+      let sArea = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        sArea += a.x * b.z - b.x * a.z;
+      }
+      if (Math.abs(sArea) < 12) continue;
+      if (sArea < 0) pts.reverse();
+
+      // Resolve realistic per-building wall & roof RGB colors (explicit OSM tags always take priority 1:1!)
+      const bSeed = Math.abs(Math.floor(cx * 3.1 + cz * 5.7)) + wi;
+      const defaultWallHex = isGlass
+        ? pal.glass[bSeed % pal.glass.length]
+        : (isJapan ? [0xf0eee9, 0xe7e1d6, 0xdce0e4, 0xebe6dc][bSeed % 4] : pal.apt[bSeed % pal.apt.length]);
+      let fallbackWallRgb = hexToRgb01(defaultWallHex);
+      if (matTag && OSM_NAMED_COLORS[matTag.replace(/[\s_-]+/g, '')]) {
+        fallbackWallRgb = OSM_NAMED_COLORS[matTag.replace(/[\s_-]+/g, '')];
+      }
+      const wallRgb = parseOsmColor(tags['building:colour'] || tags['building:color'], fallbackWallRgb);
+
+      let fallbackRoofRgb;
+      if (isEuropean && bh < 26) {
+        fallbackRoofRgb = hexToRgb01([0xb85d40, 0xa85238, 0x9c4c36, 0x7a5c52][bSeed % 4]);
+      } else if (isMiddleEast) {
+        fallbackRoofRgb = hexToRgb01([0xd6c3a4, 0xcab696, 0xbfa988][bSeed % 3]);
+      } else if (isJapan) {
+        fallbackRoofRgb = hexToRgb01([0x9ea5ac, 0x8b949c, 0xa8adb2][bSeed % 3]);
+      } else {
+        fallbackRoofRgb = hexToRgb01(bh >= 26 ? 0x6f7780 : [0x7c838a, 0x6c737a, 0x8b7e74][bSeed % 3]);
+      }
+      const roofRgb = parseOsmColor(tags['roof:colour'] || tags['roof:color'], fallbackRoofRgb);
+
+      const tPos = isGlass ? gPos : wPos;
+      const tNrm = isGlass ? gNrm : wNrm;
+      const tUv = isGlass ? gUv : wUv;
+      const tCol = isGlass ? gCol : wCol;
+      const vRepeat = Math.max(1, bh / 12);
+
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        if (a.x < cellMinX) cellMinX = a.x; if (a.x > cellMaxX) cellMaxX = a.x;
+        if (a.z < cellMinZ) cellMinZ = a.z; if (a.z > cellMaxZ) cellMaxZ = a.z;
+        const dx = b.x - a.x, dz = b.z - a.z;
+        const len = Math.hypot(dx, dz);
+        if (len < 0.4) continue;
+        const nx = dz / len, nz = -dx / len;
+        const uLen = Math.max(0.5, len / 14);
+        pushWallQuad(tPos, tNrm, tUv, tCol, a.x, a.z, b.x, b.z, y0, y1, nx, nz, uLen, vRepeat, wallRgb);
+      }
+
+      // Exact triangulated roof polygon
+      const tris = triangulatePolyXZ(pts);
+      let bestTriArea = -1, bestTriCx = cx, bestTriCz = cz;
+      for (let t = 0; t < tris.length; t += 3) {
+        const p0 = pts[tris[t]], p1 = pts[tris[t + 1]], p2 = pts[tris[t + 2]];
+        pushRoofTri(p0.x, p0.z, p1.x, p1.z, p2.x, p2.z, y1, roofRgb);
+        const ta = Math.abs((p1.x - p0.x) * (p2.z - p0.z) - (p2.x - p0.x) * (p1.z - p0.z)) * 0.5;
+        if (ta > bestTriArea) {
+          bestTriArea = ta;
+          bestTriCx = (p0.x + p1.x + p2.x) / 3;
+          bestTriCz = (p0.z + p1.z + p2.z) / 3;
+        }
+      }
+
+      // Stepped rooftop mechanical penthouse + parapet rim for tall buildings (>= 26m)
+      if (bh >= 26) {
+        const parapetH = Math.min(2.2, 0.9 + bh * 0.012);
+        const rimRgb = [wallRgb[0] * 0.86, wallRgb[1] * 0.86, wallRgb[2] * 0.86];
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[i], b = pts[(i + 1) % pts.length];
+          const dx = b.x - a.x, dz = b.z - a.z;
+          const len = Math.hypot(dx, dz);
+          if (len < 0.6) continue;
+          const nx = dz / len, nz = -dx / len;
+          pushWallQuad(tPos, tNrm, tUv, tCol, a.x, a.z, b.x, b.z, y1, y1 + parapetH, nx, nz, Math.max(0.4, len / 14), 0.25, rimRgb);
+        }
+
+        const anchorX = pointInPolyXZ(cx, cz, pts) ? cx : bestTriCx;
+        const anchorZ = pointInPolyXZ(cx, cz, pts) ? cz : bestTriCz;
+        let hx = Math.min(16, Math.max(2.4, (maxX - minX) * 0.22));
+        let hz = Math.min(16, Math.max(2.4, (maxZ - minZ) * 0.22));
+        const fitsInRoof = (ox, oz) =>
+          pointInPolyXZ(anchorX - ox, anchorZ - oz, pts) &&
+          pointInPolyXZ(anchorX + ox, anchorZ - oz, pts) &&
+          pointInPolyXZ(anchorX + ox, anchorZ + oz, pts) &&
+          pointInPolyXZ(anchorX - ox, anchorZ + oz, pts);
+        if (!fitsInRoof(hx, hz)) { hx *= 0.55; hz *= 0.55; }
+        if (hx >= 1.6 && hz >= 1.6 && fitsInRoof(hx, hz)) {
+          const pentH = Math.min(9.5, Math.max(2.8, bh * 0.065));
+          const pentWallRgb = [roofRgb[0] * 0.88, roofRgb[1] * 0.88, roofRgb[2] * 0.88];
+          const pentRoofRgb = [roofRgb[0] * 0.94, roofRgb[1] * 0.94, roofRgb[2] * 0.94];
+          pushPenthouseBox(anchorX, anchorZ, hx, hz, y1, y1 + pentH, pentWallRgb, pentRoofRgb);
+          if (bh >= 65 && hx >= 3.0 && hz >= 3.0) {
+            pushPenthouseBox(anchorX, anchorZ, hx * 0.56, hz * 0.56, y1 + pentH, y1 + pentH * 1.62, rimRgb, pentRoofRgb);
+          }
+        }
+      }
+      bldgCount++;
+    }
+
+    // 2. Real OSM 3D Highways & Bridges (highway=motorway|trunk|primary)
+    const hwyPos = [], hwyNrm = [], hwyUv = [];
+    const hwyStripePos = [];
+    const pierPos = [], pierNrm = [];
+    const highwayPaths = [];
+
+    const pushPierBox = (cx, cz, yBot, yTop, hw, hd) => {
+      if (yTop - yBot < 0.8) return;
+      const x0 = cx - hw, x1 = cx + hw, z0 = cz - hd, z1 = cz + hd;
+      const q = (ax, ay, az, bx, by, bz, dx, dy, dz, ex, ey, ez, nx, ny, nz) => {
+        pierPos.push(ax, ay, az, bx, by, bz, dx, dy, dz, ax, ay, az, dx, dy, dz, ex, ey, ez);
+        for (let k = 0; k < 6; k++) pierNrm.push(nx, ny, nz);
+      };
+      q(x0, yBot, z1, x1, yBot, z1, x1, yTop, z1, x0, yTop, z1, 0, 0, 1);
+      q(x1, yBot, z0, x0, yBot, z0, x0, yTop, z0, x1, yTop, z0, 0, 0, -1);
+      q(x1, yBot, z1, x1, yBot, z0, x1, yTop, z0, x1, yTop, z1, 1, 0, 0);
+      q(x0, yBot, z0, x0, yBot, z1, x0, yTop, z1, x0, yTop, z0, -1, 0, 0);
+    };
+
+    for (let hi = 0; hi < highwayWays.length; hi++) {
+      const w = highwayWays[hi];
+      const tags = w.tags || {};
+      const hwType = tags.highway;
+      const width = hwType === 'motorway' ? 16 : hwType === 'trunk' ? 12 : 9;
+      const hw = width * 0.5;
+      const isBridge = Boolean(tags.bridge && tags.bridge !== 'no');
+      const oneway = tags.oneway === 'yes' || tags.oneway === '1' || tags.oneway === 'true';
+
+      const rawPts = [];
+      for (let i = 0; i < w.nodes.length; i++) {
+        const nd = nodes.get(w.nodes[i]);
+        if (nd) rawPts.push(geoPoint(nd[0], nd[1]));
+      }
+      if (rawPts.length < 2) continue;
+
+      // Subdivide long spans so terrain contours and river crossings are smooth
+      const subPts = [rawPts[0]];
+      for (let i = 0; i < rawPts.length - 1; i++) {
+        const a = rawPts[i], b = rawPts[i + 1];
+        const segLen = Math.hypot(b.x - a.x, b.z - a.z);
+        if (segLen < 0.8) continue;
+        const steps = Math.max(1, Math.min(12, Math.ceil(segLen / 55)));
+        for (let s = 1; s <= steps; s++) {
+          const t = s / steps;
+          subPts.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+        }
+      }
+      if (subPts.length < 2) continue;
+
+      // Split into airport-clear runs and resolve road / bridge elevations
+      let currentRun = [];
+      let pierDistAcc = 22;
+      const flushRun = () => {
+        if (currentRun.length < 2) { currentRun = []; return; }
+        const segLens = [];
+        let totalLen = 0;
+        for (let i = 0; i < currentRun.length - 1; i++) {
+          const a = currentRun[i], b = currentRun[i + 1];
+          const sl = Math.hypot(b.x - a.x, b.z - a.z);
+          segLens.push(sl);
+          totalLen += sl;
+        }
+        if (totalLen >= 25) {
+          highwayPaths.push({ pts: currentRun, segLens, totalLen, width, oneway });
+        }
+        currentRun = [];
+      };
+
+      const liftPoint = (pt) => {
+        const gY = ground(pt.x, pt.z);
+        const elevated = isBridge || gY < 0.8;
+        const y = elevated ? Math.max(gY + 0.35, 9.5) : (gY + 0.35);
+        return { x: pt.x, y, z: pt.z, gY, elevated };
+      };
+
+      for (let i = 0; i < subPts.length - 1; i++) {
+        const pA = subPts[i], pB = subPts[i + 1];
+        const mx = (pA.x + pB.x) * 0.5, mz = (pA.z + pB.z) * 0.5;
+        if (inAirportClearance(mx, mz, 130)) {
+          flushRun();
+          continue;
+        }
+        const a = liftPoint(pA), b = liftPoint(pB);
+        const dx = b.x - a.x, dz = b.z - a.z;
+        const len = Math.hypot(dx, dz);
+        if (len < 0.8) continue;
+
+        if (!currentRun.length) currentRun.push(a);
+        currentRun.push(b);
+
+        const nx = -dz / len, nz = dx / len;
+        const alx = a.x - nx * hw, alz = a.z - nz * hw;
+        const arx = a.x + nx * hw, arz = a.z + nz * hw;
+        const blx = b.x - nx * hw, blz = b.z - nz * hw;
+        const brx = b.x + nx * hw, brz = b.z + nz * hw;
+
+        // Road surface ribbon (+Y upward normal)
+        hwyPos.push(
+          alx, a.y, alz, arx, a.y, arz, brx, b.y, brz,
+          alx, a.y, alz, brx, b.y, brz, blx, b.y, blz
+        );
+        for (let k = 0; k < 6; k++) hwyNrm.push(0, 1, 0);
+        const vLen = len / 20;
+        hwyUv.push(0, 0, 1, 0, 1, vLen, 0, 0, 1, vLen, 0, vLen);
+
+        // Center stripe ribbon
+        const sw = 0.34, syA = a.y + 0.08, syB = b.y + 0.08;
+        hwyStripePos.push(
+          a.x - nx * sw, syA, a.z - nz * sw, a.x + nx * sw, syA, a.z + nz * sw, b.x + nx * sw, syB, b.z + nz * sw,
+          a.x - nx * sw, syA, a.z - nz * sw, b.x + nx * sw, syB, b.z + nz * sw, b.x - nx * sw, syB, b.z - nz * sw
+        );
+
+        // Bridge concrete side fascia + vertical support piers when bridge=yes or crossing water
+        if (a.elevated || b.elevated) {
+          const deckDepth = 1.45;
+          // Left & right deck fascia skirts
+          pierPos.push(
+            alx, a.y - deckDepth, alz, blx, b.y - deckDepth, blz, blx, b.y, blz,
+            alx, a.y - deckDepth, alz, blx, b.y, blz, alx, a.y, alz,
+            brx, b.y - deckDepth, brz, arx, a.y - deckDepth, arz, arx, a.y, arz,
+            brx, b.y - deckDepth, brz, arx, a.y, arz, brx, b.y, brz
+          );
+          for (let k = 0; k < 6; k++) pierNrm.push(-nx, 0, -nz);
+          for (let k = 0; k < 6; k++) pierNrm.push(nx, 0, nz);
+
+          pierDistAcc += len;
+          if (pierDistAcc >= 45) {
+            pierDistAcc = 0;
+            const pierOff = hw * 0.62;
+            const deckBot = (a.y + b.y) * 0.5 - deckDepth * 0.85;
+            const footY = Math.min(a.gY, b.gY, 0) - 2.5;
+            pushPierBox(mx - nx * pierOff, mz - nz * pierOff, footY, deckBot, 0.95, 0.95);
+            pushPierBox(mx + nx * pierOff, mz + nz * pierOff, footY, deckBot, 0.95, 0.95);
+          }
+        }
+      }
+      flushRun();
+    }
+
+    // 3. Real OSM Park & Forest 3D Trees (landuse=forest|wood, leisure=park)
+    const parkTrees = [];
+    const maxCellTrees = isLowMem ? 260 : 520;
+    for (let pi = 0; pi < parkWays.length && parkTrees.length < maxCellTrees; pi++) {
+      const w = parkWays[pi];
+      const tags = w.tags || {};
+      const pts = [];
+      const rawIds = w.nodes;
+      const endIdx = rawIds[0] === rawIds[rawIds.length - 1] ? rawIds.length - 1 : rawIds.length;
+      for (let i = 0; i < endIdx; i++) {
+        const nd = nodes.get(rawIds[i]);
+        if (nd) pts.push(geoPoint(nd[0], nd[1]));
+      }
+      if (pts.length < 3) continue;
+      let minX = 1e12, maxX = -1e12, minZ = 1e12, maxZ = -1e12;
+      let area2 = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        if (a.x < minX) minX = a.x; if (a.x > maxX) maxX = a.x;
+        if (a.z < minZ) minZ = a.z; if (a.z > maxZ) maxZ = a.z;
+        area2 += a.x * b.z - b.x * a.z;
+      }
+      const polyArea = Math.abs(area2) * 0.5;
+      if (polyArea < 80) continue;
+
+      const isForest = tags.landuse === 'forest' || tags.landuse === 'wood';
+      const areaPerTree = isForest ? 460 : 760;
+      const remaining = maxCellTrees - parkTrees.length;
+      const targetForPark = Math.min(remaining, Math.min(140, Math.max(4, Math.floor(polyArea / areaPerTree))));
+      const spanX = Math.max(10, maxX - minX);
+      const spanZ = Math.max(10, maxZ - minZ);
+      const aspect = Math.min(4, Math.max(0.25, spanX / spanZ));
+      const cols = Math.min(18, Math.max(2, Math.ceil(Math.sqrt(targetForPark * aspect * 1.4))));
+      const rows = Math.min(18, Math.max(2, Math.ceil((targetForPark * 1.4) / cols)));
+      const stepX = spanX / cols, stepZ = spanZ / rows;
+      let addedHere = 0;
+
+      for (let rz = 0; rz < rows && addedHere < targetForPark && parkTrees.length < maxCellTrees; rz++) {
+        for (let cxIdx = 0; cxIdx < cols && addedHere < targetForPark && parkTrees.length < maxCellTrees; cxIdx++) {
+          const jx = 0.15 + hash2(cxIdx * 31 + pi * 7, rz * 17 + 3) * 0.70;
+          const jz = 0.15 + hash2(rz * 29 + pi * 11, cxIdx * 19 + 5) * 0.70;
+          const tx = minX + (cxIdx + jx) * stepX;
+          const tz = minZ + (rz + jz) * stepZ;
+          if (!pointInPolyXZ(tx, tz, pts)) continue;
+          if (inAirportClearance(tx, tz, 160)) continue;
+          const tg = ground(tx, tz);
+          if (tg < 0.8 || tg > 2400) continue;
+          const tr = (isForest ? 5.4 : 4.6) + hash2(cxIdx * 13 + pi, rz * 23) * 5.2;
+          parkTrees.push({
+            x: tx,
+            y: tg + tr * 0.72,
+            z: tz,
+            r: tr,
+            sy: 0.82 + hash2(rz * 7, cxIdx * 11 + pi) * 0.34,
+            color: getTreeTone(biome, hash2(cxIdx + pi * 3, rz))
+          });
+          addedHere++;
+        }
+      }
+    }
+
+    if (!bldgCount && !hwyPos.length && !parkTrees.length) {
+      liveOsmCells.set(cellKey, 'empty');
+      return null;
+    }
+
+    const g = new THREE.Group();
+    g.name = 'LiveOSM_RealPoly_' + cellKey;
+    const makeMerged = (pos, nrm, uv, col, mat, meshName, castShadow = true, receiveShadow = true) => {
+      if (!pos.length) return null;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      if (nrm && nrm.length) geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+      if (uv && uv.length) geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      if (col && col.length) geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      const m = new THREE.Mesh(geo, mat);
+      if (meshName) m.name = meshName;
+      m.castShadow = castShadow;
+      m.receiveShadow = receiveShadow;
+      g.add(m);
+      return m;
+    };
+
+    makeMerged(wPos, wNrm, wUv, wCol, osmWallMat, 'OSM_Walls_' + cellKey, true, true);
+    makeMerged(gPos, gNrm, gUv, gCol, osmGlassMat, 'OSM_Glass_' + cellKey, true, true);
+    makeMerged(rPos, rNrm, rUv, rCol, osmRoofMat, 'OSM_Roofs_' + cellKey, true, true);
+    makeMerged(hwyPos, hwyNrm, hwyUv, null, roadMat, 'OSM_Highways_' + cellKey, false, true);
+    makeMerged(hwyStripePos, null, null, null, stripeMat, 'OSM_HighwayStripes_' + cellKey, false, false);
+    makeMerged(pierPos, pierNrm, null, null, osmPierMat, 'OSM_BridgePiers_' + cellKey, true, true);
+
+    // 4. Live Moving Highway Traffic InstancedMesh (<= 80 vehicles/cell, 22-30 m/s along real OSM highways!)
+    if (highwayPaths.length) {
+      let totalHwyLen = 0;
+      for (let i = 0; i < highwayPaths.length; i++) totalHwyLen += highwayPaths[i].totalLen;
+      const maxVehicles = isLowMem ? 48 : 80;
+      const vehicleCount = Math.min(maxVehicles, Math.max(4, Math.floor(totalHwyLen / 55)));
+      const vehicles = [];
+      for (let i = 0; i < vehicleCount; i++) {
+        // Length-weighted path selection
+        let pick = hash2(i * 19 + 3, highwayPaths.length * 7) * totalHwyLen;
+        let pathIdx = 0;
+        for (let p = 0; p < highwayPaths.length; p++) {
+          pick -= highwayPaths[p].totalLen;
+          if (pick <= 0) { pathIdx = p; break; }
+        }
+        const path = highwayPaths[pathIdx];
+        const dir = path.oneway ? 1 : (i % 2 === 0 ? 1 : -1);
+        const speed = 22 + hash2(i * 13 + pathIdx * 5, bldgCount + 11) * 8;
+        const laneOffset = dir * Math.max(1.8, path.width * 0.24);
+        const dist = hash2(i * 29 + 7, pathIdx * 17 + 3) * path.totalLen;
+        vehicles.push({ pathIdx, dist, dir, speed, laneOffset });
+      }
+      const trafficInst = new THREE.InstancedMesh(osmTrafficGeo, osmTrafficMat, vehicles.length);
+      trafficInst.name = 'OSM_Traffic_' + cellKey;
+      trafficInst.frustumCulled = false;
+      g.add(trafficInst);
+      const trafficEntry = { inst: trafficInst, paths: highwayPaths, vehicles };
+      liveOsmTraffic.set(cellKey, trafficEntry);
+      updateOsmTrafficEntry(trafficEntry, 0, 0);
+    }
+
+    // 5. Park & Forest 3D Trees InstancedMesh
+    if (parkTrees.length) {
+      const tInst = new THREE.InstancedMesh(osmTreeGeo, treeMat, parkTrees.length);
+      tInst.name = 'OSM_Parks_' + cellKey;
+      const tDummy = new THREE.Object3D();
+      for (let i = 0; i < parkTrees.length; i++) {
+        const t = parkTrees[i];
+        tDummy.position.set(t.x, t.y, t.z);
+        tDummy.rotation.set(0, 0, 0);
+        tDummy.scale.set(t.r, t.r * t.sy, t.r);
+        tDummy.updateMatrix();
+        tInst.setMatrixAt(i, tDummy.matrix);
+        if (typeof tInst.setColorAt === 'function') tInst.setColorAt(i, new THREE.Color(t.color));
+      }
+      if (tInst.instanceMatrix) tInst.instanceMatrix.needsUpdate = true;
+      if (tInst.instanceColor) tInst.instanceColor.needsUpdate = true;
+      tInst.receiveShadow = true;
+      g.add(tInst);
+    }
+
+    root.add(g);
+    liveOsmCells.set(cellKey, g);
+    if (bldgCount && cellMinX < cellMaxX) {
+      liveOsmBoxes.push({ key: cellKey, minX: cellMinX - 35, maxX: cellMaxX + 35, minZ: cellMinZ - 35, maxZ: cellMaxZ + 35 });
+      liveOsmRevision++;
+    }
+    evictOldOsmCells();
+    return g;
+  }
+
   function streamLiveOsmBuildings(px, pz) {
     if (typeof fetch !== 'function' || typeof window === 'undefined' || typeof latLon !== 'function' || typeof geoPoint !== 'function') return;
     const now = performance.now ? performance.now() : Date.now();
@@ -1346,20 +2108,26 @@ function createGlobalScenery(scene, ground, airports = []) {
     if (insideTaiwanDetailed(lat, lon)) return;
     const osmCity = window.__SKYBOUND_WORLD_CITY;
     if (osmCity && typeof osmCity.blocked === 'function' && osmCity.blocked(px, pz)) return;
-    const nearHub = nearestHubInfo(px, pz).dist < 52000;
+    const nearHub = nearestAnyAirportDist(px, pz) < 105000;
     if (!nearHub) return;
     const step = isLowMem ? 0.014 : 0.018;
     const clat = Math.floor(lat / step) * step;
     const clon = Math.floor(lon / step) * step;
     const cellKey = clat.toFixed(3) + ',' + clon.toFixed(3);
-    if (liveOsmCells.has(cellKey)) return;
+    if (liveOsmCells.has(cellKey)) {
+      // Touch LRU order so active cell stays hot
+      const existing = liveOsmCells.get(cellKey);
+      liveOsmCells.delete(cellKey);
+      liveOsmCells.set(cellKey, existing);
+      return;
+    }
     liveOsmCells.set(cellKey, 'loading');
     liveOsmBusy = true;
     lastOsmCheck = now;
 
     const bbox = `${clat.toFixed(4)},${clon.toFixed(4)},${(clat + step).toFixed(4)},${(clon + step).toFixed(4)}`;
-    const maxWays = isLowMem ? 260 : 480;
-    const query = `[out:json][timeout:7];way["building"](${bbox});out body ${maxWays};>;out skel qt;`;
+    const maxWays = isLowMem ? 340 : 620;
+    const query = `[out:json][timeout:9];(way["building"](${bbox});way["highway"~"^(motorway|trunk|primary)$"](${bbox});way["landuse"~"^(forest|wood)$"](${bbox});way["leisure"="park"](${bbox}););out body ${maxWays};>;out skel qt;`;
     const fetchOsm = url => fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1369,123 +2137,13 @@ function createGlobalScenery(scene, ground, airports = []) {
       .catch(() => null)
       .then(d => d || fetchOsm('https://overpass.kumi.systems/api/interpreter'))
       .then(data => {
-      liveOsmBusy = false;
-      if (!data || !Array.isArray(data.elements)) { liveOsmCells.set(cellKey, 'empty'); return; }
-      const nodes = new Map();
-      const ways = [];
-      for (const el of data.elements) {
-        if (el.type === 'node') nodes.set(el.id, [el.lat, el.lon]);
-        else if (el.type === 'way' && Array.isArray(el.nodes) && el.nodes.length >= 4) ways.push(el);
-      }
-      if (!ways.length) { liveOsmCells.set(cellKey, 'empty'); return; }
-
-      // Extrude EVERY real OSM building polygon 1:1 into single merged wall + roof BufferGeometries (2 GPU draw calls!)
-      const wPos = [], wNrm = [], wUv = [];
-      const gPos = [], gNrm = [], gUv = [];
-      const rPos = [], rNrm = [], rUv = [];
-      let bldgCount = 0;
-      let cellMinX = 1e12, cellMaxX = -1e12, cellMinZ = 1e12, cellMaxZ = -1e12;
-
-      for (const w of ways) {
-        if (bldgCount >= maxWays) break;
-        const pts = [];
-        const rawIds = w.nodes;
-        const endIdx = rawIds[0] === rawIds[rawIds.length - 1] ? rawIds.length - 1 : rawIds.length;
-        for (let i = 0; i < endIdx; i++) {
-          const nd = nodes.get(rawIds[i]);
-          if (nd) pts.push(geoPoint(nd[0], nd[1]));
-        }
-        if (pts.length < 3 || pts.length > 48) continue;
-        let cx = 0, cz = 0;
-        for (const p of pts) { cx += p.x; cz += p.z; }
-        cx /= pts.length; cz /= pts.length;
-        if (inAirportClearance(cx, cz, 140)) continue;
-        const gy = ground(cx, cz);
-        if (gy < 0.5) continue;
-
-        const tags = w.tags || {};
-        const parsedH = parseFloat(tags.height) || (parseFloat(tags['building:levels']) ? parseFloat(tags['building:levels']) * 3.5 : 0);
-        const bh = parsedH > 2.5 ? Math.min(420, parsedH) : (tags.building === 'apartments' || tags.building === 'commercial' ? 18 : tags.building === 'office' ? 28 : 10.5);
-        const y0 = gy - 1.5, y1 = gy + bh;
-        const isGlass = bh > 36 || tags.building === 'office' || tags.building === 'skyscraper';
-
-        // Signed area to ensure consistent outward wall normals
-        let sArea = 0;
-        for (let i = 0; i < pts.length; i++) {
-          const a = pts[i], b = pts[(i + 1) % pts.length];
-          sArea += a.x * b.z - b.x * a.z;
-        }
-        if (Math.abs(sArea) < 12) continue;
-        if (sArea < 0) pts.reverse();
-
-        const tPos = isGlass ? gPos : wPos;
-        const tNrm = isGlass ? gNrm : wNrm;
-        const tUv = isGlass ? gUv : wUv;
-        const vRepeat = Math.max(1, bh / 12);
-
-        for (let i = 0; i < pts.length; i++) {
-          const a = pts[i], b = pts[(i + 1) % pts.length];
-          if (a.x < cellMinX) cellMinX = a.x; if (a.x > cellMaxX) cellMaxX = a.x;
-          if (a.z < cellMinZ) cellMinZ = a.z; if (a.z > cellMaxZ) cellMaxZ = a.z;
-          const dx = b.x - a.x, dz = b.z - a.z;
-          const len = Math.hypot(dx, dz);
-          if (len < 0.4) continue;
-          const nx = dz / len, nz = -dx / len;
-          const uLen = Math.max(0.5, len / 14);
-          tPos.push(a.x, y0, a.z, b.x, y0, b.z, b.x, y1, b.z, a.x, y0, a.z, b.x, y1, b.z, a.x, y1, a.z);
-          for (let k = 0; k < 6; k++) tNrm.push(nx, 0, nz);
-          tUv.push(0, 0, uLen, 0, uLen, vRepeat, 0, 0, uLen, vRepeat, 0, vRepeat);
-        }
-
-        // Exact triangulated roof polygon
-        const tris = triangulatePolyXZ(pts);
-        for (let t = 0; t < tris.length; t += 3) {
-          const p0 = pts[tris[t]], p1 = pts[tris[t + 1]], p2 = pts[tris[t + 2]];
-          rPos.push(p0.x, y1, p0.z, p2.x, y1, p2.z, p1.x, y1, p1.z);
-          rNrm.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
-          rUv.push(p0.x * 0.04, p0.z * 0.04, p2.x * 0.04, p2.z * 0.04, p1.x * 0.04, p1.z * 0.04);
-        }
-        bldgCount++;
-      }
-      if (!bldgCount) { liveOsmCells.set(cellKey, 'empty'); return; }
-
-      const g = new THREE.Group();
-      g.name = 'LiveOSM_RealPoly_' + cellKey;
-      const makeMerged = (pos, nrm, uv, mat) => {
-        if (!pos.length) return;
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-        geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
-        geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-        const m = new THREE.Mesh(geo, mat);
-        m.castShadow = m.receiveShadow = true;
-        g.add(m);
-      };
-      makeMerged(wPos, wNrm, wUv, bldgWallMat);
-      makeMerged(gPos, gNrm, gUv, landmarkGlassMat);
-      makeMerged(rPos, rNrm, rUv, roofMat);
-
-      root.add(g);
-      liveOsmCells.set(cellKey, g);
-      liveOsmBoxes.push({ key: cellKey, minX: cellMinX - 35, maxX: cellMaxX + 35, minZ: cellMinZ - 35, maxZ: cellMaxZ + 35 });
-      liveOsmRevision++;
-      // LRU cap to prevent RAM bloat on long flights
-      const maxOsmCells = isLowMem ? 10 : 24;
-      while (liveOsmCells.size > maxOsmCells) {
-        const oldKey = liveOsmCells.keys().next().value;
-        const oldVal = liveOsmCells.get(oldKey);
-        if (oldVal && typeof oldVal === 'object' && oldVal.isObject3D) {
-          root.remove(oldVal);
-          oldVal.traverse(o => { if (o.geometry) o.geometry.dispose(); });
-        }
-        liveOsmCells.delete(oldKey);
-        const bi = liveOsmBoxes.findIndex(b => b.key === oldKey);
-        if (bi >= 0) liveOsmBoxes.splice(bi, 1);
-      }
-    }).catch(() => {
-      liveOsmBusy = false;
-      liveOsmCells.set(cellKey, 'error');
-    });
+        liveOsmBusy = false;
+        buildOsmCellFromData(cellKey, data, clat + step * 0.5, clon + step * 0.5, maxWays);
+      }).catch(() => {
+        liveOsmBusy = false;
+        liveOsmCells.set(cellKey, 'error');
+        evictOldOsmCells();
+      });
   }
 
   // Bespoke 3D Iconic World Landmarks + 40-Tower Metropolitan CBD Skylines
@@ -1665,14 +2323,17 @@ function createGlobalScenery(scene, ground, airports = []) {
     const nightAmt = Math.max(0, 1 - dayRatio);
     houseMat.emissiveIntensity = nightAmt * 0.72;
     bldgWallMat.emissiveIntensity = nightAmt * 0.85;
+    osmWallMat.emissiveIntensity = nightAmt * 0.85;
     indWallMat.emissiveIntensity = nightAmt * 0.55;
     landmarkGlassMat.emissiveIntensity = 0.10 + nightAmt * 0.90;
+    osmGlassMat.emissiveIntensity = 0.10 + nightAmt * 0.90;
     monumentGoldMat.emissiveIntensity = 0.14 + nightAmt * 0.75;
     ensureHubSkyline(px, pz);
     ensureRealGPSLandmarks(px, pz);
     for (let i = 0; i < animatedLandmarks.length; i++) {
       animatedLandmarks[i].userData.animate?.(dt);
     }
+    if (liveOsmTraffic.size) updateLiveOsmTraffic(dt, nightAmt);
     if (quality === 'ultra' || quality === 'high' || quality === 'balanced') streamLiveOsmBuildings(px, pz);
 
     const cx = Math.floor(px / TILE), cz = Math.floor(pz / TILE);

@@ -29,100 +29,151 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
   const isLowMem=typeof navigator!=='undefined'&&(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent||'')||(navigator.deviceMemory&&navigator.deviceMemory<=4));
   let location='',queue=[],loading=0;
 
-  // Single Floating Ultra-HD z=16 Close-Up Clipmap Satellite Patch (1,800m x 1,800m, ~1.1m/px desktop / ~2.3m/px mobile, ONLY 1 GPU texture!)
-  const detailSpan=1800;
+  // Dual-Ring Seamless Close-Up Google Satellite Cascade (ONLY 2 floating GPU textures!):
+  // Ring 0: Ultra-Close Detail Clipmap (1,000m @ z=17 ~0.55m/px desktop | 1,200m @ z=16 ~1.1m/px mobile)
+  // Ring 1: Mid-Range HD Clipmap (4,800m @ z=15 ~2.3m/px desktop | z=14 mobile)
+  const detailSpan=isLowMem?1200:1000;
   const detailUniforms={
     image:{value:null},
     ready:{value:0},
     bounds:{value:new THREE.Vector4(0,0,detailSpan,detailSpan)}
   };
-  let detailCenterX=1e12, detailCenterZ=1e12, detailLoading=false, detailTexture=null;
+  const midSpan=4800;
+  const midDetailUniforms={
+    image:{value:null},
+    ready:{value:0},
+    bounds:{value:new THREE.Vector4(0,0,midSpan,midSpan)}
+  };
   let detailPixelMap=null, detailPixelBounds=null;
+  let midPixelMap=null, midPixelBounds=null;
   let satSampleCanvas=null, satSampleCtx=null;
-  function updateDetailClipmap(px,pz,quality){
-    if(quality==='low'||typeof document==='undefined'||typeof Image==='undefined'||typeof latLon!=='function') return;
-    if(detailLoading||Math.hypot(px-detailCenterX,pz-detailCenterZ)<480) return;
-    if(typeof terrainHeight==='function'&&terrainHeight(px,pz)<0.15&&!chunkHasLand(Math.floor(px/span),Math.floor(pz/span))) return;
-    detailLoading=true;
-    const x0=px-detailSpan*0.5, z0=pz-detailSpan*0.5;
-    const nw=latLon(x0,z0), se=latLon(x0+detailSpan,z0+detailSpan);
-    const minLon=Math.min(nw.lon,se.lon), maxLon=Math.max(nw.lon,se.lon);
-    const minLat=Math.min(nw.lat,se.lat), maxLat=Math.max(nw.lat,se.lat);
-    const lonSpan=Math.max(0.002,maxLon-minLon), latSpan=Math.max(0.002,maxLat-minLat);
-    let tz=isLowMem?15:16;
-    let tx0=lonToTileX(minLon,tz), tx1=lonToTileX(maxLon,tz);
-    let ty0=latToTileY(maxLat,tz), ty1=latToTileY(minLat,tz);
-    while(tz>12&&((tx1-tx0+1)>6||(ty1-ty0+1)>6)){
-      tz--;
-      tx0=lonToTileX(minLon,tz); tx1=lonToTileX(maxLon,tz);
-      ty0=latToTileY(maxLat,tz); ty1=latToTileY(minLat,tz);
+  function clipmapHasLand(px,pz,boxSpan){
+    if(terrainHeight(px,pz)>=0.15) return true;
+    const c0=Math.floor(px/span), r0=Math.floor(pz/span);
+    if(chunkHasLand(c0,r0)) return true;
+    const half=boxSpan*0.5;
+    const seen=new Set([c0+'_'+r0]);
+    for(const [cx,cz] of [[px-half,pz-half],[px+half,pz-half],[px-half,pz+half],[px+half,pz+half]]){
+      const cc=Math.floor(cx/span), cr=Math.floor(cz/span), k=cc+'_'+cr;
+      if(seen.has(k)) continue;
+      seen.add(k);
+      if(chunkHasLand(cc,cr)) return true;
     }
-    const dim=isLowMem?512:1024;
-    const canvas=document.createElement('canvas');
-    canvas.width=dim; canvas.height=dim;
-    const ctx=canvas.getContext('2d');
-    if(!ctx){detailLoading=false;return;}
-    ctx.clearRect(0,0,dim,dim);
-    ctx.imageSmoothingEnabled=true;
-    try{ctx.imageSmoothingQuality='high';}catch{}
-    const jobs=[], n=1<<tz;
-    for(let ty=ty0;ty<=ty1;ty++){
-      if(ty<0||ty>=n) continue;
-      for(let tx=tx0;tx<=tx1;tx++) jobs.push({tx:((tx%n)+n)%n,rawTx:tx,ty});
-    }
-    if(!jobs.length){detailLoading=false;return;}
-    let rem=jobs.length, ok=0;
-    const doneOne=()=>{
-      rem--;
-      if(rem>0) return;
-      detailLoading=false;
-      if(ok===0) return;
-      // Capture crisp 64x64 pixel buffer (~28m/px, 6.4x sharper than regional tiles) for 3D ground clutter & scenery classification
-      try{
-        if(!satSampleCanvas){
-          satSampleCanvas=document.createElement('canvas');
-          satSampleCanvas.width=64; satSampleCanvas.height=64;
-          satSampleCtx=satSampleCanvas.getContext('2d',{willReadFrequently:true});
+    return false;
+  }
+  function createClipmapRing({ringSpan,refreshDist,targetZoom,minZoom,dim,uniforms,onPixelMap}){
+    let centerX=1e12, centerZ=1e12, ringLoading=false, ringTexture=null, retryAfter=0;
+    return function updateRing(px,pz,quality){
+      if(quality==='low'||typeof document==='undefined'||typeof Image==='undefined'||typeof latLon!=='function') return;
+      if(ringLoading||Math.hypot(px-centerX,pz-centerZ)<refreshDist) return;
+      if(retryAfter&&Date.now()<retryAfter) return;
+      if(typeof terrainHeight==='function'&&!clipmapHasLand(px,pz,ringSpan)) return;
+      ringLoading=true;
+      const x0=px-ringSpan*0.5, z0=pz-ringSpan*0.5;
+      const nw=latLon(x0,z0), se=latLon(x0+ringSpan,z0+ringSpan);
+      const minLon=Math.min(nw.lon,se.lon), maxLon=Math.max(nw.lon,se.lon);
+      const minLat=Math.min(nw.lat,se.lat), maxLat=Math.max(nw.lat,se.lat);
+      const lonSpan=Math.max(0.0005,maxLon-minLon), latSpan=Math.max(0.0005,maxLat-minLat);
+      let tz=targetZoom;
+      let tx0=lonToTileX(minLon,tz), tx1=lonToTileX(maxLon,tz);
+      let ty0=latToTileY(maxLat,tz), ty1=latToTileY(minLat,tz);
+      while(tz>minZoom&&((tx1-tx0+1)>6||(ty1-ty0+1)>6)){
+        tz--;
+        tx0=lonToTileX(minLon,tz); tx1=lonToTileX(maxLon,tz);
+        ty0=latToTileY(maxLat,tz); ty1=latToTileY(minLat,tz);
+      }
+      const canvas=document.createElement('canvas');
+      canvas.width=dim; canvas.height=dim;
+      const ctx=canvas.getContext('2d');
+      if(!ctx){ringLoading=false;return;}
+      ctx.clearRect(0,0,dim,dim);
+      ctx.imageSmoothingEnabled=true;
+      try{ctx.imageSmoothingQuality='high';}catch{}
+      const jobs=[], n=1<<tz;
+      for(let ty=ty0;ty<=ty1;ty++){
+        if(ty<0||ty>=n) continue;
+        for(let tx=tx0;tx<=tx1;tx++) jobs.push({tx:((tx%n)+n)%n,rawTx:tx,ty});
+      }
+      if(!jobs.length){ringLoading=false;return;}
+      let rem=jobs.length, ok=0;
+      const doneOne=()=>{
+        rem--;
+        if(rem>0) return;
+        ringLoading=false;
+        if(ok===0){retryAfter=Date.now()+6000;return;}
+        retryAfter=0;
+        // Capture crisp 64x64 pixel buffer for 3-tier cascading 3D ground clutter & scenery classification
+        try{
+          if(!satSampleCanvas){
+            satSampleCanvas=document.createElement('canvas');
+            satSampleCanvas.width=64; satSampleCanvas.height=64;
+            satSampleCtx=satSampleCanvas.getContext('2d',{willReadFrequently:true});
+          }
+          if(satSampleCtx&&typeof satSampleCtx.getImageData==='function'){
+            satSampleCtx.clearRect(0,0,64,64);
+            satSampleCtx.drawImage(canvas,0,0,64,64);
+            onPixelMap(satSampleCtx.getImageData(0,0,64,64).data,{x0,z0,span:ringSpan});
+            if(typeof window!=='undefined') window.__SKYBOUND_SAT_REVISION=(window.__SKYBOUND_SAT_REVISION||0)+1;
+          }
+        }catch{}
+        const tex=new THREE.CanvasTexture(canvas);
+        tex.colorSpace=THREE.SRGBColorSpace;
+        if(THREE.ClampToEdgeWrapping!==undefined){
+          tex.wrapS=THREE.ClampToEdgeWrapping;
+          tex.wrapT=THREE.ClampToEdgeWrapping;
         }
-        if(satSampleCtx&&typeof satSampleCtx.getImageData==='function'){
-          satSampleCtx.clearRect(0,0,64,64);
-          satSampleCtx.drawImage(canvas,0,0,64,64);
-          detailPixelMap=satSampleCtx.getImageData(0,0,64,64).data;
-          detailPixelBounds={x0,z0,span:detailSpan};
-          if(typeof window!=='undefined') window.__SKYBOUND_SAT_REVISION=(window.__SKYBOUND_SAT_REVISION||0)+1;
-        }
-      }catch{}
-      const tex=new THREE.CanvasTexture(canvas);
-      tex.colorSpace=THREE.SRGBColorSpace;
-      tex.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
-      tex.needsUpdate=true;
-      if(detailTexture) detailTexture.dispose();
-      detailTexture=tex;
-      detailCenterX=px; detailCenterZ=pz;
-      detailUniforms.image.value=tex;
-      detailUniforms.bounds.value.set(x0,z0,detailSpan,detailSpan);
-      detailUniforms.ready.value=1;
-      onLoaded();
+        tex.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
+        tex.needsUpdate=true;
+        if(ringTexture) ringTexture.dispose();
+        ringTexture=tex;
+        centerX=px; centerZ=pz;
+        uniforms.image.value=tex;
+        uniforms.bounds.value.set(x0,z0,ringSpan,ringSpan);
+        uniforms.ready.value=1;
+        onLoaded();
+      };
+      for(const job of jobs){
+        const img=new Image();
+        img.crossOrigin='anonymous';
+        img.referrerPolicy='no-referrer';
+        let fb=false;
+        img.onload=()=>{
+          const tLonL=tileXToLon(job.rawTx,tz), tLonR=tileXToLon(job.rawTx+1,tz);
+          const tLatT=tileYToLat(job.ty,tz), tLatB=tileYToLat(job.ty+1,tz);
+          const u0=((tLonL-minLon)/lonSpan)*dim, u1=((tLonR-minLon)/lonSpan)*dim;
+          const v0=((maxLat-tLatT)/latSpan)*dim, v1=((maxLat-tLatB)/latSpan)*dim;
+          try{ctx.drawImage(img,u0,v0,(u1-u0)+0.8,(v1-v0)+0.8);ok++;}catch{}
+          doneOne();
+        };
+        img.onerror=()=>{
+          if(!fb){fb=true;img.src=`https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${tz}/${job.ty}/${job.tx}`;}
+          else doneOne();
+        };
+        img.src=`https://mt${(job.tx+job.ty)&3}.google.com/vt/lyrs=s&x=${job.tx}&y=${job.ty}&z=${tz}`;
+      }
     };
-    for(const job of jobs){
-      const img=new Image();
-      img.crossOrigin='anonymous';
-      img.referrerPolicy='no-referrer';
-      let fb=false;
-      img.onload=()=>{
-        const tLonL=tileXToLon(job.rawTx,tz), tLonR=tileXToLon(job.rawTx+1,tz);
-        const tLatT=tileYToLat(job.ty,tz), tLatB=tileYToLat(job.ty+1,tz);
-        const u0=((tLonL-minLon)/lonSpan)*dim, u1=((tLonR-minLon)/lonSpan)*dim;
-        const v0=((maxLat-tLatT)/latSpan)*dim, v1=((maxLat-tLatB)/latSpan)*dim;
-        try{ctx.drawImage(img,u0,v0,(u1-u0)+0.8,(v1-v0)+0.8);ok++;}catch{}
-        doneOne();
-      };
-      img.onerror=()=>{
-        if(!fb){fb=true;img.src=`https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${tz}/${job.ty}/${job.tx}`;}
-        else doneOne();
-      };
-      img.src=`https://mt${(job.tx+job.ty)&3}.google.com/vt/lyrs=s&x=${job.tx}&y=${job.ty}&z=${tz}`;
-    }
+  }
+  const updateRing0Clipmap=createClipmapRing({
+    ringSpan:detailSpan,
+    refreshDist:isLowMem?380:280,
+    targetZoom:isLowMem?16:17,
+    minZoom:12,
+    dim:isLowMem?512:1024,
+    uniforms:detailUniforms,
+    onPixelMap:(data,bounds)=>{detailPixelMap=data;detailPixelBounds=bounds;}
+  });
+  const updateMidDetailClipmap=createClipmapRing({
+    ringSpan:midSpan,
+    refreshDist:1300,
+    targetZoom:isLowMem?14:15,
+    minZoom:11,
+    dim:isLowMem?512:1024,
+    uniforms:midDetailUniforms,
+    onPixelMap:(data,bounds)=>{midPixelMap=data;midPixelBounds=bounds;}
+  });
+  function updateDetailClipmap(px,pz,quality){
+    updateRing0Clipmap(px,pz,quality);
+    updateMidDetailClipmap(px,pz,quality);
   }
 
   function lonToTileX(lon,z){return Math.floor(((lon+180)/360)*(1<<z));}
@@ -136,20 +187,24 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     return (180/Math.PI)*Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));
   }
   const satPixelMaps=new Map();
+  function samplePixelBuffer(buf,bounds,x,z){
+    if(!buf||!bounds) return null;
+    const dx=x-bounds.x0, dz=z-bounds.z0, ds=bounds.span;
+    if(dx<0||dx>=ds||dz<0||dz>=ds) return null;
+    const u=Math.max(0,Math.min(63,Math.floor((dx/ds)*64)));
+    const v=Math.max(0,Math.min(63,Math.floor((dz/ds)*64)));
+    const idx=(v*64+u)*4;
+    if(buf[idx+3]<=32) return null;
+    return {r:buf[idx],g:buf[idx+1],b:buf[idx+2],a:buf[idx+3]};
+  }
   if(typeof window!=='undefined'){
     window.__SKYBOUND_SAT_REVISION=0;
     window.__SKYBOUND_SAT_SAMPLER=(x,z)=>{
-      if(detailPixelMap&&detailPixelBounds){
-        const dx=x-detailPixelBounds.x0, dz=z-detailPixelBounds.z0, ds=detailPixelBounds.span;
-        if(dx>=0&&dx<ds&&dz>=0&&dz<ds){
-          const du=Math.max(0,Math.min(63,Math.floor((dx/ds)*64)));
-          const dv=Math.max(0,Math.min(63,Math.floor((dz/ds)*64)));
-          const didx=(dv*64+du)*4;
-          if(detailPixelMap[didx+3]>32){
-            return {r:detailPixelMap[didx],g:detailPixelMap[didx+1],b:detailPixelMap[didx+2],a:detailPixelMap[didx+3]};
-          }
-        }
-      }
+      // 3-Tier Cascade: Ring 0 (1km ~15m/px) -> Ring 1 (4.8km ~75m/px) -> Ring 2 Regional (11.5km ~180m/px)
+      const ring0=samplePixelBuffer(detailPixelMap,detailPixelBounds,x,z);
+      if(ring0) return ring0;
+      const ring1=samplePixelBuffer(midPixelMap,midPixelBounds,x,z);
+      if(ring1) return ring1;
       const col=Math.floor(x/span), row=Math.floor(z/span);
       const pm=satPixelMaps.get(col+'_'+row);
       if(!pm) return null;
@@ -181,9 +236,9 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     const minLon=Math.min(nw.lon,se.lon), maxLon=Math.max(nw.lon,se.lon);
     const minLat=Math.min(nw.lat,se.lat), maxLat=Math.max(nw.lat,se.lat);
     const lonSpan=Math.max(0.005,maxLon-minLon), latSpan=Math.max(0.005,maxLat-minLat);
-    // Memory-safe 3 LOD rings (ultra-sharp z=15 detail is handled by the single floating detailClipmap texture!)
-    let tz=variant==='high'?(isLowMem?12:13):variant==='low'?11:10;
-    const maxSpan=variant==='high'?(isLowMem?4:5):variant==='low'?3:2;
+    // 4-ring regional LOD cascade out to ~100 km horizon (Ring 0 z=17 & Ring 1 z=15 handled by floating clipmaps!)
+    let tz=variant==='high'?(isLowMem?12:14):variant==='mid'?(isLowMem?11:12):variant==='low'?11:11;
+    const maxSpan=variant==='high'?(isLowMem?4:5):variant==='mid'?(isLowMem?3:4):variant==='low'?3:2;
     let tx0=lonToTileX(minLon,tz), tx1=lonToTileX(maxLon,tz);
     let ty0=latToTileY(maxLat,tz), ty1=latToTileY(minLat,tz);
     while(tz>7&&((tx1-tx0+1)>maxSpan||(ty1-ty0+1)>maxSpan)){
@@ -191,7 +246,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
       tx0=lonToTileX(minLon,tz); tx1=lonToTileX(maxLon,tz);
       ty0=latToTileY(maxLat,tz); ty1=latToTileY(minLat,tz);
     }
-    const dim=variant==='high'?(isLowMem?512:768):variant==='low'?(isLowMem?256:512):256;
+    const dim=variant==='high'?(isLowMem?512:1024):variant==='mid'?(isLowMem?256:512):variant==='low'?(isLowMem?256:384):256;
     const canvas=document.createElement('canvas');
     canvas.width=dim; canvas.height=dim;
     const ctx=canvas.getContext('2d');
@@ -224,12 +279,17 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
           satSampleCtx.clearRect(0,0,64,64);
           satSampleCtx.drawImage(canvas,0,0,64,64);
           satPixelMaps.set(tile.key,satSampleCtx.getImageData(0,0,64,64).data);
-          while(satPixelMaps.size>64){satPixelMaps.delete(satPixelMaps.keys().next().value);}
+          const maxPixelMaps=isLowMem?48:160;
+          while(satPixelMaps.size>maxPixelMaps){satPixelMaps.delete(satPixelMaps.keys().next().value);}
           if(typeof window!=='undefined') window.__SKYBOUND_SAT_REVISION=(window.__SKYBOUND_SAT_REVISION||0)+1;
         }
       }catch{}
       const texture=new THREE.CanvasTexture(canvas);
       texture.colorSpace=THREE.SRGBColorSpace;
+      if(THREE.ClampToEdgeWrapping!==undefined){
+        texture.wrapS=THREE.ClampToEdgeWrapping;
+        texture.wrapT=THREE.ClampToEdgeWrapping;
+      }
       texture.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
       texture.needsUpdate=true;
       done(texture);
@@ -263,7 +323,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
   }
 
   function process(){
-    const maxConcurrent=isLowMem?4:6;
+    const maxConcurrent=isLowMem?4:8;
     while(loading<maxConcurrent&&queue.length){
       const [tile,variant]=queue.shift();
       if(tile.variant!==variant||tile.loading) continue;
@@ -308,8 +368,10 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     if(id===location) return;
     location=id;
     queue=[];
-    const active=new Set(), candidates=[];
-    const rad=isLowMem?(quality==='low'?2:3):(quality==='low'?3:quality==='balanced'?4:5);
+    const candidates=[];
+    // Desktop high/ultra streams 4 regional satellite rings out to ~92-100 km radius; mobile stays capped to prevent OOM!
+    const rad=isLowMem?(quality==='low'?2:3):(quality==='low'?3:quality==='balanced'?5:quality==='satellite'?7:8);
+    const imageryRadiusSquared=quality==='ultra'?13:quality==='high'?8:2;
     const lookLen=Math.hypot(lookX,lookZ)||1;
     const lx=lookX/lookLen, lz=lookZ/lookLen;
     for(let z=row-rad;z<=row+rad;z++){
@@ -317,25 +379,26 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
         const key=x+'_'+z;
         const dx=x-col, dz=z-row;
         const dist2=dx*dx+dz*dz;
-        const inCatalog=catalog.has(key);
-        const isGlobal=!inCatalog&&quality!=='low'&&dist2<=rad*rad+2&&chunkHasLand(x,z);
+        const inCatalog=catalog.has(key)&&dist2<=imageryRadiusSquared;
+        const isGlobal=!catalog.has(key)&&quality!=='low'&&dist2<=rad*rad+4&&chunkHasLand(x,z);
         if(!inCatalog&&!isGlobal) continue;
-        active.add(key);
         // Forward-biased priority: load tiles in your line of sight FIRST!
         const ahead=(dx*lx+dz*lz)/(Math.sqrt(dist2)||1);
         const priority=dist2*(ahead>0?(1-0.38*ahead):(1+0.25*Math.abs(ahead)));
         candidates.push({key,x,z,isGlobal,distance:dist2,priority});
       }
     }
+    candidates.sort((a,b)=>a.priority-b.priority);
+    const maxGlobal=isLowMem?20:(quality==='ultra'?160:quality==='high'?128:quality==='satellite'?88:48);
+    let globalCount=0;
+    const trimmed=candidates.filter(c=>!c.isGlobal||(globalCount++<maxGlobal));
+    const active=new Set(trimmed.map(c=>c.key));
     for(const [key,tile] of tiles){
       if(active.has(key)) continue;
       tile.texture?.dispose();
       tile.material.dispose();
       tiles.delete(key);
     }
-    candidates.sort((a,b)=>a.priority-b.priority);
-    const maxGlobal=isLowMem?20:42;
-    const trimmed=candidates.filter((c,i)=>!c.isGlobal||i<maxGlobal);
     const highTiles=quality==='ultra'?9:quality==='high'?6:quality==='satellite'?5:quality==='balanced'?4:0;
     const effectiveHigh=isLowMem?Math.min(4,highTiles):highTiles;
     trimmed.forEach(({key,x,z,isGlobal,distance},index)=>{
@@ -345,11 +408,13 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
         tile.material=makeMaterial(tile);
         tiles.set(key,tile);
       }
-      // Keep a low-resolution middle ring between the local imagery and far horizon imagery.
-      const imageryRadiusSquared=quality==='ultra'?13:quality==='high'?8:2;
+      // 4-ring regional satellite cascade: high (<=17km) -> mid (<=36km) -> low (<=62km) -> horizon (<=100km)
       let variant;
       if(isGlobal){
-        variant=index<effectiveHigh&&distance<=2&&renderer.capabilities.maxTextureSize>=1152?'high':distance<=10?'low':'horizon';
+        if(index<effectiveHigh&&distance<=2&&renderer.capabilities.maxTextureSize>=1152) variant='high';
+        else if(distance<=10) variant='mid';
+        else if(distance<=29) variant='low';
+        else variant='horizon';
       }else{
         variant=distance>imageryRadiusSquared?null:index<effectiveHigh&&renderer.capabilities.maxTextureSize>=1152?'high':'low';
       }
@@ -366,5 +431,5 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     });
     process();
   }
-  return {update,updateDetailClipmap,detailUniforms,material:(col,row)=>tiles.get(col+'_'+row)?.material};
+  return {update,updateDetailClipmap,updateMidDetailClipmap,detailUniforms,midDetailUniforms,material:(col,row)=>tiles.get(col+'_'+row)?.material};
 }
