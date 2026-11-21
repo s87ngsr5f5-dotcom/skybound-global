@@ -697,7 +697,8 @@
     winCondition:(f,st)=>!f.ended&&st.gatesPassed>=3&&(finishLanding?f.ground&&st.wasAirborne&&st.nearAirport&&Math.hypot(f.vx||0,f.vz||0)<3:!f.ground&&st.stableS>=skillDuration)
   }));
 
-  const ALL_CHAPTERS = [...CHAPTERS, ...WORLD_CHAPTERS, ...SHORT_CHAPTERS, ...GLOBAL_CHAPTERS];
+  const EXTRA_STORY_CHAPTERS = (Array.isArray(globalScope.SKYBOUND_EXTRA_CHAPTERS) ? globalScope.SKYBOUND_EXTRA_CHAPTERS : []).map((ch, idx) => ({ ...ch, id: 201 + idx }));
+  const ALL_CHAPTERS = [...CHAPTERS, ...EXTRA_STORY_CHAPTERS, ...WORLD_CHAPTERS, ...SHORT_CHAPTERS, ...GLOBAL_CHAPTERS];
   const missionPrizes = {1:'Gulfstream G700',2:'Dassault Rafale C',3:'Airbus A400M',4:'F-14B Tomcat',6:'F-22A Raptor',8:'Airbus A350-1000'};
   for (const ch of SHORT_CHAPTERS) {
     const trainer = ch.aircraft === 'c172s';
@@ -2798,6 +2799,9 @@
     sp.textContent = speaker;
     tx.textContent = text;
     bar.hidden = false;
+    if (globalScope.MissionCinematics && typeof globalScope.MissionCinematics.enhanceRadioBar === 'function') {
+      try { globalScope.MissionCinematics.enhanceRadioBar(bar, speaker, text); } catch (_) {}
+    }
     if (radioHideTimer) clearTimeout(radioHideTimer);
     radioHideTimer = setTimeout(() => { bar.hidden = true; }, durationMs);
   }
@@ -3122,12 +3126,20 @@
   function startChapter(chapterId) {
     const ch = ALL_CHAPTERS.find(c => c.id === chapterId) || CHAPTERS[0];
     selectedChapterId = ch.id;
-    launchMission(ch);
+    if (globalScope.MissionCinematics && typeof globalScope.MissionCinematics.playIntro === 'function') {
+      globalScope.MissionCinematics.playIntro(ch, () => launchMission(ch));
+    } else {
+      launchMission(ch);
+    }
   }
 
   function startChallenge(type) {
     const ch = buildChallengeMission(type);
-    launchMission(ch);
+    if (globalScope.MissionCinematics && typeof globalScope.MissionCinematics.playIntro === 'function') {
+      globalScope.MissionCinematics.playIntro(ch, () => launchMission(ch));
+    } else {
+      launchMission(ch);
+    }
   }
 
   setInterval(() => {
