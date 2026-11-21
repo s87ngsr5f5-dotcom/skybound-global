@@ -49,13 +49,13 @@ if(!renderer){
 if(renderer) initialize();
 function initialize(){
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#9ccbea');
+  scene.background = new THREE.Color('#85bfe6');
   const parkingBeacon=new THREE.Group();
   const parkingGold=new THREE.MeshBasicMaterial({color:0xffd24c,transparent:true,opacity:.85,depthWrite:false});
   const parkingRing=new THREE.Mesh(new THREE.RingGeometry(8,11,40),parkingGold);parkingRing.rotation.x=-Math.PI/2;parkingRing.position.y=.35;
   const parkingArrow=new THREE.Mesh(new THREE.ConeGeometry(4,9,4),parkingGold);parkingArrow.rotation.z=Math.PI;parkingArrow.position.y=19;
   parkingBeacon.add(parkingRing,parkingArrow);parkingBeacon.visible=false;scene.add(parkingBeacon);
-  scene.fog = new THREE.FogExp2('#a4c9dd',0.000026);
+  scene.fog = new THREE.FogExp2('#85bfe6',0.000026);
   const camera = new THREE.PerspectiveCamera(64,1,.6,155000);
   let taiwanOverview, overviewActive=false;
   const overviewToggle=byId('taiwanOverview'),overviewScale=byId('overviewScale');
@@ -230,6 +230,39 @@ function initialize(){
   const midDetailImage={value:landTexture}, midDetailReady={value:0}, midDetailBounds={value:new THREE.Vector4(0,0,4800,4800)};
   const terrainMicroTextures=(typeof TerrainMicroDetail!=='undefined'&&!renderer.instrumentOnly)?TerrainMicroDetail.createTextures(THREE,renderer):null;
   const seaRayUniforms={rtEnabled:{value:1},sunDir:{value:new THREE.Vector3(0,1,0)},dayRatio:{value:1},skyTime:{value:0}};
+  const terrainHorizonUniforms={
+    camXZ:{value:new THREE.Vector2(0,0)},
+    fade:{value:new THREE.Vector2(53200,85800)},
+    color:{value:new THREE.Color('#85bfe6')}
+  };
+  // Continuous 440 km infinite Earth/Ocean horizon skirt below terrainChunks (eliminates white horizon voids from Frame 1)
+  const horizonSkirtMat=new THREE.MeshBasicMaterial({color:0x245074,fog:true});
+  horizonSkirtMat.customProgramCacheKey=()=>'horizonSkirtV1';
+  horizonSkirtMat.onBeforeCompile=shader=>{
+    shader.uniforms.uCamXZ=terrainHorizonUniforms.camXZ;
+    shader.uniforms.uHorizonFade=terrainHorizonUniforms.fade;
+    shader.uniforms.uHorizonColor=terrainHorizonUniforms.color;
+    shader.vertexShader='varying vec2 skirtXZ;\n'+shader.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\n skirtXZ=(modelMatrix*vec4(transformed,1.0)).xz;');
+    shader.fragmentShader='varying vec2 skirtXZ;\nuniform vec2 uCamXZ,uHorizonFade;\nuniform vec3 uHorizonColor;\n'+
+      shader.fragmentShader.replace('#include <fog_fragment>',`#include <fog_fragment>
+        {
+          float hDist=length(skirtXZ-uCamXZ);
+          float edgeDissolve=smoothstep(uHorizonFade.x,uHorizonFade.y,hDist);
+          #ifdef USE_FOG
+            gl_FragColor.rgb=mix(gl_FragColor.rgb,fogColor,edgeDissolve*edgeDissolve);
+          #else
+            gl_FragColor.rgb=mix(gl_FragColor.rgb,uHorizonColor,edgeDissolve*edgeDissolve);
+          #endif
+        }
+      `);
+  };
+  const horizonSkirt=new THREE.Mesh(new THREE.CircleGeometry(440000,64),horizonSkirtMat);
+  horizonSkirt.rotation.x=-Math.PI/2;
+  horizonSkirt.position.set(0,-3.5,0);
+  horizonSkirt.frustumCulled=false;
+  horizonSkirt.renderOrder=-1;
+  if(!renderer.instrumentOnly) scene.add(horizonSkirt);
   function terrainPhoto(shader,tile){
     shader.uniforms.taipeiImage=taipeiImage;
     shader.uniforms.taipeiImageReady=taipeiImageReady;
@@ -249,10 +282,13 @@ function initialize(){
     shader.uniforms.seaSunDir=seaRayUniforms.sunDir;
     shader.uniforms.seaDayRatio=seaRayUniforms.dayRatio;
     shader.uniforms.seaSkyTime=seaRayUniforms.skyTime;
+    shader.uniforms.uCamXZ=terrainHorizonUniforms.camXZ;
+    shader.uniforms.uHorizonFade=terrainHorizonUniforms.fade;
+    shader.uniforms.uHorizonColor=terrainHorizonUniforms.color;
     shader.vertexShader='varying vec2 terrainXZ;\nvarying vec3 terrainWorldPos;\n'+shader.vertexShader.replace('#include <begin_vertex>',
       '#include <begin_vertex>\n terrainWorldPos=(modelMatrix * vec4(transformed,1.0)).xyz;\n terrainXZ=terrainWorldPos.xz;');
     shader.fragmentShader='varying vec2 terrainXZ;\nvarying vec3 terrainWorldPos;\nuniform sampler2D taipeiImage,regionalImage,midDetailImage,detailImage,atlasImage;\n'+
-      'uniform float taipeiImageReady,regionalImageReady,midDetailReady,detailImageReady,atlasReady,seaRtEnabled,seaDayRatio,seaSkyTime;\nuniform vec2 regionalImageOrigin;\nuniform vec3 seaSunDir;\nuniform vec4 atlasBounds,midDetailBounds,detailBounds;\n'+
+      'uniform float taipeiImageReady,regionalImageReady,midDetailReady,detailImageReady,atlasReady,seaRtEnabled,seaDayRatio,seaSkyTime;\nuniform vec2 regionalImageOrigin,uCamXZ,uHorizonFade;\nuniform vec3 seaSunDir,uHorizonColor;\nuniform vec4 atlasBounds,midDetailBounds,detailBounds;\n'+
       shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
         vec2 atlasUV=(terrainXZ-atlasBounds.xy)/atlasBounds.zw;
         if(atlasReady>0.5&&all(greaterThanEqual(atlasUV,vec2(0.0)))&&all(lessThanEqual(atlasUV,vec2(1.0)))){
@@ -364,12 +400,22 @@ function initialize(){
             totalEmissiveRadiance+=cityCol*urbanWeight*nightRatio*0.82;
           }
         }
+      `).replace('#include <fog_fragment>',`#include <fog_fragment>
+        {
+          float hDist=length(terrainXZ-uCamXZ);
+          float edgeDissolve=smoothstep(uHorizonFade.x,uHorizonFade.y,hDist);
+          #ifdef USE_FOG
+            gl_FragColor.rgb=mix(gl_FragColor.rgb,fogColor,edgeDissolve*edgeDissolve);
+          #else
+            gl_FragColor.rgb=mix(gl_FragColor.rgb,uHorizonColor,edgeDissolve*edgeDissolve);
+          #endif
+        }
       `);
     if(terrainMicroTextures&&typeof TerrainMicroDetail!=='undefined'){
       TerrainMicroDetail.inject(shader,terrainMicroTextures,seaRayUniforms.sunDir);
     }
   }
-  terrainMaterial.customProgramCacheKey=()=>'terrainPhotoV5';
+  terrainMaterial.customProgramCacheKey=()=>'terrainPhotoV6';
   terrainMaterial.onBeforeCompile=shader=>terrainPhoto(shader);
   const satelliteCredit=byId('satelliteCredit');
   if(!renderer.instrumentOnly) loadTaiwanAtlas().then(texture=>{
@@ -379,7 +425,7 @@ function initialize(){
   }).catch(()=>{});
   const taiwanSatellite=renderer.instrumentOnly?null:createTaiwanSatellite(tile=>{
     const material=terrainMaterial.clone();
-    material.customProgramCacheKey=()=>'terrainPhotoV5';
+    material.customProgramCacheKey=()=>'terrainPhotoV6';
     tile.image.value=landTexture;
     material.onBeforeCompile=shader=>terrainPhoto(shader,tile);
     return material;
@@ -469,12 +515,18 @@ function initialize(){
   }
   function updateTerrain(x,z){
     if(renderer.instrumentOnly) return;
+    horizonSkirt.position.set(x,-3.5,z);
     loadTaipeiImagery(x,z);
     camera.getWorldDirection(terrainLookDir);
     const lookX=terrainLookDir.x, lookZ=terrainLookDir.z;
     const lookLen=Math.hypot(lookX,lookZ)||1;
     const lx=lookX/lookLen, lz=lookZ/lookLen;
-    const cx=Math.floor(x/span),cz=Math.floor(z/span),id=cx+':'+cz+':'+terrainColorRevision;
+    const q=byId('quality').value;
+    // Memory-safe horizon streaming: +-8 chunks (~95 km radius) on desktop, +-5 (~60 km) on mobile/low-mem so zero OOM crashes!
+    const hRad=isLowMemFlight?(q==='low'?4:5):(q==='low'?5:8);
+    const fadeEnd=(hRad-0.55)*span;
+    terrainHorizonUniforms.fade.value.set(fadeEnd*0.62,fadeEnd);
+    const cx=Math.floor(x/span),cz=Math.floor(z/span),id=cx+':'+cz+':'+terrainColorRevision+':'+hRad;
     if((Math.abs(x)>120000||Math.abs(z)>220000)&&typeof WorldAtlas!=='undefined'&&typeof WorldAtlas.prefetchDEM==='function'){
       const pKey=cx+':'+cz;
       if(pKey!==lastDemPrefetchKey){
@@ -483,8 +535,8 @@ function initialize(){
         WorldAtlas.prefetchDEM(ll.lon,ll.lat);
       }
     }
-    taiwanSatellite.update(cx,cz,byId('quality').value,lx,lz);
-    taiwanSatellite.updateDetailClipmap?.(x,z,byId('quality').value);
+    taiwanSatellite.update(cx,cz,q,lx,lz);
+    taiwanSatellite.updateDetailClipmap?.(x,z,q);
     for(const [k,patch] of terrainChunks){
       const [pc,pr]=k.split(':').map(Number);
       const satMat=taiwanSatellite.material(pc,pr)??terrainMaterial;
@@ -495,9 +547,6 @@ function initialize(){
       previousChunk=id;
       const visible=new Set();
       terrainQueue=[];
-      const q=byId('quality').value;
-      // Memory-safe horizon streaming: +-8 chunks (~95 km radius) on desktop, +-5 (~60 km) on mobile/low-mem so zero OOM crashes!
-      const hRad=isLowMemFlight?(q==='low'?4:5):(q==='low'?5:8);
       for(let row=cz-hRad;row<=cz+hRad;row++){
         for(let col=cx-hRad;col<=cx+hRad;col++){
           const dx=col-cx, dz=row-cz;
@@ -512,7 +561,7 @@ function initialize(){
             const d2=(x/span-col-.5)**2+(z/span-row-.5)**2;
             const d=Math.sqrt(d2)||1;
             const ahead=((col+.5-x/span)*lx+(row+.5-z/span)*lz)/d;
-            // Prioritize terrain directly inside your forward line of sight!
+            // Prioritize nearest 120m chunks & forward line-of-sight patches first!
             const priority=d2*(ahead>0?(1-0.45*ahead):(1+0.35*Math.abs(ahead)));
             terrainQueue.push({col,row,key,step,mountain,distance:priority});
           }
@@ -530,25 +579,37 @@ function initialize(){
         terrainChunks.delete(key);
       }
     }
-    // Build nearest & forward line-of-sight patches first without stalling the frame.
-    const deadline=performance.now()+5.5;
+    // Build nearest 120m & forward line-of-sight patches first within a tight 3.2 ms zero-lag budget.
+    const deadline=performance.now()+3.2;
     while(terrainBuild||terrainQueue.length){
       if(!terrainBuild){
         const {col,row,key,step,mountain}=terrainQueue.shift();
         const mesh=new THREE.PlaneGeometry(span,span,span/step,span/step);
         mesh.rotateX(-Math.PI/2);
-        terrainBuild={key,col,row,mesh,step,mountain,px:(col+.5)*span,pz:(row+.5)*span,index:0,
+        const px=(col+.5)*span, pz=(row+.5)*span;
+        const chunkHubs=airports.filter(a=>!a.shortField&&!a.carrier&&Math.abs(px-a.x)<26000&&Math.abs(pz-a.z)<26000);
+        let chunkCity=null;
+        if(typeof WorldCitiesCatalog!=='undefined'&&typeof WorldCitiesCatalog.nearestCity==='function'){
+          const nearInfo=WorldCitiesCatalog.nearestCity(px,pz,42000);
+          if(nearInfo?.city){
+            const cObj=nearInfo.city;
+            const radM=Math.max(4500,Math.min(28000,cObj.radiusM||11000));
+            if(nearInfo.dist<radM+span) chunkCity={x:cObj.x,z:cObj.z,r2:radM*radM};
+          }
+        }
+        terrainBuild={key,col,row,mesh,step,mountain,px,pz,chunkHubs,chunkCity,index:0,
           colors:new THREE.BufferAttribute(new Float32Array(mesh.attributes.position.count*3),3)};
       }
-      const {key,col,row,mesh,step,mountain,px,pz,colors}=terrainBuild,pos=mesh.attributes.position;
-      const end=Math.min(pos.count,terrainBuild.index+512);
+      const {key,col,row,mesh,step,mountain,px,pz,chunkHubs,chunkCity,colors}=terrainBuild,pos=mesh.attributes.position;
+      const end=Math.min(pos.count,terrainBuild.index+384);
       for(let i=terrainBuild.index;i<end;i++){
         const worldX=px+pos.getX(i),worldZ=pz+Math.round(pos.getZ(i));
         const height=stitchedHeight(worldX,worldZ,step);
         pos.setY(i,height-.24);
         const forest=height>=1.5&&height<=3500?(treeCover(worldX,worldZ)||0):0;
-        const nearHubUrban=height<190&&airports.some(a=>!a.shortField&&!a.carrier&&Math.abs(worldX-a.x)<20000&&Math.abs(worldZ-a.z)<20000);
-        const urban=nearHubUrban||(height<160&&worldX>-9000&&worldX<11000&&worldZ>-4500&&worldZ<9500);
+        const nearHubUrban=height<190&&chunkHubs.length>0&&chunkHubs.some(a=>Math.abs(worldX-a.x)<20000&&Math.abs(worldZ-a.z)<20000);
+        const nearCatalogCity=height<240&&chunkCity!==null&&((worldX-chunkCity.x)**2+(worldZ-chunkCity.z)**2<chunkCity.r2);
+        const urban=nearHubUrban||nearCatalogCity||(height<160&&worldX>-9000&&worldX<11000&&worldZ>-4500&&worldZ<9500);
         const isGlobalLand=height>=0.7&&(Math.abs(worldX)>120000||Math.abs(worldZ)>220000);
         const ll=isGlobalLand&&typeof latLon==='function'?latLon(worldX,worldZ):null;
         const cInfo=ll&&typeof WorldAtlas!=='undefined'&&typeof WorldAtlas.countryAt==='function'?WorldAtlas.countryAt(ll.lon,ll.lat):null;
@@ -559,6 +620,8 @@ function initialize(){
         else if(height>highLatSnow){
           const snow=clamp((height-highLatSnow)/420,0,1);
           colors.setXYZ(i,.68+.26*snow,.66+.29*snow,.62+.35*snow);
+        }else if(nearCatalogCity&&height<240){
+          colors.setXYZ(i,.68+microVar*.35,.71+microVar*.35,.72+microVar*.35);
         }else if(cBiome==='arid'){
           const canyon=clamp((height-180)/650,0,1)*0.12;
           colors.setXYZ(i,.82+microVar-canyon*.3,.71+microVar-canyon*.5,.52+microVar*.6-canyon*.4);
@@ -2661,9 +2724,11 @@ function initialize(){
     atmosphericSky.setWeather(hour,day,weather,sunDirection,rtOn);
     atmosphericSky.updateEnvironment(sky,environment,sunDirection,day,warmth,weather,rtOn);
     if(elevation<-.05) sunDirection.set(-Math.cos(angle)*640,Math.max(240,-elevation*720),240);
-    scene.background.set(storm?'#070c14':'#050914').lerp(new THREE.Color(storm?'#22354a':weather==='fog'?'#d2dce2':wet?'#adc2d2':'#8fc7eb'),day);
+    scene.background.set(storm?'#070c14':'#050914').lerp(new THREE.Color(storm?'#22354a':weather==='fog'?'#c6d4de':wet?'#9bb5c8':'#85bfe6'),day);
     scene.fog.color.copy(scene.background);
-    scene.fog.density=storm?.00035:weather==='fog'?.00064:wet?.000065:.000034;
+    terrainHorizonUniforms.color.value.copy(scene.fog.color);
+    horizonSkirtMat.color.set(storm?'#070f1a':'#091322').lerp(new THREE.Color(storm?'#1a2b3d':weather==='fog'?'#6d8599':wet?'#2d4d66':'#245074'),day);
+    scene.fog.density=storm?.00035:weather==='fog'?.00064:wet?.000065:.000030;
     lampMaterial.color.set(day>.07?0xc5d7e2:0xeffaff);
     asphalt.roughness=wet?.24:.90;asphalt.metalness=wet?.27:.02;
     concrete.roughness=wet?.31:.92;concrete.metalness=wet?.19:.02;
@@ -7247,7 +7312,10 @@ function initialize(){
     drawMissionSkyGates(flight,now);
     const weather=byId('weather').value;
     scene.fog.density=weather==='storm'?.00035:weather==='fog'?.00064:weather==='wet'?.000065:
-      THREE.MathUtils.lerp(.000034,.000007,clamp(((flight?.y||0)-2400)/6600,0,1));
+      THREE.MathUtils.lerp(.000030,.0000055,clamp(((flight?.y||0)-2000)/6200,0,1));
+    terrainHorizonUniforms.camXZ.value.set(camera.position.x,camera.position.z);
+    terrainHorizonUniforms.color.value.copy(scene.fog.color);
+    if(!flight) horizonSkirt.position.set(camera.position.x,-3.5,camera.position.z);
     seaRayUniforms.skyTime.value+=dt;
     if(renderer.instrumentOnly&&flight){
       camera.position.set(flight.x,flight.y+1.4,flight.z);

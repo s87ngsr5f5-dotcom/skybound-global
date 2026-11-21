@@ -3,8 +3,9 @@
 /**
  * SKYBOUND GLOBAL - Close-Range 3D Ground Clutter Ring (Zero-Lag 4-Draw-Call GPU Instancing)
  * Reads live satellite imagery (__SKYBOUND_SAT_SAMPLER), terrain height, and terrain slope
- * to populate the immediate 460m ring around the aircraft (below 680m AGL) with sharp
- * 3D grass tufts, organic shrubs, 2-tier forest trees, and angular slope/cliff rocks.
+ * to populate a closest-first 0-2,400m ring around the aircraft (ultra-lush 0-900m grass/shrubs,
+ * extending 3D trees & cliff rocks to 2,400m) with strict <=1.6ms time-sliced rebuilds,
+ * zero per-frame allocations, and smooth outer-25% distance scale-out.
  */
 function createGroundDetailRing(scene, ground, airports = []) {
   const isLowMem = typeof navigator !== 'undefined' && (
@@ -13,13 +14,16 @@ function createGroundDetailRing(scene, ground, airports = []) {
   );
 
   const CELL = 28;
-  const RADIUS = 460;
-  const REBUILD_DIST = 65;
-  const MAX_AGL = 680;
-  const MAX_GRASS = isLowMem ? 220 : 520;
-  const MAX_SHRUB = isLowMem ? 140 : 320;
-  const MAX_TREE = isLowMem ? 120 : 280;
-  const MAX_ROCK = isLowMem ? 90 : 220;
+  const INNER_RADIUS = isLowMem ? 340 : 480;
+  const GROUND_RADIUS = isLowMem ? 560 : 900;
+  const RADIUS = isLowMem ? 1200 : 2400;
+  const REBUILD_DIST = isLowMem ? 70 : 75;
+  const MAX_AGL = 1050;
+  const FRAME_BUDGET_MS = 1.6;
+  const MAX_GRASS = isLowMem ? 320 : 960;
+  const MAX_SHRUB = isLowMem ? 180 : 480;
+  const MAX_TREE = isLowMem ? 180 : 620;
+  const MAX_ROCK = isLowMem ? 120 : 360;
 
   const groundFn = typeof ground === 'function'
     ? ground
@@ -44,16 +48,53 @@ function createGroundDetailRing(scene, ground, airports = []) {
     return v < lo ? lo : v > hi ? hi : v;
   }
 
-  // Precompute concentric grid offsets sorted closest-first so inner clutter always gets 360° priority
-  const cellSpan = Math.ceil(RADIUS / CELL);
+  function nowMs() {
+    return typeof performance !== 'undefined' && typeof performance.now === 'function'
+      ? performance.now()
+      : Date.now();
+  }
+
+  // Smooth cubic scale-out over the outer 25% of any ring radius (zero pop-in / pop-out)
+  function smoothFade(dist, maxDist) {
+    const fadeStart = maxDist * 0.75;
+    if (dist <= fadeStart) return 1.0;
+    if (dist >= maxDist) return 0.0;
+    const t = (maxDist - dist) / (maxDist - fadeStart);
+    return t * t * (3 - 2 * t);
+  }
+
+  // Precompute 3-tier world-anchored concentric grid offsets sorted strictly closest-first:
+  //  - Tier 0 (0..480m, 28m stride): ultra-dense grass tufts, shrubs, trees & rocks
+  //  - Tier 1 (480..900m, 56m even stride): dense meadow grass, shrubs, trees & rocks
+  //  - Tier 2 (900..2,400m, 112m stride): crisp 3D forest trees & coastal/mountain rocks
   const cellOffsets = [];
-  for (let dz = -cellSpan; dz <= cellSpan; dz++) {
-    for (let dx = -cellSpan; dx <= cellSpan; dx++) {
+  const span0 = Math.ceil((INNER_RADIUS + CELL) / CELL);
+  for (let dz = -span0; dz <= span0; dz++) {
+    for (let dx = -span0; dx <= span0; dx++) {
       const dist = Math.hypot(dx * CELL, dz * CELL);
-      if (dist <= RADIUS) cellOffsets.push({ dx, dz, dist });
+      if (dist <= INNER_RADIUS + CELL) cellOffsets.push({ dx, dz, dist, tier: 0 });
     }
   }
-  cellOffsets.sort((a, b) => a.dist - b.dist);
+  const span1 = Math.ceil((GROUND_RADIUS + CELL * 2) / CELL);
+  const s1Min = Math.max(0, INNER_RADIUS - CELL * 2);
+  const s1Max = GROUND_RADIUS + CELL * 2;
+  for (let dz = -((span1 + 1) & ~1); dz <= ((span1 + 1) & ~1); dz += 2) {
+    for (let dx = -((span1 + 1) & ~1); dx <= ((span1 + 1) & ~1); dx += 2) {
+      const dist = Math.hypot(dx * CELL, dz * CELL);
+      if (dist >= s1Min && dist <= s1Max) cellOffsets.push({ dx, dz, dist, tier: 1 });
+    }
+  }
+  const span2 = Math.ceil((RADIUS + CELL * 4) / CELL);
+  const s2Min = Math.max(0, GROUND_RADIUS - CELL * 4);
+  const s2Max = RADIUS + CELL * 4;
+  const s2Lim = (span2 + 3) & ~3;
+  for (let dz = -s2Lim; dz <= s2Lim; dz += 4) {
+    for (let dx = -s2Lim; dx <= s2Lim; dx += 4) {
+      const dist = Math.hypot(dx * CELL, dz * CELL);
+      if (dist >= s2Min && dist <= s2Max) cellOffsets.push({ dx, dz, dist, tier: 2 });
+    }
+  }
+  cellOffsets.sort((a, b) => a.dist - b.dist || a.tier - b.tier);
 
   // ---------------------------------------------------------------------------
   // 1. Custom 3D Geometries (4 compact GPU buffers -> ONLY 4 draw calls total)
@@ -282,6 +323,7 @@ function createGroundDetailRing(scene, ground, airports = []) {
     'RCSS', 'RCTP', 'RJAA', 'RCKH', 'RJTT', 'VHHH', 'ROAH', 'RKSI', 'WSSS', 'RPLL'
   ]);
 
+  const rwCoordsOut = { along: 0, cross: 0 };
   function getRunwayCoords(x, z, ap) {
     if (typeof runwayCoordinates === 'function') {
       return runwayCoordinates(x, z, ap);
@@ -290,10 +332,15 @@ function createGroundDetailRing(scene, ground, airports = []) {
     const dz = z - ap.z;
     const s = Math.sin(ap.heading || 0);
     const c = Math.cos(ap.heading || 0);
-    return { along: dx * s - dz * c, cross: dx * c + dz * s };
+    rwCoordsOut.along = dx * s - dz * c;
+    rwCoordsOut.cross = dx * c + dz * s;
+    return rwCoordsOut;
   }
 
+  const airportParamCache = new Map();
   function airportParams(ap) {
+    let cached = airportParamCache.get(ap);
+    if (cached) return cached;
     const half = (ap.length || 2400) * 0.5;
     const width = ap.width || 45;
     const apron = ap.apron ?? 175;
@@ -307,7 +354,7 @@ function createGroundDetailRing(scene, ground, airports = []) {
     const terminalX = apron + side * ((local ? 14.5 : large ? 82.5 : 68) + terminalWidth * 0.5);
     const apronZ = local ? -(ap.parkingAlong || 0) : -65;
     const apronOuter = Math.abs(terminalX) + terminalWidth * 0.5 + (local ? 45 : 110);
-    return {
+    cached = {
       ap,
       half,
       width,
@@ -319,6 +366,8 @@ function createGroundDetailRing(scene, ground, airports = []) {
       apronOuter,
       reach: half + apronOuter + 420
     };
+    airportParamCache.set(ap, cached);
+    return cached;
   }
 
   const nearbyAirports = [];
@@ -408,13 +457,103 @@ function createGroundDetailRing(scene, ground, airports = []) {
 
   const dummy = new THREE.Object3D();
   const tmpColor = new THREE.Color();
+  const tmpMatrix = typeof THREE.Matrix4 === 'function' ? new THREE.Matrix4() : null;
+  const tmpVec = typeof THREE.Vector3 === 'function' ? new THREE.Vector3() : null;
   const allMaterials = [grassMat, shrubMat, treeMat, rockMat];
+
+  // Pre-allocated double-buffered staging typed arrays (zero per-frame GC allocations, flicker-free atomic swaps)
+  const grassStageMat = new Float32Array(MAX_GRASS * 16);
+  const grassStageCol = new Float32Array(MAX_GRASS * 3);
+  const shrubStageMat = new Float32Array(MAX_SHRUB * 16);
+  const shrubStageCol = new Float32Array(MAX_SHRUB * 3);
+  const treeStageMat = new Float32Array(MAX_TREE * 16);
+  const treeStageCol = new Float32Array(MAX_TREE * 3);
+  const rockStageMat = new Float32Array(MAX_ROCK * 16);
+  const rockStageCol = new Float32Array(MAX_ROCK * 3);
 
   let built = false;
   let lastX = 1e12;
   let lastZ = 1e12;
   let lastSatRev = -1;
   let lastDayRatio = -1;
+
+  const buildState = {
+    active: false,
+    progressive: false,
+    px: 0,
+    pz: 0,
+    baseGx: 0,
+    baseGz: 0,
+    base1X: 0,
+    base1Z: 0,
+    base2X: 0,
+    base2Z: 0,
+    cursor: 0,
+    grassCount: 0,
+    shrubCount: 0,
+    treeCount: 0,
+    rockCount: 0,
+    satRev: 0,
+    sampler: null
+  };
+
+  function stageInstance(stageMat, stageCol, idx, fallbackMesh) {
+    const els = dummy.matrix && dummy.matrix.elements;
+    if (els && els.length === 16) {
+      const mOff = idx * 16;
+      for (let k = 0; k < 16; k++) stageMat[mOff + k] = els[k];
+    } else if (fallbackMesh && typeof fallbackMesh.setMatrixAt === 'function') {
+      fallbackMesh.setMatrixAt(idx, dummy.matrix);
+    }
+    const cOff = idx * 3;
+    stageCol[cOff] = tmpColor.r;
+    stageCol[cOff + 1] = tmpColor.g;
+    stageCol[cOff + 2] = tmpColor.b;
+  }
+
+  function commitMeshBuffer(mesh, stageMat, stageCol, count) {
+    if (count > 0) {
+      const matAttr = mesh.instanceMatrix;
+      if (matAttr && matAttr.array) {
+        const dst = matAttr.array;
+        const mLen = count * 16;
+        for (let i = 0; i < mLen; i++) dst[i] = stageMat[i];
+      } else if (tmpMatrix && tmpMatrix.elements && typeof mesh.setMatrixAt === 'function') {
+        const te = tmpMatrix.elements;
+        for (let i = 0; i < count; i++) {
+          const off = i * 16;
+          for (let k = 0; k < 16; k++) te[k] = stageMat[off + k];
+          mesh.setMatrixAt(i, tmpMatrix);
+        }
+      }
+      if (!mesh.instanceColor && typeof mesh.setColorAt === 'function') {
+        tmpColor.setRGB(stageCol[0], stageCol[1], stageCol[2]);
+        mesh.setColorAt(0, tmpColor);
+      }
+      const colAttr = mesh.instanceColor;
+      if (colAttr && colAttr.array) {
+        const dstC = colAttr.array;
+        const cLen = count * 3;
+        for (let i = 0; i < cLen; i++) dstC[i] = stageCol[i];
+      } else if (typeof mesh.setColorAt === 'function') {
+        for (let i = 0; i < count; i++) {
+          const off = i * 3;
+          tmpColor.setRGB(stageCol[off], stageCol[off + 1], stageCol[off + 2]);
+          mesh.setColorAt(i, tmpColor);
+        }
+      }
+    }
+    mesh.count = count;
+    if (mesh.instanceMatrix) mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }
+
+  function commitAllStaged() {
+    commitMeshBuffer(grassInst, grassStageMat, grassStageCol, buildState.grassCount);
+    commitMeshBuffer(shrubInst, shrubStageMat, shrubStageCol, buildState.shrubCount);
+    commitMeshBuffer(treeInst, treeStageMat, treeStageCol, buildState.treeCount);
+    commitMeshBuffer(rockInst, rockStageMat, rockStageCol, buildState.rockCount);
+  }
 
   function applyDaylight(dayRatio) {
     const d = clamp(Number.isFinite(dayRatio) ? dayRatio : 1, 0, 1);
@@ -518,43 +657,97 @@ function createGroundDetailRing(scene, ground, airports = []) {
     }
   }
 
-  function rebuild(px, pz) {
+  function beginRebuild(px, pz, satRev) {
     refreshNearbyAirports(px, pz);
-
-    const sampler = typeof window !== 'undefined' && typeof window.__SKYBOUND_SAT_SAMPLER === 'function'
-      ? window.__SKYBOUND_SAT_SAMPLER
-      : null;
-
     const baseGx = Math.floor(px / CELL);
     const baseGz = Math.floor(pz / CELL);
+    buildState.active = true;
+    buildState.progressive = !built;
+    buildState.px = px;
+    buildState.pz = pz;
+    buildState.baseGx = baseGx;
+    buildState.baseGz = baseGz;
+    buildState.base1X = baseGx & ~1;
+    buildState.base1Z = baseGz & ~1;
+    buildState.base2X = baseGx & ~3;
+    buildState.base2Z = baseGz & ~3;
+    buildState.cursor = 0;
+    buildState.grassCount = 0;
+    buildState.shrubCount = 0;
+    buildState.treeCount = 0;
+    buildState.rockCount = 0;
+    buildState.satRev = satRev;
+    buildState.sampler = typeof window !== 'undefined' && typeof window.__SKYBOUND_SAT_SAMPLER === 'function'
+      ? window.__SKYBOUND_SAT_SAMPLER
+      : null;
+  }
 
-    let grassCount = 0;
-    let shrubCount = 0;
-    let treeCount = 0;
-    let rockCount = 0;
+  function stepRebuild(budgetMs) {
+    const tStart = nowMs();
+    const sampler = buildState.sampler;
+    const bPx = buildState.px;
+    const bPz = buildState.pz;
+    const totalCells = cellOffsets.length;
 
-    for (let i = 0; i < cellOffsets.length; i++) {
+    let grassCount = buildState.grassCount;
+    let shrubCount = buildState.shrubCount;
+    let treeCount = buildState.treeCount;
+    let rockCount = buildState.rockCount;
+    let cursor = buildState.cursor;
+    let processed = 0;
+    let allFull = false;
+
+    while (cursor < totalCells) {
       if (
         grassCount >= MAX_GRASS &&
         shrubCount >= MAX_SHRUB &&
         treeCount >= MAX_TREE &&
         rockCount >= MAX_ROCK
       ) {
+        allFull = true;
         break;
       }
 
-      const off = cellOffsets[i];
-      const gx = baseGx + off.dx;
-      const gz = baseGz + off.dz;
+      if ((processed & 7) === 0 && processed > 0 && (nowMs() - tStart) >= budgetMs) {
+        break;
+      }
+      processed++;
+
+      const off = cellOffsets[cursor++];
+      const tier = off.tier;
+
+      // Skip outer tier early if tree & rock budgets are already saturated
+      if (tier === 2 && treeCount >= MAX_TREE && rockCount >= MAX_ROCK) {
+        allFull = (grassCount >= MAX_GRASS && shrubCount >= MAX_SHRUB);
+        if (allFull) break;
+        continue;
+      }
+
+      const gx = (tier === 0 ? buildState.baseGx : tier === 1 ? buildState.base1X : buildState.base2X) + off.dx;
+      const gz = (tier === 0 ? buildState.baseGz : tier === 1 ? buildState.base1Z : buildState.base2Z) + off.dz;
 
       const h0 = hash2(gx, gz);
       const h1 = hash2(gx * 3 + 17, gz * 5 - 31);
       const h2 = hash2(gx * 7 - 11, gz * 11 + 29);
       const h3 = hash2(gx * 13 + 43, gz * 17 - 19);
 
-      // World-anchored position inside this deterministic 28m cell
+      // World-anchored position inside this deterministic cell
       const wx = (gx + 0.14 + h0 * 0.72) * CELL;
       const wz = (gz + 0.14 + h1 * 0.72) * CELL;
+
+      // Exact radial distance from rebuild center (disjoint tier intervals guarantee zero duplicates & zero gaps)
+      const actualDist = Math.hypot(wx - bPx, wz - bPz);
+      if (tier === 0) {
+        if (actualDist > INNER_RADIUS) continue;
+      } else if (tier === 1) {
+        if (actualDist <= INNER_RADIUS || actualDist > GROUND_RADIUS) continue;
+      } else {
+        if (actualDist <= GROUND_RADIUS || actualDist > RADIUS) continue;
+      }
+
+      const outerFade = smoothFade(actualDist, RADIUS);
+      if (outerFade < 0.05) continue;
+      const groundFade = tier < 2 ? smoothFade(actualDist, GROUND_RADIUS) : 0.0;
 
       const gY = groundFn(wx, wz);
       if (!Number.isFinite(gY) || gY < 1.15 || gY > 3400) continue;
@@ -612,17 +805,17 @@ function createGroundDetailRing(scene, ground, airports = []) {
 
       // Airfield green grass infield / verges: ONLY short mowed grass tufts, NEVER trees/shrubs/rocks
       if (zone === 'verge') {
-        if (grassCount < MAX_GRASS && (!hasSat || (!isUrban && (isGreenGrass || isDarkForest || sat.g >= sat.r * 0.92)))) {
-          if (h2 < 0.76) {
-            const scaleW = 1.15 + h3 * 1.05;
-            const scaleH = 0.55 + h2 * 0.45; // Kept low & realistic beside runways
+        if (groundFade >= 0.05 && grassCount < MAX_GRASS && (!hasSat || (!isUrban && (isGreenGrass || isDarkForest || sat.g >= sat.r * 0.92)))) {
+          if (h2 < 0.78) {
+            const scaleW = (1.15 + h3 * 1.05) * groundFade;
+            const scaleH = (0.55 + h2 * 0.45) * groundFade; // Kept low & realistic beside runways
+            if (tmpVec) tmpVec.set(wx, gY - 0.04, wz);
             dummy.position.set(wx, gY - 0.04, wz);
             dummy.rotation.set(0, h1 * Math.PI * 2, 0);
             dummy.scale.set(scaleW, scaleH, scaleW);
             dummy.updateMatrix();
-            grassInst.setMatrixAt(grassCount, dummy.matrix);
             setGrassColorFromSat(sat, h3);
-            grassInst.setColorAt(grassCount, tmpColor);
+            stageInstance(grassStageMat, grassStageCol, grassCount, grassInst);
             grassCount++;
           }
         }
@@ -637,7 +830,7 @@ function createGroundDetailRing(scene, ground, airports = []) {
       if (rockCount < MAX_ROCK && (isSteepSlope || isCoastalCliff || (isAridRocky && h2 < 0.42))) {
         const rockProb = isSteepSlope ? 0.68 : isCoastalCliff ? 0.58 : 0.34;
         if (h2 < rockProb) {
-          const baseScale = isSteepSlope ? (1.4 + h3 * 2.4) : (0.9 + h3 * 1.6);
+          const baseScale = (isSteepSlope ? (1.4 + h3 * 2.4) : (0.9 + h3 * 1.6)) * outerFade;
           dummy.position.set(wx, gY - baseScale * 0.24, wz);
           dummy.rotation.set((h0 - 0.5) * 0.35, h1 * Math.PI * 2, (h2 - 0.5) * 0.35);
           dummy.scale.set(
@@ -646,9 +839,8 @@ function createGroundDetailRing(scene, ground, airports = []) {
             baseScale * (0.80 + h2 * 0.55)
           );
           dummy.updateMatrix();
-          rockInst.setMatrixAt(rockCount, dummy.matrix);
           setRockColorFromSat(sat, h3, isCoastalCliff);
-          rockInst.setColorAt(rockCount, tmpColor);
+          stageInstance(rockStageMat, rockStageCol, rockCount, rockInst);
           rockCount++;
           if (isSteepSlope && slope > 0.34) continue;
         }
@@ -665,33 +857,31 @@ function createGroundDetailRing(scene, ground, airports = []) {
         slope <= 0.58 &&
         (isDarkForest || allowFallbackTree)
       ) {
-        if (h2 < (isDarkForest ? 0.64 : 0.24)) {
-          const treeH = 7.2 + h3 * 7.8;
+        if (h2 < (isDarkForest ? 0.66 : 0.24)) {
+          const treeH = (7.2 + h3 * 7.8) * outerFade;
           const treeW = treeH * (0.48 + h0 * 0.16);
-          dummy.position.set(wx, gY - 0.18, wz);
+          dummy.position.set(wx, gY - 0.18 * outerFade, wz);
           dummy.rotation.set((h0 - 0.5) * 0.06, h1 * Math.PI * 2, (h2 - 0.5) * 0.06);
           dummy.scale.set(treeW, treeH, treeW);
           dummy.updateMatrix();
-          treeInst.setMatrixAt(treeCount, dummy.matrix);
           setTreeTintFromSat(sat, h3);
-          treeInst.setColorAt(treeCount, tmpColor);
+          stageInstance(treeStageMat, treeStageCol, treeCount, treeInst);
           treeCount++;
 
-          // Optional understory shrub beside forest tree
-          if (shrubCount < MAX_SHRUB && h3 > 0.55) {
+          // Optional understory shrub beside forest tree within the 0-900m lush ground ring
+          if (groundFade >= 0.05 && shrubCount < MAX_SHRUB && h3 > 0.55) {
             const sx = wx + (h0 - 0.5) * 9.0;
             const sz = wz + (h1 - 0.5) * 9.0;
             if (checkAirportZone(sx, sz, nearbyAirports) === 'open') {
               const sy = groundFn(sx, sz);
               if (sy > 1.3) {
-                const bw = 1.4 + h2 * 1.4;
-                dummy.position.set(sx, sy - 0.12, sz);
+                const bw = (1.4 + h2 * 1.4) * groundFade;
+                dummy.position.set(sx, sy - 0.12 * groundFade, sz);
                 dummy.rotation.set(0, h3 * Math.PI * 2, 0);
-                dummy.scale.set(bw, 0.95 + h0 * 0.85, bw * (0.85 + h1 * 0.30));
+                dummy.scale.set(bw, (0.95 + h0 * 0.85) * groundFade, bw * (0.85 + h1 * 0.30));
                 dummy.updateMatrix();
-                shrubInst.setMatrixAt(shrubCount, dummy.matrix);
                 setShrubColorFromSat(sat, h0, false);
-                shrubInst.setColorAt(shrubCount, tmpColor);
+                stageInstance(shrubStageMat, shrubStageCol, shrubCount, shrubInst);
                 shrubCount++;
               }
             }
@@ -700,7 +890,9 @@ function createGroundDetailRing(scene, ground, airports = []) {
         }
       }
 
-      // 3. Organic bushes/shrubs along forest edges, hills, rural fields, and arid scrub
+      if (groundFade < 0.05) continue;
+
+      // 3. Organic bushes/shrubs along forest edges, hills, rural fields, and arid scrub (0-900m)
       const allowFallbackShrub = !hasSat && gY > 2.0 && gY < 2400 && slope <= 0.45 && h2 < 0.22;
       if (
         shrubCount < MAX_SHRUB &&
@@ -709,22 +901,21 @@ function createGroundDetailRing(scene, ground, airports = []) {
         slope <= 0.55 &&
         (isDarkForest || isGreenGrass || isAridRocky || allowFallbackShrub)
       ) {
-        const shrubProb = isDarkForest ? 0.52 : isGreenGrass ? 0.26 : isAridRocky ? 0.20 : 0.18;
+        const shrubProb = isDarkForest ? 0.54 : isGreenGrass ? 0.28 : isAridRocky ? 0.20 : 0.18;
         if (h3 < shrubProb) {
-          const bw = 1.3 + h0 * 1.8;
-          const bh = 0.85 + h1 * 1.15;
-          dummy.position.set(wx, gY - 0.14, wz);
+          const bw = (1.3 + h0 * 1.8) * groundFade;
+          const bh = (0.85 + h1 * 1.15) * groundFade;
+          dummy.position.set(wx, gY - 0.14 * groundFade, wz);
           dummy.rotation.set(0, h2 * Math.PI * 2, 0);
           dummy.scale.set(bw, bh, bw * (0.82 + h3 * 0.36));
           dummy.updateMatrix();
-          shrubInst.setMatrixAt(shrubCount, dummy.matrix);
           setShrubColorFromSat(sat, h2, isAridRocky);
-          shrubInst.setColorAt(shrubCount, tmpColor);
+          stageInstance(shrubStageMat, shrubStageCol, shrubCount, shrubInst);
           shrubCount++;
         }
       }
 
-      // 4. Grass tufts on grass, farmland, park, and gentle meadow pixels
+      // 4. Ultra-lush grass tufts on grass, farmland, park, and gentle meadow pixels (0-900m)
       const allowFallbackGrass = !hasSat && gY > 1.5 && gY < 2000 && slope <= 0.30;
       if (
         grassCount < MAX_GRASS &&
@@ -733,45 +924,47 @@ function createGroundDetailRing(scene, ground, airports = []) {
         slope <= 0.40 &&
         (isGreenGrass || isDarkForest || (isAridRocky && h0 < 0.35) || allowFallbackGrass)
       ) {
-        const subTufts = off.dist < 220 && isGreenGrass ? 2 : 1;
+        const subTufts = actualDist < 240 && isGreenGrass ? 3 : actualDist < 480 && isGreenGrass ? 2 : 1;
         for (let k = 0; k < subTufts && grassCount < MAX_GRASS; k++) {
-          const shA = k === 0 ? h0 : hash2(gx * 5 + 71, gz * 7 - 53);
-          const shB = k === 0 ? h1 : hash2(gx * 11 - 37, gz * 3 + 89);
+          const shA = k === 0 ? h0 : k === 1 ? hash2(gx * 5 + 71, gz * 7 - 53) : hash2(gx * 17 - 23, gz * 13 + 61);
+          const shB = k === 0 ? h1 : k === 1 ? hash2(gx * 11 - 37, gz * 3 + 89) : hash2(gx * 19 + 41, gz * 23 - 17);
           const tx = k === 0 ? wx : (gx + 0.12 + shA * 0.76) * CELL;
           const tz = k === 0 ? wz : (gz + 0.12 + shB * 0.76) * CELL;
           if (k > 0 && checkAirportZone(tx, tz, nearbyAirports) === 'paved') continue;
           const ty = k === 0 ? gY : groundFn(tx, tz);
           if (!Number.isFinite(ty) || ty < 1.2) continue;
 
-          const gw = 1.35 + shA * 1.35;
-          const gh = 0.78 + shB * 0.92;
-          dummy.position.set(tx, ty - 0.05, tz);
+          const gw = (1.35 + shA * 1.35) * groundFade;
+          const gh = (0.78 + shB * 0.92) * groundFade;
+          dummy.position.set(tx, ty - 0.05 * groundFade, tz);
           dummy.rotation.set(0, (shA + shB) * Math.PI * 2, 0);
           dummy.scale.set(gw, gh, gw);
           dummy.updateMatrix();
-          grassInst.setMatrixAt(grassCount, dummy.matrix);
           setGrassColorFromSat(sat, shB);
-          grassInst.setColorAt(grassCount, tmpColor);
+          stageInstance(grassStageMat, grassStageCol, grassCount, grassInst);
           grassCount++;
         }
       }
     }
 
-    grassInst.count = grassCount;
-    shrubInst.count = shrubCount;
-    treeInst.count = treeCount;
-    rockInst.count = rockCount;
+    buildState.grassCount = grassCount;
+    buildState.shrubCount = shrubCount;
+    buildState.treeCount = treeCount;
+    buildState.rockCount = rockCount;
+    buildState.cursor = cursor;
 
-    for (let i = 0; i < allMeshes.length; i++) {
-      const m = allMeshes[i];
-      if (m.instanceMatrix) m.instanceMatrix.needsUpdate = true;
-      if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    const done = allFull || cursor >= totalCells;
+    if (done) {
+      commitAllStaged();
+      buildState.active = false;
+      built = true;
+      lastX = bPx;
+      lastZ = bPz;
+      lastSatRev = buildState.satRev;
+    } else if (buildState.progressive) {
+      // Initial closest-first frame slice: show inner sub-ring immediately while outer rings stream in
+      commitAllStaged();
     }
-
-    built = true;
-    lastX = px;
-    lastZ = pz;
-    lastSatRev = typeof window !== 'undefined' ? (window.__SKYBOUND_SAT_REVISION || 0) : 0;
   }
 
   function update(px, py, pz, dayRatio = 1, quality = 'high') {
@@ -791,8 +984,14 @@ function createGroundDetailRing(scene, ground, airports = []) {
     applyDaylight(dayRatio);
 
     const satRev = typeof window !== 'undefined' ? (window.__SKYBOUND_SAT_REVISION || 0) : 0;
-    if (!built || Math.hypot(px - lastX, pz - lastZ) > REBUILD_DIST || satRev !== lastSatRev) {
-      rebuild(px, pz);
+    if (buildState.active) {
+      if (Math.hypot(px - buildState.px, pz - buildState.pz) > RADIUS * 0.45) {
+        beginRebuild(px, pz, satRev);
+      }
+      stepRebuild(FRAME_BUDGET_MS);
+    } else if (!built || Math.hypot(px - lastX, pz - lastZ) > REBUILD_DIST || satRev !== lastSatRev) {
+      beginRebuild(px, pz, satRev);
+      stepRebuild(FRAME_BUDGET_MS);
     }
   }
 

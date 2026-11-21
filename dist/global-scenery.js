@@ -1,5 +1,5 @@
 'use strict';
-// Complete Worldwide 3D Architecture, Street-Block Cities, Regional Pitched-Roof Neighborhoods, Industrial Zones & Iconic Landmarks (v0.83).
+// Complete Worldwide 3D Architecture, 360+ WorldCitiesCatalog, Zero-Lag 3-Tier LOD (LOD0/LOD1/LOD2), Street-Block Cities, Regional Pitched-Roof Neighborhoods, Industrial Zones & Iconic Landmarks (v0.84).
 function createGlobalScenery(scene, ground, airports = []) {
   const root = new THREE.Group();
   root.name = 'Global country roads & cities';
@@ -11,6 +11,82 @@ function createGlobalScenery(scene, ground, airports = []) {
   const isLowMem = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '') || (navigator.deviceMemory && navigator.deviceMemory <= 4));
   const liveOsmBoxes = [];
   let liveOsmRevision = 0;
+
+  function nowMs() {
+    return (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
+  }
+
+  function getWorldCitiesCatalog() {
+    if (typeof WorldCitiesCatalog !== 'undefined' && WorldCitiesCatalog) return WorldCitiesCatalog;
+    if (typeof window !== 'undefined' && window.WorldCitiesCatalog) return window.WorldCitiesCatalog;
+    if (typeof globalThis !== 'undefined' && globalThis.WorldCitiesCatalog) return globalThis.WorldCitiesCatalog;
+    return null;
+  }
+
+  function resolveCityRecord(raw, refX, refZ) {
+    if (!raw || typeof raw !== 'object') return null;
+    const c = (raw.city && typeof raw.city === 'object') ? raw.city : raw;
+    let x = Number.isFinite(c.x) ? c.x : (Number.isFinite(raw.x) ? raw.x : NaN);
+    let z = Number.isFinite(c.z) ? c.z : (Number.isFinite(raw.z) ? raw.z : NaN);
+    let lat = Number.isFinite(c.lat) ? c.lat : (Number.isFinite(raw.lat) ? raw.lat : NaN);
+    let lon = Number.isFinite(c.lon) ? c.lon : (Number.isFinite(raw.lon) ? raw.lon : NaN);
+    if ((!Number.isFinite(x) || !Number.isFinite(z)) && typeof geoPoint === 'function' && Number.isFinite(lat) && Number.isFinite(lon)) {
+      const pt = geoPoint(lat, lon);
+      if (pt) { x = pt.x; z = pt.z; }
+    }
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+    if ((!Number.isFinite(lat) || !Number.isFinite(lon)) && typeof latLon === 'function') {
+      const ll = latLon(x, z);
+      if (ll) { lat = ll.lat; lon = ll.lon; }
+    }
+    const dist = Number.isFinite(raw.dist) ? raw.dist
+      : Number.isFinite(c.dist) ? c.dist
+      : (Number.isFinite(refX) && Number.isFinite(refZ) ? Math.hypot(refX - x, refZ - z) : 0);
+    const pop = Number.isFinite(c.pop) ? c.pop : (Number.isFinite(c.population) ? c.population : 0);
+    const tier = Number.isFinite(c.tier) ? c.tier : (pop >= 4500000 ? 1 : pop >= 1200000 ? 2 : 3);
+    const rawRad = Number.isFinite(c.radius) ? (c.radius < 250 ? c.radius * 1000 : c.radius) : NaN;
+    const urbanRadius = Number.isFinite(rawRad)
+      ? Math.max(11000, Math.min(28000, rawRad))
+      : (tier === 1 ? 24000 : tier === 2 ? 19000 : 15000);
+    const suburbanRadius = urbanRadius + 16000;
+    const cbdRadius = tier === 1 ? 3200 : tier === 2 ? 2600 : 2100;
+    const skylineH = Number.isFinite(c.skylineH) ? c.skylineH : (Number.isFinite(c.maxH) ? c.maxH : null);
+    const id = String(c.id || c.code || c.name || (Math.round((lat || 0) * 100) + '_' + Math.round((lon || 0) * 100)));
+    return {
+      id,
+      name: c.name || id,
+      x,
+      z,
+      lat,
+      lon,
+      dist,
+      pop,
+      tier,
+      region: c.region || c.reg || null,
+      historic: Boolean(c.historic),
+      skylineH,
+      urbanRadius,
+      suburbanRadius,
+      cbdRadius,
+      raw: c
+    };
+  }
+
+  function disposeGroup(grp) {
+    if (!grp) return;
+    root.remove(grp);
+    if (typeof grp.traverse === 'function') {
+      grp.traverse(o => {
+        if (o.geometry && !sharedGeos.has(o.geometry) && typeof o.geometry.dispose === 'function') {
+          o.geometry.dispose();
+        }
+        if (o.isInstancedMesh && typeof o.dispose === 'function') {
+          o.dispose();
+        }
+      });
+    }
+  }
+
   function inLiveOsmArea(x, z) {
     for (let i = 0; i < liveOsmBoxes.length; i++) {
       const b = liveOsmBoxes[i];
@@ -652,9 +728,44 @@ function createGlobalScenery(scene, ground, airports = []) {
     return geo;
   }
 
+  // Lightweight 2-material-group unit building box for fast LOD1 mid-range tiles (group 0 = 4 walls, group 1 = flat roof, no bottom face -> 2 draw calls)
+  function createUnitTwoGroupBoxGeo(vRepeat = 1.4, bottomAo = 0.88, roofShade = 0.90) {
+    const geo = new THREE.BufferGeometry();
+    const pos = [], nrm = [], uvs = [], col = [];
+    const wallQuad = (ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz, ex, ey, ez, sh) => {
+      const bSh = sh * bottomAo;
+      pushOrientedTri(pos, nrm, uvs, col, ax, ay, az, bx, by, bz, cx, cy, cz, 0, 0, 1, 0, 1, vRepeat, ex, ey, ez, sh, sh, sh);
+      pushOrientedTri(pos, nrm, uvs, col, ax, ay, az, cx, cy, cz, dx, dy, dz, 0, 0, 1, vRepeat, 0, vRepeat, ex, ey, ez, sh, sh, sh);
+      // Apply subtle bottom AO on bottom vertices of the 2 triangles
+      const base = col.length - 18;
+      col[base] = col[base + 1] = col[base + 2] = bSh;
+      col[base + 3] = col[base + 4] = col[base + 5] = bSh;
+      col[base + 9] = col[base + 10] = col[base + 11] = bSh;
+    };
+    const h = 0.5;
+    wallQuad(-h, -h, h, h, -h, h, h, h, h, -h, h, h, 0, 0, 1, 1.0);
+    wallQuad(h, -h, -h, -h, -h, -h, -h, h, -h, h, h, -h, 0, 0, -1, 0.94);
+    wallQuad(h, -h, h, h, -h, -h, h, h, -h, h, h, h, 1, 0, 0, 0.96);
+    wallQuad(-h, -h, -h, -h, -h, h, -h, h, h, -h, h, -h, -1, 0, 0, 0.92);
+    // Top roof face (group 1)
+    pushOrientedTri(pos, nrm, uvs, col, -h, h, h, h, h, h, h, h, -h, 0, 0, 1, 0, 1, 1, 0, 1, 0, roofShade, roofShade, roofShade);
+    pushOrientedTri(pos, nrm, uvs, col, -h, h, h, h, h, -h, -h, h, -h, 0, 0, 1, 1, 0, 1, 0, 1, 0, roofShade, roofShade, roofShade);
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    if (typeof geo.addGroup === 'function') {
+      geo.addGroup(0, 24, 0);
+      geo.addGroup(24, 6, 1);
+    }
+    return geo;
+  }
+
   const unitBoxGeo = makeColoredUnitBox(1, 0.88, 0.86);
   const unitMidBoxGeo = makeColoredUnitBox(1.5, 0.88, 0.86);
   const unitTallBoxGeo = makeColoredUnitBox(2.8, 0.86, 0.84);
+  const unitLod1BoxGeo = createUnitTwoGroupBoxGeo(1.4, 0.88, 0.90);
+  const unitLod1TallGeo = createUnitTwoGroupBoxGeo(2.6, 0.86, 0.88);
   const unitGableWallGeo = createUnitGableWallGeometry();
   const unitGableRoofCapGeo = createUnitGableRoofCapGeometry();
   const unitHipRoofCapGeo = createUnitHipRoofCapGeometry(0.49, 0.86, 0.24);
@@ -746,10 +857,16 @@ function createGlobalScenery(scene, ground, airports = []) {
   const osmTrafficGeo = createOsmTrafficVehicleGeometry();
   const osmTreeGeo = new THREE.DodecahedronGeometry ? new THREE.DodecahedronGeometry(1, 1) : new THREE.SphereGeometry(1, 7, 5);
   const sharedGeos = new Set([
-    houseGeo, unitBoxGeo, unitMidBoxGeo, unitTallBoxGeo,
+    houseGeo, unitBoxGeo, unitMidBoxGeo, unitTallBoxGeo, unitLod1BoxGeo, unitLod1TallGeo,
     unitGableWallGeo, unitGableRoofCapGeo, unitHipRoofCapGeo, unitMansardRoofGeo,
     lampGeo, beaconGeo, osmTrafficGeo, osmTreeGeo
   ]);
+
+  // LOD2 Far Horizon Impostors (10-145 km) for all 360+ WorldCitiesCatalog cities (3 draw calls)
+  const _wccInit = getWorldCitiesCatalog();
+  let distantCityLOD = (_wccInit && typeof _wccInit.createDistantCityHorizonLOD === 'function')
+    ? _wccInit.createDistantCityHorizonLOD(root, ground)
+    : null;
 
   function insideTaiwanDetailed(lat, lon) {
     return lat >= 21.8 && lat <= 25.4 && lon >= 119.3 && lon <= 122.1;
@@ -772,14 +889,41 @@ function createGlobalScenery(scene, ground, airports = []) {
   }
 
   function nearestHubInfo(x, z) {
-    let bestDist = 1e9, bestAirport = null;
+    let bestDist = 1e9, bestAirport = null, bestCity = null;
     for (let i = 0; i < airports.length; i++) {
       const a = airports[i];
       if (a.shortField || a.carrier) continue;
       const d = Math.hypot(x - a.x, z - a.z);
       if (d < bestDist) { bestDist = d; bestAirport = a; }
     }
-    return { dist: bestDist, airport: bestAirport };
+    let cbdX = 1e9, cbdZ = 1e9, hubX = 0, hubZ = 0;
+    let region = bestAirport?.region || null;
+    let urbanRadius = 20000, suburbanRadius = 38000, cbdRadius = 2800;
+    if (bestAirport) {
+      const cbdSide = Math.sign(bestAirport.apron || 1);
+      cbdX = bestAirport.x + Math.cos(bestAirport.heading) * (cbdSide * 3400);
+      cbdZ = bestAirport.z + Math.sin(bestAirport.heading) * (cbdSide * 3400);
+      hubX = bestAirport.x;
+      hubZ = bestAirport.z;
+    }
+    const wcc = getWorldCitiesCatalog();
+    if (wcc && typeof wcc.nearestCity === 'function') {
+      const rawCity = wcc.nearestCity(x, z, 140000);
+      const cityRec = resolveCityRecord(rawCity, x, z);
+      if (cityRec && cityRec.dist < bestDist) {
+        bestDist = cityRec.dist;
+        bestCity = cityRec;
+        cbdX = cityRec.x;
+        cbdZ = cityRec.z;
+        hubX = cityRec.x;
+        hubZ = cityRec.z;
+        if (cityRec.region) region = cityRec.region;
+        urbanRadius = cityRec.urbanRadius;
+        suburbanRadius = cityRec.suburbanRadius;
+        cbdRadius = cityRec.cbdRadius;
+      }
+    }
+    return { dist: bestDist, airport: bestAirport, city: bestCity, cbdX, cbdZ, hubX, hubZ, region, urbanRadius, suburbanRadius, cbdRadius };
   }
 
   function nearestAnyAirportDist(x, z) {
@@ -795,6 +939,12 @@ function createGlobalScenery(scene, ground, airports = []) {
     };
     scan(airports);
     if (typeof allAirports !== 'undefined' && allAirports !== airports) scan(allAirports);
+    const wcc = getWorldCitiesCatalog();
+    if (wcc && typeof wcc.nearestCity === 'function') {
+      const rawCity = wcc.nearestCity(x, z, 140000);
+      const cityRec = resolveCityRecord(rawCity, x, z);
+      if (cityRec && cityRec.dist < bestDist) bestDist = cityRec.dist;
+    }
     return bestDist;
   }
 
@@ -985,7 +1135,7 @@ function createGlobalScenery(scene, ground, airports = []) {
       if (code === 'EG' || code === 'MA_DZ' || code === 'LY' || code === 'NA_AF' || code === 'KE_EA' || code === 'ZA' || code === 'MG') return 'africa';
     }
     if (Number.isFinite(lat) && Number.isFinite(lon)) {
-      if (lat >= 35 && lat <= 72 && lon >= -12 && lon <= 45) return lat < 44 ? 'mediterranean' : 'europe';
+      if (lat >= 35 && lat <= 72 && lon >= -26 && lon <= 45) return lat < 44 ? 'mediterranean' : 'europe';
       if (lat >= 12 && lat <= 40 && lon >= 34 && lon <= 63) return 'middle_east';
       if (lat >= -36 && lat <= 36 && lon >= -18 && lon <= 52) return 'africa';
       if (lat >= 5 && lat <= 36 && lon >= 63 && lon <= 93) return 'south_asia';
@@ -995,6 +1145,7 @@ function createGlobalScenery(scene, ground, airports = []) {
       if (lat >= 24 && lon <= -52) return 'north_america';
       if (lat < 24 && lon <= -30) return 'latin_america';
     }
+    if (airportRegion && REGIONAL_PALETTES[airportRegion]) return airportRegion;
     const b = country?.biome || 'temperate';
     if (airportRegion === 'eu' || b === 'mediterranean') return (Number.isFinite(lat) && lat < 44) ? 'mediterranean' : 'europe';
     if (airportRegion === 'me' || b === 'arid') return 'middle_east';
@@ -1085,7 +1236,159 @@ function createGlobalScenery(scene, ground, airports = []) {
     return null;
   }
 
-  function buildTile(col, row) {
+  // Fast Batched Mid-Range LOD1 Tile Builder (< 0.35 ms, 1-3 draw calls/tile, exact regional palette continuity!)
+  function buildMidLodTile(col, row) {
+    const cx = (col + 0.5) * TILE, cz = (row + 0.5) * TILE;
+    const ll = typeof latLon === 'function' ? latLon(cx, cz) : null;
+    if (!ll || insideTaiwanDetailed(ll.lat, ll.lon)) return null;
+    const centerGround = ground(cx, cz);
+    if (centerGround < 0.8) return null;
+
+    const hubInfo = nearestHubInfo(cx, cz);
+    const hubDist = hubInfo.dist;
+    const cbdX = hubInfo.cbdX;
+    const cbdZ = hubInfo.cbdZ;
+    const cbdDist = Math.hypot(cx - cbdX, cz - cbdZ);
+    const regCellX = Math.floor(col / 8), regCellZ = Math.floor(row / 8);
+    const regCityCore = hubDist > 22000 && hash2(regCellX * 13, regCellZ * 17) > 0.52 &&
+      Math.abs(((col % 8) + 8) % 8 - 4) <= 1 && Math.abs(((row % 8) + 8) % 8 - 4) <= 1;
+    const isMetroCore = cbdDist < (hubInfo.cbdRadius || 2800) || regCityCore;
+    const isUrbanTile = hubDist < (hubInfo.urbanRadius || 20000) || regCityCore;
+    const isSuburbanTile = !isUrbanTile && hubDist < (hubInfo.suburbanRadius || 38000);
+    const sampler = typeof window !== 'undefined' ? window.__SKYBOUND_SAT_SAMPLER : null;
+    const hasSatPhoto = Boolean(sampler && sampler(cx, cz));
+
+    // Only populate urban/suburban mid-range tiles (rural/open terrain stays clean & zero-cost)
+    if (!isUrbanTile && !isSuburbanTile && !hasSatPhoto) return null;
+
+    const country = typeof WorldAtlas !== 'undefined' ? WorldAtlas.countryAt(ll.lon, ll.lat) : null;
+    const biome = country?.biome || 'temperate';
+    const regionCode = hubInfo.region || (biome === 'arid' ? 'me' : biome === 'mediterranean' ? 'eu' : 'na');
+    const pal = getRegionalPalette(country, regionCode, ll.lat, ll.lon);
+    const isEuropean = pal.historicLowRise;
+    const isMiddleEast = pal.id === 'middle_east';
+    const pickJitter = (arr, seed, idx) => jitterHex(arr[Math.abs(idx) % arr.length], seed);
+
+    const osmCity = typeof window !== 'undefined' ? window.__SKYBOUND_WORLD_CITY : null;
+    const x0 = col * TILE, z0 = row * TILE;
+    const gridDiv = (isMetroCore || isUrbanTile) ? 3 : 2;
+    const blockSize = TILE / gridDiv;
+    const districtAngle = (hash2(col * 11, row * 17) - 0.5) * 1.15;
+    const maxBuildElev = (isUrbanTile || isSuburbanTile) ? 4200 : 2450;
+
+    const mainBlocks = [];
+    const glassBlocks = [];
+    const roofCaps = [];
+
+    for (let br = 0; br < gridDiv; br++) {
+      for (let bc = 0; bc < gridDiv; bc++) {
+        const bx0 = x0 + bc * blockSize, bz0 = z0 + br * blockSize;
+        const bcx = bx0 + blockSize * 0.5, bcz = bz0 + blockSize * 0.5;
+        if (osmCity && typeof osmCity.blocked === 'function' && osmCity.blocked(bcx, bcz)) continue;
+        if (inLiveOsmArea(bcx, bcz)) continue;
+        const bGround = ground(bcx, bcz);
+        if (bGround < 1.1 || bGround > maxBuildElev) continue;
+
+        const landUse = classifyLandUse(bcx, bcz, bGround);
+        if (landUse === 'water' || landUse === 'forest' || landUse === 'mountain' || landUse === 'open') continue;
+
+        const allowUrban = landUse === 'urban' || (!hasSatPhoto && isUrbanTile);
+        const allowSuburban = landUse === 'suburban' || (!hasSatPhoto && isSuburbanTile);
+        if (!allowUrban && !allowSuburban) continue;
+
+        const blockCbdDist = Math.hypot(bcx - cbdX, bcz - cbdZ);
+        const blockSeed = hash2(col * 19 + bc * 7, row * 23 + br * 11);
+        const lots = (allowUrban && (blockCbdDist < 3000 || isMetroCore)) ? 3 : (allowUrban ? 3 : 2);
+
+        for (let k = 0; k < lots; k++) {
+          const rA = hash2(col * 37 + bc * 13 + k, row * 41 + br * 17);
+          const rB = hash2(col * 17 + k * 29, row * 31 + bc + br);
+          const lx = bx0 + 55 + rA * (blockSize - 110);
+          const lz = bz0 + 55 + rB * (blockSize - 110);
+          if (inAirportClearance(lx, lz, 180)) continue;
+          const lg = ground(lx, lz);
+          if (lg < 1.2 || lg > maxBuildElev) continue;
+
+          const bSeed = col * 131 + row * 97 + bc * 29 + br * 17 + k * 7;
+          const rot = districtAngle + ((k & 1) ? 0 : Math.PI * 0.5);
+
+          if (allowUrban && (blockCbdDist < (hubInfo.cbdRadius || 2800) || (isMetroCore && blockSeed > 0.45))) {
+            const w = 32 + hash2(k, bc + col) * 26;
+            const d = 30 + hash2(br + row, k) * 24;
+            const maxH = isEuropean ? 40 : isMiddleEast ? 128 : 104;
+            const h = (isEuropean ? 18 : 24) + Math.pow(hash2(col + k, row - k + bc), 1.55) * (blockCbdDist < 1900 ? maxH : maxH * 0.55);
+            if (h > 44 && (!isEuropean || k === 0)) {
+              glassBlocks.push({ x: lx, y: lg + h * 0.5 - 0.8, z: lz, w, h, d, rot: districtAngle, tone: pickJitter(pal.glass, bSeed + 3, k + bc) });
+            } else {
+              const srcArr = hash2(bSeed, 13.7) < pal.brickBias ? pal.brick : pal.condo;
+              mainBlocks.push({ x: lx, y: lg + h * 0.5 - 0.8, z: lz, w, h, d, rot, tone: pickJitter(srcArr, bSeed, k + bc + br) });
+              if (isEuropean && hash2(bSeed, 53.3) < 0.72) {
+                roofCaps.push({ x: lx, y: lg + h * 0.5 - 0.8, z: lz, w, h, d, rot, tone: pickJitter(pal.pitchedRoof, bSeed + 5, k + br) });
+              }
+            }
+          } else {
+            const w = (allowUrban ? 34 : 30) + hash2(k * 5 + col, bc + br) * 24;
+            const d = (allowUrban ? 30 : 26) + hash2(br + row, k * 7 + bc) * 22;
+            const h = allowUrban
+              ? (12 + hash2(k + col, br + row) * (isEuropean ? 14 : 18))
+              : (7.5 + hash2(bc + k, br + row) * 5.2);
+            const wallPool = allowUrban
+              ? (hash2(bSeed, 19.1) < pal.brickBias ? pal.brick : pal.condo)
+              : pal.house;
+            mainBlocks.push({ x: lx, y: lg + h * 0.5 - 0.6, z: lz, w, h, d, rot, tone: pickJitter(wallPool, bSeed, k + bc + br) });
+            if (hash2(bSeed, 61.9) < pal.pitchedChance * 0.75) {
+              roofCaps.push({ x: lx, y: lg + h * 0.5 - 0.6, z: lz, w, h, d, rot, tone: pickJitter(pal.pitchedRoof, bSeed + 17, k + bc) });
+            }
+          }
+        }
+      }
+    }
+
+    if (!mainBlocks.length && !glassBlocks.length) return null;
+
+    const group = new THREE.Group();
+    group.name = 'MidLOD1_' + col + '_' + row;
+    group.userData.lod = 1;
+    group.userData.hadSat = hasSatPhoto;
+    group.userData.osmRev = liveOsmRevision;
+
+    const dummy = new THREE.Object3D();
+    const tmpCol = new THREE.Color();
+    const emitFast = (items, geo, mat) => {
+      if (!items.length) return;
+      const inst = new THREE.InstancedMesh(geo, mat, items.length);
+      for (let idx = 0; idx < items.length; idx++) {
+        const b = items[idx];
+        dummy.position.set(b.x, b.y, b.z);
+        dummy.rotation.set(0, b.rot || 0, 0);
+        dummy.scale.set(b.w, b.h, b.d);
+        dummy.updateMatrix();
+        inst.setMatrixAt(idx, dummy.matrix);
+        if (typeof inst.setColorAt === 'function') {
+          tmpCol.setHex(b.tone);
+          inst.setColorAt(idx, tmpCol);
+        }
+      }
+      if (inst.instanceMatrix) inst.instanceMatrix.needsUpdate = true;
+      if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+      inst.castShadow = false;
+      inst.receiveShadow = false;
+      group.add(inst);
+    };
+
+    const primaryMat = pal.brickBias >= 0.48 ? archBrickMat : archCondoMat;
+    emitFast(mainBlocks, unitLod1BoxGeo, [primaryMat, archFlatRoofMat]);
+    emitFast(glassBlocks, unitLod1TallGeo, [archGlassMat, archFlatRoofMat]);
+    if (roofCaps.length && !isLowMem) {
+      emitFast(roofCaps, unitMansardRoofGeo, archPitchedRoofMat);
+    }
+
+    root.add(group);
+    return group;
+  }
+
+  function buildTile(col, row, lod = 0) {
+    if (lod >= 1) return buildMidLodTile(col, row);
     const cx = (col + 0.5) * TILE, cz = (row + 0.5) * TILE;
     const ll = typeof latLon === 'function' ? latLon(cx, cz) : null;
     if (!ll || insideTaiwanDetailed(ll.lat, ll.lon)) return null;
@@ -1098,6 +1401,7 @@ function createGlobalScenery(scene, ground, airports = []) {
     const hasSatPhoto = Boolean(sampler && sampler(cx, cz));
 
     const group = new THREE.Group();
+    group.userData.lod = 0;
     group.userData.hadSat = hasSatPhoto;
     group.userData.osmRev = liveOsmRevision;
     const posArr = [], linePosArr = [];
@@ -1107,22 +1411,22 @@ function createGlobalScenery(scene, ground, airports = []) {
     const glassTowers = [], warehouses = [], lamps = [], beacons = [], trees = [];
     const x0 = col * TILE, z0 = row * TILE;
     const hubAp = hubInfo.airport;
-    const cbdSide = Math.sign(hubAp?.apron || 1);
-    const cbdX = hubAp ? hubAp.x + Math.cos(hubAp.heading) * (cbdSide * 3400) : 1e9;
-    const cbdZ = hubAp ? hubAp.z + Math.sin(hubAp.heading) * (cbdSide * 3400) : 1e9;
+    const cbdX = hubInfo.cbdX;
+    const cbdZ = hubInfo.cbdZ;
     const cbdDist = Math.hypot(cx - cbdX, cz - cbdZ);
     const regCellX = Math.floor(col / 8), regCellZ = Math.floor(row / 8);
     const regCityCore = hubDist > 22000 && hash2(regCellX * 13, regCellZ * 17) > 0.52 &&
       Math.abs(((col % 8) + 8) % 8 - 4) <= 1 && Math.abs(((row % 8) + 8) % 8 - 4) <= 1;
-    const isMetroCore = cbdDist < 2800 || regCityCore;
-    const isUrbanTile = hubDist < 20000 || regCityCore;
-    const isSuburbanTile = !isUrbanTile && hubDist < 38000;
+    const isMetroCore = cbdDist < (hubInfo.cbdRadius || 2800) || regCityCore;
+    const isUrbanTile = hubDist < (hubInfo.urbanRadius || 20000) || regCityCore;
+    const isSuburbanTile = !isUrbanTile && hubDist < (hubInfo.suburbanRadius || 38000);
     const biome = country?.biome || 'temperate';
-    const regionCode = hubAp?.region || (biome === 'arid' ? 'me' : biome === 'mediterranean' ? 'eu' : 'na');
+    const regionCode = hubInfo.region || (biome === 'arid' ? 'me' : biome === 'mediterranean' ? 'eu' : 'na');
     const pal = getRegionalPalette(country, regionCode, ll.lat, ll.lon);
     const isEuropean = pal.historicLowRise;
     const isMiddleEast = pal.id === 'middle_east';
     const pickJitter = (arr, seed, idx) => jitterHex(arr[Math.abs(idx) % arr.length], seed);
+    const maxBuildElev = (isUrbanTile || isSuburbanTile) ? 4200 : 2450;
 
     // 1. Only draw procedural road strips when offline/no Google Satellite photo is available (otherwise real Google Satellite roads shine cleanly!)
     if (!hasSatPhoto) {
@@ -1151,13 +1455,13 @@ function createGlobalScenery(scene, ground, airports = []) {
         if (osmCity && typeof osmCity.blocked === 'function' && osmCity.blocked(bcx, bcz)) continue;
         if (inLiveOsmArea(bcx, bcz)) continue;
         const bGround = ground(bcx, bcz);
-        if (bGround < 1.1 || bGround > 2450) continue;
+        if (bGround < 1.1 || bGround > maxBuildElev) continue;
 
         const landUse = classifyLandUse(bcx, bcz, bGround);
         if (landUse === 'water') continue;
 
         const blockCbdDist = Math.hypot(bcx - cbdX, bcz - cbdZ);
-        const blockHubDist = Math.hypot(bcx - (hubAp?.x || 0), bcz - (hubAp?.z || 0));
+        const nearAirportInd = hubAp ? (Math.hypot(bcx - hubAp.x, bcz - hubAp.z) < 2400) : false;
         const blockSeed = hash2(col * 19 + bc * 7, row * 23 + br * 11);
 
         // Parks, Forests, Cliffs & Mountain Slopes: NEVER place fake buildings! Render lush biome-appropriate trees & keep real terrain visible!
@@ -1168,7 +1472,7 @@ function createGlobalScenery(scene, ground, airports = []) {
             const tz = bz0 + 16 + hash2(bc * 29 + row, br * 37 + t * 7) * (blockSize - 32);
             if (inAirportClearance(tx, tz, 240)) continue;
             const tg = ground(tx, tz);
-            if (tg >= 1.5 && tg < 2350) {
+            if (tg >= 1.5 && tg < maxBuildElev) {
               const tr = (biome === 'tropical' ? 5.8 : biome === 'boreal' ? 4.8 : 5.2) + hash2(t * 7, col + row) * 6.5;
               trees.push({ x: tx, y: tg + tr * 0.72, z: tz, r: tr, color: getTreeTone(biome, hash2(t, bc + br)) });
             }
@@ -1193,7 +1497,7 @@ function createGlobalScenery(scene, ground, airports = []) {
         const allowUrban = landUse === 'urban' || (!hasSatPhoto && isUrbanTile);
         const allowSuburban = landUse === 'suburban' || (!hasSatPhoto && isSuburbanTile);
 
-        if (allowUrban && (blockCbdDist < 2600 || (isMetroCore && blockSeed > 0.45))) {
+        if (allowUrban && (blockCbdDist < (hubInfo.cbdRadius || 2600) || (isMetroCore && blockSeed > 0.45))) {
           // Region-Distinct Downtown CBD (European Haussmann limestone & mansard blocks vs global glass/brick/condo skylines!)
           const lotCount = isEuropean ? 6 : 5;
           for (let k = 0; k < lotCount; k++) {
@@ -1234,7 +1538,7 @@ function createGlobalScenery(scene, ground, airports = []) {
               }
             }
           }
-        } else if (allowUrban && (blockHubDist < 2400 ? blockSeed < 0.35 : blockSeed < 0.16)) {
+        } else if (allowUrban && (nearAirportInd ? blockSeed < 0.35 : (blockCbdDist > 2400 && blockSeed < 0.16))) {
           // Logistics / Port / Airport Commercial Park Block (corrugated steel warehouses)
           for (let wIdx = 0; wIdx < 3; wIdx++) {
             const wx = bx0 + 44 + (wIdx % 2) * (blockSize * 0.44);
@@ -2305,12 +2609,7 @@ function createGlobalScenery(scene, ground, airports = []) {
       const oldKey = liveOsmCells.keys().next().value;
       const oldVal = liveOsmCells.get(oldKey);
       if (oldVal && typeof oldVal === 'object' && oldVal.isObject3D) {
-        root.remove(oldVal);
-        oldVal.traverse(o => {
-          if (o.geometry && !sharedGeos.has(o.geometry)) {
-            o.geometry.dispose();
-          }
-        });
+        disposeGroup(oldVal);
       }
       liveOsmCells.delete(oldKey);
       liveOsmTraffic.delete(oldKey);
@@ -2350,9 +2649,9 @@ function createGlobalScenery(scene, ground, airports = []) {
     const country = typeof WorldAtlas !== 'undefined' && Number.isFinite(cellLat) && Number.isFinite(cellLon)
       ? WorldAtlas.countryAt(cellLon, cellLat) : null;
     const cellCenter = (Number.isFinite(cellLat) && Number.isFinite(cellLon)) ? geoPoint(cellLat, cellLon) : null;
-    const hubAp = cellCenter ? nearestHubInfo(cellCenter.x, cellCenter.z).airport : null;
+    const cellHubInfo = cellCenter ? nearestHubInfo(cellCenter.x, cellCenter.z) : null;
     const biome = country?.biome || 'temperate';
-    const regionCode = hubAp?.region || (biome === 'arid' ? 'me' : biome === 'mediterranean' ? 'eu' : 'na');
+    const regionCode = cellHubInfo?.region || (biome === 'arid' ? 'me' : biome === 'mediterranean' ? 'eu' : 'na');
     const pal = getRegionalPalette(country, regionCode, cellLat, cellLon);
 
     // 1. Extrude real OSM buildings across 5 PBR wall archetypes + 2 distinct roof meshes (<= 7 building draw calls/cell!)
@@ -2945,8 +3244,11 @@ function createGlobalScenery(scene, ground, airports = []) {
     }
 
     root.add(g);
+    liveOsmCells.delete(cellKey);
     liveOsmCells.set(cellKey, g);
     if (bldgCount && cellMinX < cellMaxX) {
+      const oldBoxIdx = liveOsmBoxes.findIndex(b => b.key === cellKey);
+      if (oldBoxIdx >= 0) liveOsmBoxes.splice(oldBoxIdx, 1);
       liveOsmBoxes.push({ key: cellKey, minX: cellMinX - 35, maxX: cellMaxX + 35, minZ: cellMinZ - 35, maxZ: cellMaxZ + 35 });
       liveOsmRevision++;
     }
@@ -2954,10 +3256,35 @@ function createGlobalScenery(scene, ground, airports = []) {
     return g;
   }
 
+  // Zero-stutter OSM build queue: process at most 1 queued OSM cell per frame, closest-first & frame-budgeted!
+  const osmBuildQueue = [];
+  const osmQueuedKeys = new Set();
+
+  function processNextQueuedOsmCell(px, pz, tStart, budgetMs) {
+    if (!osmBuildQueue.length) return false;
+    if ((nowMs() - tStart) >= budgetMs) return false;
+    let bestIdx = 0;
+    let bestD2 = Infinity;
+    for (let i = 0; i < osmBuildQueue.length; i++) {
+      const q = osmBuildQueue[i];
+      const dx = q.x - px, dz = q.z - pz;
+      const d2 = dx * dx + dz * dz;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        bestIdx = i;
+      }
+    }
+    const item = osmBuildQueue.splice(bestIdx, 1)[0];
+    if (!item) return false;
+    osmQueuedKeys.delete(item.cellKey);
+    buildOsmCellFromData(item.cellKey, item.data, item.cellLat, item.cellLon, item.maxWays);
+    return true;
+  }
+
   function streamLiveOsmBuildings(px, pz) {
     if (typeof fetch !== 'function' || typeof window === 'undefined' || typeof latLon !== 'function' || typeof geoPoint !== 'function') return;
-    const now = performance.now ? performance.now() : Date.now();
-    if (liveOsmBusy || now - lastOsmCheck < (isLowMem ? 4500 : 2800)) return;
+    const now = nowMs();
+    if (liveOsmBusy || osmBuildQueue.length >= 2 || now - lastOsmCheck < (isLowMem ? 4500 : 2800)) return;
     const { lat, lon } = latLon(px, pz);
     if (insideTaiwanDetailed(lat, lon)) return;
     const osmCity = window.__SKYBOUND_WORLD_CITY;
@@ -2992,7 +3319,25 @@ function createGlobalScenery(scene, ground, airports = []) {
       .then(d => d || fetchOsm('https://overpass.kumi.systems/api/interpreter'))
       .then(data => {
         liveOsmBusy = false;
-        buildOsmCellFromData(cellKey, data, clat + step * 0.5, clon + step * 0.5, maxWays);
+        if (!data || !Array.isArray(data.elements)) {
+          liveOsmCells.set(cellKey, 'empty');
+          evictOldOsmCells();
+          return;
+        }
+        const midLat = clat + step * 0.5;
+        const midLon = clon + step * 0.5;
+        const pt = geoPoint(midLat, midLon) || { x: px, z: pz };
+        if (!osmQueuedKeys.has(cellKey)) {
+          osmQueuedKeys.add(cellKey);
+          osmBuildQueue.push({ cellKey, data, cellLat: midLat, cellLon: midLon, maxWays, x: pt.x, z: pt.z });
+          while (osmBuildQueue.length > 3) {
+            const dropped = osmBuildQueue.shift();
+            if (dropped) {
+              osmQueuedKeys.delete(dropped.cellKey);
+              if (liveOsmCells.get(dropped.cellKey) === 'loading') liveOsmCells.delete(dropped.cellKey);
+            }
+          }
+        }
       }).catch(() => {
         liveOsmBusy = false;
         liveOsmCells.set(cellKey, 'error');
@@ -3180,13 +3525,223 @@ function createGlobalScenery(scene, ground, airports = []) {
     }
   }
 
+  // WorldCitiesCatalog 360+ City Downtown CBD Skyline Streamer (throttled >3 km movement, bounded LRU)
+  const cityCbdGroups = new Map();
+  const MAX_CITY_CBDS = isLowMem ? 4 : 10;
+  let lastCitySkylineX = 1e12;
+  let lastCitySkylineZ = 1e12;
+
+  function ensureCitySkyline(px, pz) {
+    const wcc = getWorldCitiesCatalog();
+    if (!wcc || typeof wcc.citiesWithin !== 'function') return;
+    if (Math.hypot(px - lastCitySkylineX, pz - lastCitySkylineZ) < 3000) return;
+    lastCitySkylineX = px;
+    lastCitySkylineZ = pz;
+
+    const nearby = wcc.citiesWithin(px, pz, 45000);
+    if (!Array.isArray(nearby) || !nearby.length) return;
+    const osmCity = typeof window !== 'undefined' ? window.__SKYBOUND_WORLD_CITY : null;
+
+    for (let i = 0; i < nearby.length; i++) {
+      const rec = resolveCityRecord(nearby[i], px, pz);
+      if (!rec) continue;
+      if (cityCbdGroups.has(rec.id)) {
+        // Touch LRU order so active approached cities remain cached
+        const existingGrp = cityCbdGroups.get(rec.id);
+        cityCbdGroups.delete(rec.id);
+        cityCbdGroups.set(rec.id, existingGrp);
+        continue;
+      }
+      if (Number.isFinite(rec.lat) && Number.isFinite(rec.lon)) {
+        if (insideTaiwanDetailed(rec.lat, rec.lon)) continue;
+        if (osmCity && typeof osmCity.inside === 'function' && osmCity.inside(rec.lat, rec.lon)) continue;
+      }
+      if (osmCity && typeof osmCity.blocked === 'function' && osmCity.blocked(rec.x, rec.z)) continue;
+      if (inAirportClearance(rec.x, rec.z, 420)) continue;
+
+      // Skip if an existing airport synthetic CBD hub skyline is right on top of this GPS city center
+      let overlapsHubCbd = false;
+      for (let ai = 0; ai < airports.length; ai++) {
+        const a = airports[ai];
+        if (!a || a.shortField || a.carrier || !hubLandmarksAdded.has(a.code)) continue;
+        const side = Math.sign(a.apron || 1);
+        const hbx = a.x + Math.cos(a.heading) * (side * 3400);
+        const hbz = a.z + Math.sin(a.heading) * (side * 3400);
+        if (Math.hypot(rec.x - hbx, rec.z - hbz) < 1100) { overlapsHubCbd = true; break; }
+      }
+      if (overlapsHubCbd) continue;
+
+      const gy = ground(rec.x, rec.z);
+      if (gy < 0.8) continue;
+
+      const cCountry = (typeof WorldAtlas !== 'undefined' && Number.isFinite(rec.lat) && Number.isFinite(rec.lon))
+        ? WorldAtlas.countryAt(rec.lon, rec.lat) : null;
+      const cPal = getRegionalPalette(cCountry, rec.region, rec.lat, rec.lon);
+      const isHistoric = Boolean(cPal.historicLowRise || rec.historic);
+      const isMiddleEast = cPal.id === 'middle_east';
+
+      const baseFlagship = rec.tier === 1
+        ? (isHistoric ? 92 : isMiddleEast ? 275 : 235)
+        : rec.tier === 2
+          ? (isHistoric ? 68 : isMiddleEast ? 195 : 165)
+          : (isHistoric ? 46 : 118);
+      const flagshipH = (Number.isFinite(rec.skylineH) && rec.skylineH > 20)
+        ? Math.min(340, Math.max(32, rec.skylineH))
+        : baseFlagship;
+
+      const totalTowers = rec.tier === 1
+        ? (isLowMem ? 18 : 30)
+        : rec.tier === 2
+          ? (isLowMem ? 14 : 22)
+          : (isLowMem ? 10 : 16);
+
+      // Deterministic integer seed from city id
+      let idHash = 17;
+      for (let ch = 0; ch < rec.id.length; ch++) idHash = (idHash * 31 + rec.id.charCodeAt(ch)) & 0x7fffffff;
+
+      const towers = [];
+      const brickPodiums = [];
+      const condoPodiums = [];
+      const mansardCaps = [];
+      const bcnPts = [];
+
+      for (let k = 0; k < totalTowers; k++) {
+        const ring = Math.floor(k / 7);
+        const angle = ((k % 7) / 7) * Math.PI * 2 + ring * 0.48 + (idHash % 19) * 0.17;
+        const radius = (k === 0 ? 18 : 78 + ring * 125 + (k % 3) * 34);
+        const tx = rec.x + Math.cos(angle) * radius;
+        const tz = rec.z + Math.sin(angle) * radius;
+        if (inAirportClearance(tx, tz, 360)) continue;
+        if (osmCity && typeof osmCity.blocked === 'function' && osmCity.blocked(tx, tz)) continue;
+        const tGround = ground(tx, tz);
+        if (tGround < 0.8) continue;
+
+        const distDecay = Math.max(0.32, 1 - ring * 0.22);
+        const tSeed = idHash * 13 + k * 29 + 7;
+        const hRaw = flagshipH * distDecay * (0.48 + hash2(k * 13 + idHash * 0.01, ring * 7 + 3) * 0.52);
+        const h = Math.max(isHistoric ? 20 : 34, hRaw);
+        const w = 20 + (k % 4) * 5;
+        const d = 20 + ((k + 2) % 4) * 5;
+        const rot = ((idHash + k) & 1) ? 0 : Math.PI * 0.25;
+        const useBrickPod = hash2(tSeed, 17.3) < cPal.brickBias;
+        const podArr = useBrickPod ? cPal.brick : cPal.condo;
+        const podTone = jitterHex(podArr[(k + idHash) % podArr.length], tSeed + 3);
+
+        // Historic European/Mediterranean cores stay mostly classic limestone/brick + mansard roofs, with selective modern business towers
+        const buildGlassTower = !isHistoric || (h > 50 && k % 3 === 0);
+        if (buildGlassTower) {
+          const glassTone = jitterHex(cPal.glass[(k + idHash) % cPal.glass.length], tSeed);
+          const crownTone = jitterHex(glassTone, tSeed + 5, 0.015, 0.06, 0.06);
+          const podH = Math.min(16, h * 0.22);
+          (useBrickPod ? brickPodiums : condoPodiums).push({ x: tx, y: tGround + podH * 0.5 - 1, z: tz, w: w * 1.22, h: podH, d: d * 1.22, rot, tone: podTone });
+          towers.push({ x: tx, y: tGround + h * 0.5 - 1, z: tz, w, h, d, rot, tone: glassTone });
+          // Stepped crown tier
+          const tierH = h * 0.20;
+          towers.push({ x: tx, y: tGround + h + tierH * 0.5 - 1.5, z: tz, w: w * 0.64, h: tierH, d: d * 0.64, rot, tone: crownTone });
+          if (k < 6 && h > 75) {
+            const spireH = h * 0.14;
+            towers.push({ x: tx, y: tGround + h + tierH + spireH * 0.5 - 2, z: tz, w: w * 0.16, h: spireH, d: d * 0.16, rot, tone: crownTone });
+            bcnPts.push({ x: tx, y: tGround + h + tierH + spireH + 1.2, z: tz });
+          } else if (h > 92) {
+            bcnPts.push({ x: tx, y: tGround + h + tierH + 1.2, z: tz });
+          }
+        } else {
+          (useBrickPod ? brickPodiums : condoPodiums).push({ x: tx, y: tGround + h * 0.5 - 1, z: tz, w: w * 1.15, h, d: d * 1.15, rot, tone: podTone });
+          if (hash2(tSeed, 41.9) < 0.78) {
+            const roofTone = jitterHex(cPal.pitchedRoof[(k + idHash) % cPal.pitchedRoof.length], tSeed + 11);
+            mansardCaps.push({ x: tx, y: tGround + h * 0.5 - 1, z: tz, w: w * 1.15, h, d: d * 1.15, rot, tone: roofTone });
+          }
+        }
+      }
+
+      if (!towers.length && !brickPodiums.length && !condoPodiums.length) continue;
+
+      const g = new THREE.Group();
+      g.name = 'CityCBD_' + rec.id;
+      const dummy = new THREE.Object3D();
+      const tmpCol = new THREE.Color();
+      const addCbdInst = (items, geo, mat) => {
+        if (!items.length) return;
+        const inst = new THREE.InstancedMesh(geo, mat, items.length);
+        for (let idx = 0; idx < items.length; idx++) {
+          const t = items[idx];
+          dummy.position.set(t.x, t.y, t.z);
+          dummy.rotation.set(0, t.rot || 0, 0);
+          dummy.scale.set(t.w, t.h, t.d);
+          dummy.updateMatrix();
+          inst.setMatrixAt(idx, dummy.matrix);
+          if (t.tone && typeof inst.setColorAt === 'function') {
+            tmpCol.setHex(t.tone);
+            inst.setColorAt(idx, tmpCol);
+          }
+        }
+        if (inst.instanceMatrix) inst.instanceMatrix.needsUpdate = true;
+        if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+        inst.castShadow = !isLowMem;
+        inst.receiveShadow = true;
+        g.add(inst);
+      };
+
+      addCbdInst(brickPodiums, unitLod1BoxGeo, [archBrickMat, archFlatRoofMat]);
+      addCbdInst(condoPodiums, unitLod1BoxGeo, [archCondoMat, archFlatRoofMat]);
+      addCbdInst(towers, unitLod1TallGeo, [archGlassMat, archFlatRoofMat]);
+      if (mansardCaps.length) addCbdInst(mansardCaps, unitMansardRoofGeo, archPitchedRoofMat);
+      if (bcnPts.length) {
+        const bInst = new THREE.InstancedMesh(beaconGeo, beaconMat, bcnPts.length);
+        for (let idx = 0; idx < bcnPts.length; idx++) {
+          const b = bcnPts[idx];
+          dummy.position.set(b.x, b.y, b.z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(1.15, 1.15, 1.15);
+          dummy.updateMatrix();
+          bInst.setMatrixAt(idx, dummy.matrix);
+        }
+        if (bInst.instanceMatrix) bInst.instanceMatrix.needsUpdate = true;
+        g.add(bInst);
+      }
+
+      root.add(g);
+      cityCbdGroups.set(rec.id, g);
+    }
+
+    // Strict LRU cap so round-the-world flights never leak city CBD memory
+    while (cityCbdGroups.size > MAX_CITY_CBDS) {
+      const oldId = cityCbdGroups.keys().next().value;
+      const oldGrp = cityCbdGroups.get(oldId);
+      disposeGroup(oldGrp);
+      cityCbdGroups.delete(oldId);
+    }
+  }
+
+  let lastUpdatePx = NaN;
+  let lastUpdatePz = NaN;
+  let moveDirX = 0;
+  let moveDirZ = 0;
+  let hasMoveDir = false;
+
   function update(px, pz, quality, dayRatio, dt = 0.016) {
     if (quality === 'low') {
       root.visible = false;
       return;
     }
+    const tStart = nowMs();
+    const FRAME_BUDGET_MS = 2.2;
     root.visible = true;
-    const nightAmt = Math.max(0, 1 - dayRatio);
+
+    // Track aircraft heading vector for forward-biased closest-first tile priority
+    if (Number.isFinite(lastUpdatePx) && Number.isFinite(lastUpdatePz)) {
+      const mdx = px - lastUpdatePx, mdz = pz - lastUpdatePz;
+      const mLen = Math.hypot(mdx, mdz);
+      if (mLen > 4 && mLen < 50000) {
+        moveDirX = mdx / mLen;
+        moveDirZ = mdz / mLen;
+        hasMoveDir = true;
+      }
+    }
+    lastUpdatePx = px;
+    lastUpdatePz = pz;
+
+    const nightAmt = Math.max(0, 1 - (Number.isFinite(dayRatio) ? dayRatio : 1));
     // Update all 5 PBR architectural archetype night-window emissive intensities with sun height (dayRatio)
     archGlassMat.emissiveIntensity = 0.10 + nightAmt * 0.92;
     archBrickMat.emissiveIntensity = nightAmt * 0.86;
@@ -3198,59 +3753,124 @@ function createGlobalScenery(scene, ground, airports = []) {
     indWallMat.emissiveIntensity = nightAmt * 0.55;
     landmarkGlassMat.emissiveIntensity = 0.10 + nightAmt * 0.90;
     monumentGoldMat.emissiveIntensity = 0.14 + nightAmt * 0.75;
+
+    // LOD2 Far Horizon Impostors (10-145 km, 360+ cities in 3 draw calls)
+    if (!distantCityLOD) {
+      const wccLate = getWorldCitiesCatalog();
+      if (wccLate && typeof wccLate.createDistantCityHorizonLOD === 'function') {
+        distantCityLOD = wccLate.createDistantCityHorizonLOD(root, ground);
+      }
+    }
+    if (distantCityLOD && typeof distantCityLOD.update === 'function') {
+      distantCityLOD.update(px, pz, dayRatio);
+    }
+
     ensureHubSkyline(px, pz);
+    ensureCitySkyline(px, pz);
     ensureRealGPSLandmarks(px, pz);
     for (let i = 0; i < animatedLandmarks.length; i++) {
       animatedLandmarks[i].userData.animate?.(dt);
     }
     if (liveOsmTraffic.size) updateLiveOsmTraffic(dt, nightAmt);
-    if (quality === 'ultra' || quality === 'high' || quality === 'balanced') streamLiveOsmBuildings(px, pz);
+    if (quality === 'ultra' || quality === 'high' || quality === 'balanced') {
+      streamLiveOsmBuildings(px, pz);
+      // Zero-stutter OSM mesh construction: at most 1 closest queued OSM cell per frame within 2.2 ms budget
+      processNextQueuedOsmCell(px, pz, tStart, FRAME_BUDGET_MS);
+    }
 
+    // 3-Tier Distance-Priority LOD Streaming (LOD0 Near Ring <= nearRad, LOD1 Mid Ring <= midRad)
     const cx = Math.floor(px / TILE), cz = Math.floor(pz / TILE);
-    const rad = isLowMem ? 3 : (quality === 'ultra' || quality === 'high' ? 5 : 4);
+    const nearRad = isLowMem ? 1 : 2;
+    const midRad = isLowMem ? 3 : (quality === 'ultra' || quality === 'high' ? 5 : 4);
     const keep = new Set();
     const candidates = [];
     const sampler = typeof window !== 'undefined' ? window.__SKYBOUND_SAT_SAMPLER : null;
-    for (let r = cz - rad; r <= cz + rad; r++) {
-      for (let c = cx - rad; c <= cx + rad; c++) {
+
+    for (let r = cz - midRad; r <= cz + midRad; r++) {
+      for (let c = cx - midRad; c <= cx + midRad; c++) {
         const key = c + ':' + r;
         keep.add(key);
+        const cheb = Math.max(Math.abs(c - cx), Math.abs(r - cz));
+        const targetLod = cheb <= nearRad ? 0 : 1;
         const existing = loaded.get(key);
         const tx = (c + 0.5) * TILE, tz = (r + 0.5) * TILE;
         const nowHasSat = Boolean(sampler && sampler(tx, tz));
-        // Only rebuild ONCE when this specific tile transitions no-sat -> has-sat, or when a live OSM cell covers it!
-        const staleSat = existing && !existing.userData?.hadSat && nowHasSat;
-        const staleOsm = existing && (existing.userData?.osmRev || 0) < liveOsmRevision && inLiveOsmArea(tx, tz);
-        if (!loaded.has(key) || staleSat || staleOsm) {
-          candidates.push({ c, r, key, stale: Boolean(staleSat || staleOsm), d: Math.hypot(c - cx, r - cz) });
+
+        // Detect missing, LOD1->LOD0 upgrade, hysteretic LOD0->LOD1 downgrade, or stale sat/OSM transitions
+        const needsUpgrade = Boolean(existing && existing.lod === 1 && targetLod === 0);
+        const needsDowngrade = Boolean(existing && existing.lod === 0 && cheb > nearRad + 1);
+        const staleSat = Boolean(existing && existing.group && !existing.hadSat && nowHasSat);
+        const staleOsm = Boolean(existing && existing.group && existing.osmRev < liveOsmRevision && inLiveOsmArea(tx, tz));
+
+        if (!existing || needsUpgrade || needsDowngrade || staleSat || staleOsm) {
+          const dx = tx - px, dz = tz - pz;
+          const d2 = dx * dx + dz * dz;
+          // Tile directly under aircraft gets absolute top priority; forward tiles beat behind tiles at equal distance
+          const underAircraft = (c === cx && r === cz);
+          const fwdBias = (!underAircraft && hasMoveDir) ? Math.max(-TILE * 600, Math.min(TILE * 600, (dx * moveDirX + dz * moveDirZ) * 420)) : 0;
+          const score = underAircraft ? -1e12 : (d2 - fwdBias);
+          candidates.push({ c, r, key, targetLod, nowHasSat, d2, score });
         }
       }
     }
-    candidates.sort((a, b) => a.d - b.d);
-    const maxBuild = loaded.size < 9 ? 9 : 2;
-    for (let i = 0; i < candidates.length && i < maxBuild; i++) {
-      const { c, r, key, stale } = candidates[i];
-      if (stale) {
-        const old = loaded.get(key);
-        if (old) {
-          root.remove(old);
-          old.traverse(o => { if (o.geometry && !sharedGeos.has(o.geometry)) o.geometry.dispose(); });
-        }
+
+    // Strict closest-first priority: LOD0 near tiles always precede LOD1 mid tiles, ordered by squared distance from (px, pz)
+    candidates.sort((a, b) => (a.targetLod - b.targetLod) || (a.score - b.score));
+
+    let lod0BuiltThisFrame = 0;
+    let lod1BuiltThisFrame = 0;
+    const maxLod0PerFrame = 1;
+    const maxLod1PerFrame = isLowMem ? 2 : 4;
+
+    for (let i = 0; i < candidates.length; i++) {
+      if ((nowMs() - tStart) >= FRAME_BUDGET_MS) break;
+      const cand = candidates[i];
+      if (cand.targetLod === 0) {
+        if (lod0BuiltThisFrame >= maxLod0PerFrame) continue;
+      } else {
+        if (lod1BuiltThisFrame >= maxLod1PerFrame) continue;
       }
-      loaded.set(key, buildTile(c, r));
+      const prev = loaded.get(cand.key);
+      if (prev && prev.group) {
+        disposeGroup(prev.group);
+      }
+      const grp = buildTile(cand.c, cand.r, cand.targetLod);
+      loaded.set(cand.key, {
+        group: grp,
+        lod: cand.targetLod,
+        hadSat: Boolean(grp ? grp.userData.hadSat : cand.nowHasSat),
+        osmRev: liveOsmRevision
+      });
+      if (grp) {
+        if (cand.targetLod === 0) lod0BuiltThisFrame++;
+        else lod1BuiltThisFrame++;
+      }
+      if (lod0BuiltThisFrame >= maxLod0PerFrame && lod1BuiltThisFrame >= maxLod1PerFrame) break;
     }
-    for (const [key, grp] of loaded) {
+
+    // Evict tiles outside midRad cleanly with proper GPU disposal
+    for (const [key, entry] of loaded) {
       if (!keep.has(key)) {
-        if (grp) {
-          root.remove(grp);
-          grp.traverse(o => { if (o.geometry && !sharedGeos.has(o.geometry)) o.geometry.dispose(); });
+        if (entry && entry.group) {
+          disposeGroup(entry.group);
         }
         loaded.delete(key);
       }
     }
   }
 
-  return { root, update, getLandmarks: () => REAL_WORLD_LANDMARKS };
+  return {
+    root,
+    update,
+    getLandmarks: () => REAL_WORLD_LANDMARKS,
+    getStats: () => ({
+      tiles: loaded.size,
+      cityCbds: cityCbdGroups.size,
+      osmCells: liveOsmCells.size,
+      osmQueued: osmBuildQueue.length,
+      hasDistantCityLOD: Boolean(distantCityLOD)
+    })
+  };
 }
 const GlobalScenery = { createGlobalScenery, getLandmarks: () => [
   { id: 'golden_gate', name: '金門大橋', lat: 37.8199, lon: -122.4783 },

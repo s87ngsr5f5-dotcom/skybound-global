@@ -28,6 +28,93 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
   const tiles=new Map(), loader=new THREE.TextureLoader();
   const isLowMem=typeof navigator!=='undefined'&&(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent||'')||(navigator.deviceMemory&&navigator.deviceMemory<=4));
   let location='',queue=[],loading=0;
+  let curCol=0,curRow=0,curLx=0,curLz=0;
+
+  // Tiny reused 8x8 offscreen canvas for zero-GC blank/white placeholder tile detection
+  let whiteCheckCanvas=null, whiteCheckCtx=null;
+  function isBlankWhiteTile(img){
+    if(!img||typeof document==='undefined') return false;
+    try{
+      if(!whiteCheckCanvas){
+        whiteCheckCanvas=document.createElement('canvas');
+        whiteCheckCanvas.width=8; whiteCheckCanvas.height=8;
+        whiteCheckCtx=whiteCheckCanvas.getContext('2d',{willReadFrequently:true});
+      }
+      if(!whiteCheckCtx||typeof whiteCheckCtx.getImageData!=='function') return false;
+      whiteCheckCtx.clearRect(0,0,8,8);
+      whiteCheckCtx.drawImage(img,0,0,8,8);
+      const d=whiteCheckCtx.getImageData(0,0,8,8).data;
+      let nearWhite=0, opaque=0;
+      let sumR=0, sumG=0, sumB=0, sumSqR=0, sumSqG=0, sumSqB=0;
+      for(let i=0;i<256;i+=4){
+        const r=d[i], g=d[i+1], b=d[i+2], a=d[i+3];
+        if(a<=16) continue;
+        opaque++;
+        if(r>232&&g>232&&b>232&&Math.abs(r-g)<8&&Math.abs(g-b)<8) nearWhite++;
+        sumR+=r; sumG+=g; sumB+=b;
+        sumSqR+=r*r; sumSqG+=g*g; sumSqB+=b*b;
+      }
+      if(opaque===0) return true;
+      if(nearWhite/opaque>0.85) return true;
+      const mr=sumR/opaque, mg=sumG/opaque, mb=sumB/opaque;
+      const varRGB=((sumSqR/opaque-mr*mr)+(sumSqG/opaque-mg*mg)+(sumSqB/opaque-mb*mb))/3;
+      if(mr>205&&mg>200&&mb>190&&Math.abs(mr-mg)<16&&Math.abs(mr-mb)<24&&varRGB<3.5) return true;
+      return false;
+    }catch{
+      return false;
+    }
+  }
+
+  function tilePriority(tile){
+    const dx=tile.col-curCol, dz=tile.row-curRow;
+    const dist2=dx*dx+dz*dz;
+    if(dist2===0) return -1;
+    const ahead=(dx*curLx+dz*curLz)/Math.sqrt(dist2);
+    return dist2*(ahead>0?(1-0.42*ahead):(1+0.28*Math.abs(ahead)));
+  }
+
+  // Zero-stutter throttled GPU upload queue: strictly at most 1 texture commit per animation frame,
+  // prioritized closest-first (detailUniforms > midDetailUniforms > closest/forward regional tile)
+  const pendingUploads=[];
+  let uploadRafId=0;
+  function flushOneUpload(){
+    uploadRafId=0;
+    while(pendingUploads.length){
+      let bestIdx=0, bestPrio=Infinity;
+      for(let i=0;i<pendingUploads.length;i++){
+        const item=pendingUploads[i];
+        const p=typeof item.getPriority==='function'?item.getPriority():item.priority;
+        if(p<bestPrio){bestPrio=p;bestIdx=i;}
+      }
+      const [job]=pendingUploads.splice(bestIdx,1);
+      if(job.commit()) break;
+    }
+    if(pendingUploads.length&&typeof requestAnimationFrame==='function'){
+      uploadRafId=requestAnimationFrame(flushOneUpload);
+    }
+  }
+  function enqueueUpload(job){
+    for(let i=pendingUploads.length-1;i>=0;i--){
+      if(pendingUploads[i].key===job.key){
+        pendingUploads[i].cancel?.();
+        pendingUploads.splice(i,1);
+      }
+    }
+    pendingUploads.push(job);
+    if(typeof requestAnimationFrame==='function'){
+      if(!uploadRafId) uploadRafId=requestAnimationFrame(flushOneUpload);
+    }else{
+      flushOneUpload();
+    }
+  }
+  function cancelPendingUpload(key){
+    for(let i=pendingUploads.length-1;i>=0;i--){
+      if(pendingUploads[i].key===key){
+        pendingUploads[i].cancel?.();
+        pendingUploads.splice(i,1);
+      }
+    }
+  }
 
   // Dual-Ring Seamless Close-Up Google Satellite Cascade (ONLY 2 floating GPU textures!):
   // Ring 0: Ultra-Close Detail Clipmap (1,000m @ z=17 ~0.55m/px desktop | 1,200m @ z=16 ~1.1m/px mobile)
@@ -61,7 +148,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     }
     return false;
   }
-  function createClipmapRing({ringSpan,refreshDist,targetZoom,minZoom,dim,uniforms,onPixelMap}){
+  function createClipmapRing({ringKey,ringPriority,ringSpan,refreshDist,targetZoom,minZoom,dim,uniforms,onPixelMap}){
     let centerX=1e12, centerZ=1e12, ringLoading=false, ringTexture=null, retryAfter=0;
     return function updateRing(px,pz,quality){
       if(quality==='low'||typeof document==='undefined'||typeof Image==='undefined'||typeof latLon!=='function') return;
@@ -90,11 +177,16 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
       ctx.imageSmoothingEnabled=true;
       try{ctx.imageSmoothingQuality='high';}catch{}
       const jobs=[], n=1<<tz;
+      const midTx=(tx0+tx1)*0.5, midTy=(ty0+ty1)*0.5;
       for(let ty=ty0;ty<=ty1;ty++){
         if(ty<0||ty>=n) continue;
-        for(let tx=tx0;tx<=tx1;tx++) jobs.push({tx:((tx%n)+n)%n,rawTx:tx,ty});
+        for(let tx=tx0;tx<=tx1;tx++){
+          const d2=(tx-midTx)*(tx-midTx)+(ty-midTy)*(ty-midTy);
+          jobs.push({tx:((tx%n)+n)%n,rawTx:tx,ty,d2});
+        }
       }
       if(!jobs.length){ringLoading=false;return;}
+      jobs.sort((a,b)=>a.d2-b.d2);
       let rem=jobs.length, ok=0;
       const doneOne=()=>{
         rem--;
@@ -102,6 +194,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
         ringLoading=false;
         if(ok===0){retryAfter=Date.now()+6000;return;}
         retryAfter=0;
+        centerX=px; centerZ=pz;
         // Capture crisp 64x64 pixel buffer for 3-tier cascading 3D ground clutter & scenery classification
         try{
           if(!satSampleCanvas){
@@ -116,21 +209,27 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
             if(typeof window!=='undefined') window.__SKYBOUND_SAT_REVISION=(window.__SKYBOUND_SAT_REVISION||0)+1;
           }
         }catch{}
-        const tex=new THREE.CanvasTexture(canvas);
-        tex.colorSpace=THREE.SRGBColorSpace;
-        if(THREE.ClampToEdgeWrapping!==undefined){
-          tex.wrapS=THREE.ClampToEdgeWrapping;
-          tex.wrapT=THREE.ClampToEdgeWrapping;
-        }
-        tex.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
-        tex.needsUpdate=true;
-        if(ringTexture) ringTexture.dispose();
-        ringTexture=tex;
-        centerX=px; centerZ=pz;
-        uniforms.image.value=tex;
-        uniforms.bounds.value.set(x0,z0,ringSpan,ringSpan);
-        uniforms.ready.value=1;
-        onLoaded();
+        enqueueUpload({
+          key:ringKey,
+          priority:ringPriority,
+          commit:()=>{
+            const tex=new THREE.CanvasTexture(canvas);
+            tex.colorSpace=THREE.SRGBColorSpace;
+            if(THREE.ClampToEdgeWrapping!==undefined){
+              tex.wrapS=THREE.ClampToEdgeWrapping;
+              tex.wrapT=THREE.ClampToEdgeWrapping;
+            }
+            tex.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
+            tex.needsUpdate=true;
+            if(ringTexture) ringTexture.dispose();
+            ringTexture=tex;
+            uniforms.image.value=tex;
+            uniforms.bounds.value.set(x0,z0,ringSpan,ringSpan);
+            uniforms.ready.value=1;
+            onLoaded();
+            return true;
+          }
+        });
       };
       for(const job of jobs){
         const img=new Image();
@@ -138,6 +237,11 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
         img.referrerPolicy='no-referrer';
         let fb=false;
         img.onload=()=>{
+          if(isBlankWhiteTile(img)){
+            if(!fb){fb=true;img.src=`https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${tz}/${job.ty}/${job.tx}`;return;}
+            doneOne();
+            return;
+          }
           const tLonL=tileXToLon(job.rawTx,tz), tLonR=tileXToLon(job.rawTx+1,tz);
           const tLatT=tileYToLat(job.ty,tz), tLatB=tileYToLat(job.ty+1,tz);
           const u0=((tLonL-minLon)/lonSpan)*dim, u1=((tLonR-minLon)/lonSpan)*dim;
@@ -154,6 +258,8 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     };
   }
   const updateRing0Clipmap=createClipmapRing({
+    ringKey:'ring0',
+    ringPriority:-2000,
     ringSpan:detailSpan,
     refreshDist:isLowMem?380:280,
     targetZoom:isLowMem?16:17,
@@ -163,6 +269,8 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     onPixelMap:(data,bounds)=>{detailPixelMap=data;detailPixelBounds=bounds;}
   });
   const updateMidDetailClipmap=createClipmapRing({
+    ringKey:'ring1',
+    ringPriority:-1000,
     ringSpan:midSpan,
     refreshDist:1300,
     targetZoom:isLowMem?14:15,
@@ -211,6 +319,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
       const u=Math.max(0,Math.min(63,Math.floor(((x-col*span)/span)*64)));
       const v=Math.max(0,Math.min(63,Math.floor(((z-row*span)/span)*64)));
       const idx=(v*64+u)*4;
+      if(pm[idx+3]<=32) return null;
       return {r:pm[idx],g:pm[idx+1],b:pm[idx+2],a:pm[idx+3]};
     };
   }
@@ -251,18 +360,22 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     canvas.width=dim; canvas.height=dim;
     const ctx=canvas.getContext('2d');
     if(!ctx){done(null);return;}
+    // Keep unloaded or skipped blank sub-tiles transparent (alpha=0) with zero edge seams between adjacent 11.5km grid tiles
     ctx.clearRect(0,0,dim,dim);
     ctx.imageSmoothingEnabled=true;
     try{ctx.imageSmoothingQuality='high';}catch{}
     const jobs=[];
     const n=1<<tz;
+    const midTx=(tx0+tx1)*0.5, midTy=(ty0+ty1)*0.5;
     for(let ty=ty0;ty<=ty1;ty++){
       if(ty<0||ty>=n) continue;
       for(let tx=tx0;tx<=tx1;tx++){
-        jobs.push({tx:((tx%n)+n)%n,rawTx:tx,ty});
+        const d2=(tx-midTx)*(tx-midTx)+(ty-midTy)*(ty-midTy);
+        jobs.push({tx:((tx%n)+n)%n,rawTx:tx,ty,d2});
       }
     }
     if(!jobs.length){done(null);return;}
+    jobs.sort((a,b)=>a.d2-b.d2);
     let remaining=jobs.length, loadedCount=0;
     const finishOne=()=>{
       remaining--;
@@ -284,15 +397,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
           if(typeof window!=='undefined') window.__SKYBOUND_SAT_REVISION=(window.__SKYBOUND_SAT_REVISION||0)+1;
         }
       }catch{}
-      const texture=new THREE.CanvasTexture(canvas);
-      texture.colorSpace=THREE.SRGBColorSpace;
-      if(THREE.ClampToEdgeWrapping!==undefined){
-        texture.wrapS=THREE.ClampToEdgeWrapping;
-        texture.wrapT=THREE.ClampToEdgeWrapping;
-      }
-      texture.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
-      texture.needsUpdate=true;
-      done(texture);
+      done(canvas);
     };
     for(const job of jobs){
       const img=new Image();
@@ -300,6 +405,15 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
       img.referrerPolicy='no-referrer';
       let triedFallback=false;
       img.onload=()=>{
+        if(isBlankWhiteTile(img)){
+          if(!triedFallback){
+            triedFallback=true;
+            img.src=`https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${tz}/${job.ty}/${job.tx}`;
+            return;
+          }
+          finishOne();
+          return;
+        }
         const tLonL=tileXToLon(job.rawTx,tz), tLonR=tileXToLon(job.rawTx+1,tz);
         const tLatT=tileYToLat(job.ty,tz), tLatB=tileYToLat(job.ty+1,tz);
         const u0=((tLonL-minLon)/lonSpan)*dim;
@@ -330,26 +444,62 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
       loading++;
       tile.loading=true;
       if(tile.isGlobal){
-        loadGlobalGoogleTile(tile,variant,texture=>{
-          if(texture&&tiles.get(tile.key)===tile&&tile.variant===variant){
-            tile.texture?.dispose();
-            tile.loadedVariant=variant;
-            tile.texture=tile.image.value=texture;
-            tile.ready.value=1;
-            onLoaded();
-          }else if(texture) texture.dispose();
+        loadGlobalGoogleTile(tile,variant,canvas=>{
+          if(canvas&&tiles.get(tile.key)===tile&&tile.variant===variant){
+            tile.pendingVariant=variant;
+            enqueueUpload({
+              key:tile.key,
+              getPriority:()=>tilePriority(tile),
+              cancel:()=>{if(tile.pendingVariant===variant) tile.pendingVariant=null;},
+              commit:()=>{
+                if(tile.pendingVariant===variant) tile.pendingVariant=null;
+                if(tiles.get(tile.key)!==tile||tile.variant!==variant) return false;
+                const texture=new THREE.CanvasTexture(canvas);
+                texture.colorSpace=THREE.SRGBColorSpace;
+                if(THREE.ClampToEdgeWrapping!==undefined){
+                  texture.wrapS=THREE.ClampToEdgeWrapping;
+                  texture.wrapT=THREE.ClampToEdgeWrapping;
+                }
+                texture.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
+                texture.needsUpdate=true;
+                tile.texture?.dispose();
+                tile.loadedVariant=variant;
+                tile.texture=tile.image.value=texture;
+                tile.ready.value=1;
+                onLoaded();
+                return true;
+              }
+            });
+          }
           finish(tile,variant);
         });
       }else{
         loader.load(satelliteTileURL(tile,variant),texture=>{
           if(tiles.get(tile.key)===tile&&tile.variant===variant){
-            texture.colorSpace=THREE.SRGBColorSpace;
-            texture.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
-            tile.texture?.dispose();
-            tile.loadedVariant=variant;
-            tile.texture=tile.image.value=texture;
-            tile.ready.value=1;
-            onLoaded();
+            tile.pendingVariant=variant;
+            enqueueUpload({
+              key:tile.key,
+              getPriority:()=>tilePriority(tile),
+              cancel:()=>{
+                if(tile.pendingVariant===variant) tile.pendingVariant=null;
+                texture.dispose();
+              },
+              commit:()=>{
+                if(tile.pendingVariant===variant) tile.pendingVariant=null;
+                if(tiles.get(tile.key)!==tile||tile.variant!==variant){
+                  texture.dispose();
+                  return false;
+                }
+                texture.colorSpace=THREE.SRGBColorSpace;
+                texture.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
+                tile.texture?.dispose();
+                tile.loadedVariant=variant;
+                tile.texture=tile.image.value=texture;
+                tile.ready.value=1;
+                onLoaded();
+                return true;
+              }
+            });
           }else texture.dispose();
           finish(tile,variant);
         },undefined,()=>finish(tile,variant));
@@ -359,10 +509,16 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
   function finish(tile,variant){
     loading--;
     tile.loading=false;
-    if(tiles.get(tile.key)===tile&&tile.variant&&tile.variant!==variant) queue.unshift([tile,tile.variant]);
+    if(tiles.get(tile.key)===tile&&tile.variant&&tile.variant!==variant){
+      queue.push([tile,tile.variant]);
+      queue.sort((a,b)=>tilePriority(a[0])-tilePriority(b[0]));
+    }
     process();
   }
   function update(col,row,quality,lookX=0,lookZ=0){
+    const lookLen=Math.hypot(lookX,lookZ)||1;
+    const lx=lookX/lookLen, lz=lookZ/lookLen;
+    curCol=col; curRow=row; curLx=lx; curLz=lz;
     const dirBucket=Math.round(Math.atan2(lookX,lookZ)*2);
     const id=col+':'+row+':'+quality+':'+dirBucket;
     if(id===location) return;
@@ -372,8 +528,6 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     // Desktop high/ultra streams 4 regional satellite rings out to ~92-100 km radius; mobile stays capped to prevent OOM!
     const rad=isLowMem?(quality==='low'?2:3):(quality==='low'?3:quality==='balanced'?5:quality==='satellite'?7:8);
     const imageryRadiusSquared=quality==='ultra'?13:quality==='high'?8:2;
-    const lookLen=Math.hypot(lookX,lookZ)||1;
-    const lx=lookX/lookLen, lz=lookZ/lookLen;
     for(let z=row-rad;z<=row+rad;z++){
       for(let x=col-rad;x<=col+rad;x++){
         const key=x+'_'+z;
@@ -382,9 +536,9 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
         const inCatalog=catalog.has(key)&&dist2<=imageryRadiusSquared;
         const isGlobal=!catalog.has(key)&&quality!=='low'&&dist2<=rad*rad+4&&chunkHasLand(x,z);
         if(!inCatalog&&!isGlobal) continue;
-        // Forward-biased priority: load tiles in your line of sight FIRST!
+        // Forward-biased closest-first priority: load tiles nearest & directly in front of you FIRST!
         const ahead=(dx*lx+dz*lz)/(Math.sqrt(dist2)||1);
-        const priority=dist2*(ahead>0?(1-0.38*ahead):(1+0.25*Math.abs(ahead)));
+        const priority=dist2===0?-1:dist2*(ahead>0?(1-0.42*ahead):(1+0.28*Math.abs(ahead)));
         candidates.push({key,x,z,isGlobal,distance:dist2,priority});
       }
     }
@@ -395,6 +549,8 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     const active=new Set(trimmed.map(c=>c.key));
     for(const [key,tile] of tiles){
       if(active.has(key)) continue;
+      cancelPendingUpload(key);
+      tile.pendingVariant=null;
       tile.texture?.dispose();
       tile.material.dispose();
       tiles.delete(key);
@@ -404,7 +560,7 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
     trimmed.forEach(({key,x,z,isGlobal,distance},index)=>{
       let tile=tiles.get(key);
       if(!tile){
-        tile={key,isGlobal,image:{value:null},ready:{value:0},origin:{value:new THREE.Vector2(x*span,z*span)}};
+        tile={key,col:x,row:z,isGlobal,pendingVariant:null,image:{value:null},ready:{value:0},origin:{value:new THREE.Vector2(x*span,z*span)}};
         tile.material=makeMaterial(tile);
         tiles.set(key,tile);
       }
@@ -422,13 +578,16 @@ function createTaiwanSatellite(makeMaterial,renderer,onLoaded){
         tile.variant=variant;
         if(variant) queue.push([tile,variant]);
         else{
+          cancelPendingUpload(key);
+          tile.pendingVariant=null;
           tile.ready.value=0;
           tile.texture?.dispose();
           tile.texture=null;
           tile.image.value=null;
         }
-      }else if(variant&&(!tile.texture||tile.loadedVariant!==variant)&&!tile.loading) queue.push([tile,variant]);
+      }else if(variant&&(!tile.texture||tile.loadedVariant!==variant)&&tile.pendingVariant!==variant&&!tile.loading) queue.push([tile,variant]);
     });
+    queue.sort((a,b)=>tilePriority(a[0])-tilePriority(b[0]));
     process();
   }
   return {update,updateDetailClipmap,updateMidDetailClipmap,detailUniforms,midDetailUniforms,material:(col,row)=>tiles.get(col+'_'+row)?.material};

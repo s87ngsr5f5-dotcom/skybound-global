@@ -54,6 +54,8 @@ function createAtmosphericSky(scene){
       void main(){
         vec3 d=normalize(ray);
         float up=max(0.,d.y);
+        float aboveHor=smoothstep(-0.025,0.02,d.y);
+        float belowHor=smoothstep(0.0,-0.14,d.y);
         float glare=max(0.,dot(sun,d));
         float antiGlare=max(0.,dot(-sun,d));
         float mie=pow(glare,4.2)*.34+pow(glare,18.)*.54+pow(glare,96.)*1.32;
@@ -62,11 +64,11 @@ function createAtmosphericSky(scene){
         vec3 zenith=mix(vec3(.005,.014,.042),vec3(.045,.29,.80),daylight);
         vec3 sky=mix(horizon,midSky,smoothstep(0.,.38,up));
         sky=mix(sky,zenith,smoothstep(.28,.96,up));
-        // Rayleigh horizon scatter & Belt of Venus anti-solar twilight band
-        sky+=vec3(.08,.22,.38)*daylight*exp(-up*3.8)*.38;
-        sky+=vec3(1.02,.40,.10)*twilight*pow(glare,3.2)*exp(-up*2.4)*1.15;
-        sky+=vec3(.62,.22,.38)*twilight*exp(-up*4.5)*(0.75+0.45*antiGlare);
-        sky+=vec3(1.,.92,.70)*daylight*(pow(glare,12.)*.28+smoothstep(.99980,.99997,glare)*9.2)+vec3(.58,.79,1.)*mie*daylight*.82;
+        // Rayleigh horizon scatter & Belt of Venus anti-solar twilight band (attenuated below horizon)
+        sky+=vec3(.08,.22,.38)*daylight*exp(-up*3.8)*.38*aboveHor;
+        sky+=vec3(1.02,.40,.10)*twilight*pow(glare,3.2)*exp(-up*2.4)*1.15*aboveHor;
+        sky+=vec3(.62,.22,.38)*twilight*exp(-up*4.5)*(0.75+0.45*antiGlare)*aboveHor;
+        sky+=(vec3(1.,.92,.70)*daylight*(pow(glare,12.)*.28+smoothstep(.99980,.99997,glare)*9.2)+vec3(.58,.79,1.)*mie*daylight*.82)*aboveHor;
         // High-altitude Cirrus / Ice-Crystal Wisps at ~7,800m
         if(d.y>.035){
           vec2 cirUV=(eye.xz+d.xz*((7800.-eye.y)/max(.04,d.y))-seconds*vec2(18.,6.))/9200.;
@@ -123,7 +125,7 @@ function createAtmosphericSky(scene){
           sky=mix(sky,cloudColor+sky*(1.-opacity),distanceFade);
         }
         if(raytrace>.01&&glare>.18&&(daylight+twilight)>.04&&d.y>-.06){
-          float shaftMask=pow(glare,3.0)*(.42+.58*smoothstep(-.06,.45,d.y));
+          float shaftMask=pow(glare,3.0)*(.42+.58*smoothstep(-.06,.45,d.y))*aboveHor;
           vec3 sunAxis=normalize(mix(d,sun,.32));
           float denom=abs(sunAxis.y)<.09?(sunAxis.y>=0.?.09:-.09):sunAxis.y;
           float baseDist=clamp(abs((1950.-eye.y)/denom),1800.,14000.);
@@ -142,6 +144,11 @@ function createAtmosphericSky(scene){
         }
         vec3 haze=mix(vec3(.08,.10,.14),vec3(.78,.86,.93),daylight);
         sky=mix(sky,haze,mist*exp(-up*2.8));
+        // Seamless below-horizon Earth/Ocean nadir blend (eliminates white/pale void below horizon)
+        vec3 earthDeep=mix(vec3(.015,.028,.055),vec3(.14,.32,.48),daylight);
+        earthDeep=mix(earthDeep,earthDeep*.68+vec3(.09,.05,.04),twilight*.45);
+        earthDeep=mix(earthDeep,haze*.48,mist*.62);
+        sky=mix(sky,earthDeep,belowHor);
         gl_FragColor=vec4(sky,1.);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
